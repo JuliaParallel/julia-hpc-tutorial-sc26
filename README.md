@@ -2,29 +2,29 @@
 
 Welcome to the Julia for High-performance Computing (HPC) Tutorial at SC26 in Chicago, IL! This **full-day, 6-hour hands-on** tutorial introduces participants to using the Julia programming language effectively in HPC environments, from first principles to end-to-end deployment on a leadership-class system. 
 
-## Audience Target: 
+## Audience Target
 
 - Those familiar with programming language that want to learn more about Julia.
 - Those without previous HPC familiarity. In fact, Julia is a great introductory language for HPC.
 - Those interested in 
 
-## Topics Covered:
+## Topics Covered
 
 - Introduction to the Julia language and ecosystem
 - Agentic AI development
 - Vendor-neutral parallel computing in Julia, intra-node: [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl), [JACC.jl](https://github.com/JuliaGPU/JACC.jl), inter-node: [MPI.jl](https://github.com/JuliaParallel/MPI.jl), [Dagger.jl](https://github.com/JuliaParallel/Dagger.jl)
 - Running and profiling a Julia application on a HPC Cluster 
 
-## Final Agenda:
+## Final Agenda
 
 TBD
 
 
-## Resources:
+## Resources
 - [Julia Language](https://julialang.org/)
 - [Julia for HPC Tutorial](https://juliaornl.github.io/TutorialJuliaHPC/)
 
-## Training system access:
+## ORNL's Odo, Training system access
 Participants are encourage to sign up for access to the Oak Ridge National Laboratory (ORNL) Leadership Computing Facility (OLCF) [Odo Training system](https://docs.olcf.ornl.gov/systems/odo_user_guide.html) (32 nodes of Frontier, 8 AMD MI250X nodes).
 
 - Please use a verified institutional email (no gmail or other similar service)

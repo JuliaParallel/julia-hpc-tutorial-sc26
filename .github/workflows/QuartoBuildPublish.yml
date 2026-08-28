@@ -1,0 +1,98 @@
+name: Build and Publish Quarto Presentation
+
+on:
+  pull_request:
+    paths: &paths
+      - '.github/workflows/QuartoBuildPublish.yml'
+      - 'presentations/intro-julia/**'
+  push:
+    branches:
+      - main
+    paths: *paths
+  workflow_dispatch:
+
+concurrency:
+  # Skip intermediate builds: all builds except for builds on the `main` branch
+  # Cancel intermediate builds: only pull request builds
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+
+jobs:
+  build-publish-quarto:
+    timeout-minutes: 20
+
+    permissions:
+      contents: write
+
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: presentations/intro-julia
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - uses: julia-actions/setup-julia@v3
+
+    - name: Load Julia packages from cache
+      uses: julia-actions/cache@v3
+
+    - name: Install dependencies
+      shell: julia --color=yes --project {0}
+      run: |
+        using Pkg: Pkg
+        Pkg.instantiate()
+
+    - name: Render HTML presentation
+      # Presentation will be rendered when publishing, no need to do it twice.
+      if: github.event_name == 'pull_request'
+      shell: julia --color=yes --project {0}
+      run: |
+        using quarto_jll: quarto
+        run(`$(quarto()) render index.qmd`)
+
+    - name: Configure Git
+      if: github.event_name != 'pull_request'
+      run: |
+        git config user.name "${{github.actor}}"
+        git config user.email "${{github.actor_id}}+${{github.actor}}@users.noreply.github.com"
+
+    - name: Render and publish HTML presentation
+      shell: julia --color=yes --project {0}
+      if: github.event_name != 'pull_request'
+      run: |
+        using quarto_jll: quarto
+        run(`$(quarto()) publish --no-prompt --no-browser gh-pages index.qmd`)
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install TinyTeX
+      shell: julia --color=yes --project {0}
+      run: |
+        using quarto_jll: quarto
+        run(`$(quarto()) install tinytex`)
+
+    - name: Render PDF presentation
+      shell: julia --color=yes --project {0}
+      run: |
+        using quarto_jll: quarto
+        run(`$(quarto()) render index.qmd --to pdf`)
+
+    - name: Upload PDF presentation
+      uses: actions/upload-artifact@v7
+      with:
+        name: pdf-presentation
+        path: |
+          **/index.pdf
+        retention-days: 30
+
+    - name: Upload HTML presentation
+      uses: actions/upload-artifact@v7
+      with:
+        name: html-presentation
+        path: |
+          **/index.html
+          **/index_files
+        retention-days: 30

@@ -31,6 +31,7 @@ Participants are encourage to sign up for access to the Oak Ridge National Labor
 - Please make sure you registered for the SC26 Tutorials
 - Deadline to register: **November 6, 2026**
 - To register: [https://my.olcf.ornl.gov/](https://my.olcf.ornl.gov/), follow instructions and use ProjectID: **TRN047**, and account type: **Open**.
+  **NOTE**: "Funding source" means simply "who pays you?" (exact precision is not necessary as this is a training account)
 - Questions about Odo access? Please reach out to [William F Godoy](https://www.ornl.gov/staff-profile/william-f-godoy), godoywf@ornl.gov 
 
 ## Contributors

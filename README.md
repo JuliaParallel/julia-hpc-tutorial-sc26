@@ -6,12 +6,11 @@ Welcome to the Julia for High-performance Computing (HPC) Tutorial at SC26 in Ch
 
 - Those familiar with programming language that want to learn more about Julia.
 - Those without previous HPC familiarity. In fact, Julia is a great introductory language for HPC.
-- Those interested in 
 
 ## Topics Covered
 
 - Introduction to the Julia language and ecosystem
-- Agentic AI development
+- Task-based parallel programming with [Dagger.jl](02-Dagger/README.md) (1 hour)
 - Vendor-neutral parallel computing in Julia, intra-node: [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl), [JACC.jl](https://github.com/JuliaGPU/JACC.jl), inter-node: [MPI.jl](https://github.com/JuliaParallel/MPI.jl), [Dagger.jl](https://github.com/JuliaParallel/Dagger.jl)
 - Running and profiling a Julia application on a HPC Cluster 
 

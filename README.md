@@ -1,6 +1,7 @@
 # The Julia for HPC Tutorial at SC26
 
-Welcome to the Julia for High-performance Computing (HPC) Tutorial at SC26 in Chicago, IL! This **full-day, 6-hour hands-on** tutorial introduces participants to using the Julia programming language effectively in HPC environments, from first principles to end-to-end deployment on a leadership-class system. 
+Welcome to the Julia for High-performance Computing (HPC) Tutorial at SC26 in Chicago, IL! This **full-day, 6-hour hands-on** tutorial introduces participants to using the Julia programming language effectively in HPC environments, from first principles to end-to-end deployment on a leadership-class system.
+Registered participants: please look at the end of this file for access to the Oak Ridge National Laboratory [Odo system](https://docs.olcf.ornl.gov/systems/odo_user_guide.html) (32 nodes of Frontier, each node has 8 AMD MI250X GPUs). 
 
 ## Audience Target
 
@@ -10,10 +11,9 @@ Welcome to the Julia for High-performance Computing (HPC) Tutorial at SC26 in Ch
 
 ## Topics Covered
 
-- Introduction to the Julia language and ecosystem
-- Agentic AI development
+- Introduction to the Julia language and ecosystem for high-productivity
 - Vendor-neutral parallel computing in Julia, intra-node: [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl), [JACC.jl](https://github.com/JuliaGPU/JACC.jl), inter-node: [MPI.jl](https://github.com/JuliaParallel/MPI.jl), [Dagger.jl](https://github.com/JuliaParallel/Dagger.jl)
-- Running and profiling a Julia application on a HPC Cluster 
+- Running and profiling a Julia application, the Gray-Scott diffusion-reaction partial differential equation solver on a HPC Cluster (CPU and GPU).
 
 ## Final Agenda
 
@@ -23,16 +23,6 @@ TBD
 ## Resources
 - [Julia Language](https://julialang.org/)
 - [Julia for HPC Tutorial](https://juliaornl.github.io/TutorialJuliaHPC/)
-
-## ORNL's Odo, Training system access
-Participants are encourage to sign up for access to the Oak Ridge National Laboratory (ORNL) Leadership Computing Facility (OLCF) [Odo Training system](https://docs.olcf.ornl.gov/systems/odo_user_guide.html) (32 nodes of Frontier, 8 AMD MI250X nodes).
-
-- Please use a verified institutional email (no gmail or other similar service)
-- Please make sure you registered for the SC26 Tutorials
-- Deadline to register: **November 6, 2026**
-- To register: [https://my.olcf.ornl.gov/](https://my.olcf.ornl.gov/), follow instructions and use ProjectID: **TRN047**, and account type: **Open**.
-  **NOTE**: "Funding source" means simply "who pays you?" (exact precision is not necessary as this is a training account)
-- Questions about Odo access? Please reach out to [William F Godoy](https://www.ornl.gov/staff-profile/william-f-godoy), godoywf@ornl.gov 
 
 ## Contributors
 
@@ -61,3 +51,26 @@ The "Julia for HPC" Tutorial series has been an international multi-institutiona
 - [William F Godoy](https://www.ornl.gov/staff-profile/william-f-godoy) 
 - [Philip Fackler](https://www.ornl.gov/staff-profile/philip-w-fackler)
 - [Pedro Valero-Lara](https://www.ornl.gov/staff-profile/pedro-valero-lara)
+
+
+## ORNL's Odo, Training system access
+Participants are encourage to sign up for access to the Oak Ridge National Laboratory (ORNL) Leadership Computing Facility (OLCF) [Odo Training system](https://docs.olcf.ornl.gov/systems/odo_user_guide.html) (32 nodes of Frontier, 8 AMD MI250X nodes).
+
+- Please use a verified institutional email (no gmail or other similar service)
+- Please make sure you registered for the SC26 Tutorials
+- Deadline to register: **November 6, 2026**
+- To register: [https://my.olcf.ornl.gov/](https://my.olcf.ornl.gov/), follow instructions and use ProjectID: **TRN047**, and account type: **Open**.
+  **NOTE**: "Funding source" means simply "who pays you?" (exact precision is not necessary as this is a training account)
+- Questions about Odo access? Please reach out to [William F Godoy](https://www.ornl.gov/staff-profile/william-f-godoy), godoywf@ornl.gov 
+
+Once you have access to Odo please follow these steps to setup access to Julia and this repo:
+
+```
+cd /gpfs/wolf2/olcf/trn047/scratch/$USER
+git clone https://github.com/JuliaParallel/julia-hpc-tutorial-sc26.git
+cd julia-hpc-tutorial-sc26
+source setenv-odo.sh
+```
+
+Each instructor will provide content-specific steps after that.
+

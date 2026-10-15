@@ -2,8 +2,10 @@
 
 # Set $SCRATCH environment variable to run Tutorial contents on the Odo OLCF system
 # Odo is 32 nodes of Frontier, each node has 8 MI250X GPUs
-export SCRATCH=/gpfs/wolf2/olcf/trn047/scratch/$USER
-echo 'export SCRATCH=/gpfs/wolf2/olcf/trn047/scratch/$USER' >> ~/.bashrc
+if [ -z "${SCRATCH}" ]; then
+  export SCRATCH=/gpfs/wolf2/olcf/trn047/scratch/$USER
+  echo 'export SCRATCH=/gpfs/wolf2/olcf/trn047/scratch/$USER' >> ~/.bashrc
+fi
 
 # Load Julia v1.13.1 module
 module load julia/1.13.1

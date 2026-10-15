@@ -5,9 +5,9 @@ Registered participants: please look at the end of this file for access to the O
 
 ## Audience Target
 
-- Those familiar with programming language that want to learn more about Julia.
+- Those familiar with a programming language that want to learn more about Julia.
 - Those without previous HPC familiarity. In fact, Julia is a great introductory language for HPC.
-- Those interested in 
+- Those interested in how Julia can help them go from idea to deploy at large scale on HPC systems - all in one language.
 
 ## Topics Covered
 

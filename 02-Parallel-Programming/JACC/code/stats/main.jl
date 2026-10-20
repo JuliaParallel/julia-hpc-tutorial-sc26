@@ -5,6 +5,8 @@ export min_max_avg
 
 include("orig.jl")
 
-init(N; array_type=Vector) = array_type(round.(rand(N) * 100))
+function init(N; array_type=Vector, dtype = Float64)
+    return array_type(round.(rand(dtype, N) * 100))
+end
 
 end

@@ -61,6 +61,11 @@ $presentation-slide-text-align: left;
 .reveal .demo { border-top: 2px solid var(--mint); padding-top: 22px; }
 .reveal .demo h2 { font-size: 2.25em; margin-bottom: 28px; }
 .reveal .demo .prompt { color: var(--muted); font-size: .85em; margin-top: 30px; }
+.reveal .task-demo h2 { font-size: 1.65em; margin-bottom: .4em; }
+.reveal .task-demo pre { font-size: .68em; }
+.reveal .task-demo pre.sourceCode { padding: 16px 18px; }
+.reveal .task-demo .demo-output pre { border: 1px solid #4d806d; padding: 12px 18px; }
+.reveal .task-demo .demo-output code { color: var(--mint); }
 .reveal .closing h2 { font-size: 2.4em; }
 .reveal .checkpoint { display: inline-block; border: 1px solid #4d806d; border-radius: 100px; padding: 6px 16px; color: var(--mint); font-size: .55em; margin-bottom: 20px; }
 .reveal .exercise-title { display: flex; justify-content: space-between; align-items: baseline; }

@@ -215,28 +215,86 @@ The launcher selects the tutorial project and CPU threads on the compute node.
 Keep this transition and the following demo within the 6:00–8:00 slot.
 :::
 
-## See the graph become work {.demo}
-
-::: {.kicker}
-Live demo / 01 / Tasks
-:::
-
-::: {.small}
-In the compute-node Julia session you just opened:
-:::
+## Run the graph. See the threads. {.demo .task-demo}
 
 ```julia-repl
 julia> include("demos/01_tasks.jl")
 ```
 
-::: {.prompt}
-Watch for: the final sum and the thread IDs used by independent tasks.
+:::: {.columns}
+::: {.column width="48%"}
+::: {.eyebrow}
+01 / A matrix computation
+:::
+
+```julia
+a = Dagger.@spawn rand(2000, 2000)
+b = Dagger.@spawn rand(2000, 2000)
+c = Dagger.@spawn a * b
+d = Dagger.@spawn sum(c)
+println("sum = ", fetch(d))
+```
+
+::: {.demo-output}
+```text
+sum = 2.000272931218996e9
+```
+:::
+
+::: {.small}
+Two matrices → product → sum.<br>
+<code>fetch(d)</code> waits for the whole graph.
+:::
+:::
+
+::: {.column width="48%"}
+::: {.eyebrow}
+02 / Eight independent tasks
+:::
+
+```julia
+whereami() = (sleep(0.1); Threads.threadid())
+tids = fetch.([
+    Dagger.@spawn whereami() for _ in 1:8
+])
+println("ran on threads: ", tids)
+```
+
+::: {.demo-output}
+```text
+ran on threads: [2, 7, 5, 3, 6, 4, 1, 7]
+```
+:::
+
+::: {.small}
+Each task reports its thread ID.<br>
+Different IDs show execution across CPU threads.
+:::
+:::
+::::
+
+::: {.takeaway}
+Dependencies order the matrix tasks. Independent tasks can overlap.
+:::
+
+::: {.source-note}
+Example output from Odo; random values and thread assignments vary.
 :::
 
 ::: {.notes}
 6:00–8:00. Run in the warm compute-node REPL, not on the login node.
-Explain that a single run need not use every CPU thread. The independent tasks
-include a short sleep to make overlap visible. Then return to slides.
+The include executes both code excerpts; using Dagger is omitted here.
+First explain the computation: generate two independent 2000-by-2000 random
+matrices, multiply them once both are ready, then reduce the product to a scalar.
+The printed sum comes from fetch(d), after that graph finishes. There are no
+manual waits between the four task submissions.
+Then explain the separate thread probe: eight independent tasks each sleep for
+0.1 seconds and report their thread ID. Sleep gives the tasks a chance to overlap.
+The IDs belong to this probe, not to the matrix tasks above; they show placement
+across threads, without measuring how much execution overlapped or any speedup.
+The output shown is from the October 21 Odo validation. A run need not use every
+CPU thread, and the numeric sum and thread assignments will vary.
+Point from each output line back to the code that produced it. Then return to slides.
 :::
 
 ## Mutation needs one extra piece of information

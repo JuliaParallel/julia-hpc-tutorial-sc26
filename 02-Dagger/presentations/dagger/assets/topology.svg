@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 385" role="img" aria-label="Four MPI ranks on one node, each bound to a distinct GPU">
+<title>Four MPI ranks on one node, each bound to a distinct GPU</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10" fill="#adbdc9"/></marker></defs>
+<rect x="15" y="15" width="1090" height="335" rx="14" fill="#182530" stroke="#415b6b" stroke-width="1.5"/>
+<text x="45" y="55" fill="#adbdc9" font-size="19" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="start">ONE COMPUTE NODE / FOUR MPI RANKS / FOUR DISTINCT GPUS</text>
+<rect x="45" y="85" width="230" height="75" rx="14" fill="#182530" stroke="#73e2bd" stroke-width="1.5"/>
+<text x="160.0" y="130.5" fill="#73e2bd" font-size="25" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">MPI rank 0</text>
+<line x1="160" y1="169" x2="160" y2="206" stroke="#415b6b" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="45" y="218" width="230" height="90" rx="14" fill="#182530" stroke="#b8a0f5" stroke-width="1.5"/>
+<text x="160.0" y="262.0" fill="#b8a0f5" font-size="23" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">GPU device 1</text>
+<text x="160.0" y="293.0" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">rank-local device index</text>
+<rect x="305" y="85" width="230" height="75" rx="14" fill="#182530" stroke="#73e2bd" stroke-width="1.5"/>
+<text x="420.0" y="130.5" fill="#73e2bd" font-size="25" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">MPI rank 1</text>
+<line x1="420" y1="169" x2="420" y2="206" stroke="#415b6b" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="305" y="218" width="230" height="90" rx="14" fill="#182530" stroke="#b8a0f5" stroke-width="1.5"/>
+<text x="420.0" y="262.0" fill="#b8a0f5" font-size="23" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">GPU device 1</text>
+<text x="420.0" y="293.0" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">rank-local device index</text>
+<rect x="565" y="85" width="230" height="75" rx="14" fill="#182530" stroke="#73e2bd" stroke-width="1.5"/>
+<text x="680.0" y="130.5" fill="#73e2bd" font-size="25" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">MPI rank 2</text>
+<line x1="680" y1="169" x2="680" y2="206" stroke="#415b6b" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="565" y="218" width="230" height="90" rx="14" fill="#182530" stroke="#b8a0f5" stroke-width="1.5"/>
+<text x="680.0" y="262.0" fill="#b8a0f5" font-size="23" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">GPU device 1</text>
+<text x="680.0" y="293.0" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">rank-local device index</text>
+<rect x="825" y="85" width="230" height="75" rx="14" fill="#182530" stroke="#73e2bd" stroke-width="1.5"/>
+<text x="940.0" y="130.5" fill="#73e2bd" font-size="25" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">MPI rank 3</text>
+<line x1="940" y1="169" x2="940" y2="206" stroke="#415b6b" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="825" y="218" width="230" height="90" rx="14" fill="#182530" stroke="#b8a0f5" stroke-width="1.5"/>
+<text x="940.0" y="262.0" fill="#b8a0f5" font-size="23" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">GPU device 1</text>
+<text x="940.0" y="293.0" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">rank-local device index</text>
+<text x="560" y="378" fill="#adbdc9" font-size="20" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">MPI communication stays within this node</text>
+</svg>

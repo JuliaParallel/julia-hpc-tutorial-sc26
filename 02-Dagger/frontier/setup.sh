@@ -1,23 +1,18 @@
 #!/bin/bash
-# INSTRUCTORS, once, before the tutorial: build the shared pre-compiled depot.
-# Run on an Odo COMPUTE node (so AMDGPU finds a GPU while precompiling):
-#   salloc ... ; srun -n1 bash frontier/setup.sh
+# Run inside a compute step, without nesting another srun:
+# srun -N1 -n1 -c7 --gpus-per-task=8 --gpu-bind=none bash frontier/setup.sh
+# Set SC26_DEPOT to the course depot to prepare it for attendees.
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
-export JULIA_DEPOT_PATH="$SC26_SHARED_DEPOT"    # write into the shared depot only
-
+mkdir -p "$SC26_DEPOT"
+# Download packages and write MPI preferences with prepare.sh on a login node first.
+export JULIA_PKG_OFFLINE=true
 julia --project="$SC26_ROOT" -e '
     using Pkg
-    Pkg.instantiate()
-    # Use Cray MPICH instead of the bundled MPICH (writes LocalPreferences.toml)
-    using MPIPreferences
-    MPIPreferences.use_system_binary(; library_names=["libmpi_cray"], mpiexec="srun")
     Pkg.precompile()
     using Dagger, AMDGPU, MPI, UnicodePlots
-    println("Dagger ", pkgversion(Dagger), "  AMDGPU functional: ", AMDGPU.functional())
+    println("Dagger ", pkgversion(Dagger))
+    AMDGPU.functional() || error("AMDGPU is not functional")
+    println("Visible AMD GPUs: ", AMDGPU.devices())
+    println("MPI: ", MPI.Get_library_version())
 '
-# Smoke test: every path the students will use
-bash "$SC26_ROOT/frontier/run.sh" 1 --impl=solution --target=cpu --sizes=2048 --trials=1
-bash "$SC26_ROOT/frontier/run.sh" 1 --impl=solution --target=gpu --sizes=8192 --trials=1
-bash "$SC26_ROOT/frontier/run.sh" 2 --impl=solution --mpi --strict --sizes=2048 --trials=1
-chmod -R a+rX "$SC26_SHARED_DEPOT"

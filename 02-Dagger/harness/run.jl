@@ -15,11 +15,13 @@
 #   --target=cpu|gpu|mixed    where Dagger may run tasks (default: cpu)
 #   --sizes=2048,4096         matrix sizes N (default depends on target)
 #   --bs=512                  tile size (default depends on target)
-#   --trials=3                timed runs per size
+#   --trials=1                timed runs per size (use 3 for benchmarking)
 #   --label=NAME              tag stored with your results (default: $USER)
 #   --mpi                     run under MPI (launch with srun/mpiexec)
 #   --strict                  spread tasks away from their data, to catch missing
 #                             InOut annotations (use with --mpi)
+#   --gpus=1|all              use the first GPU or all visible GPUs per rank
+#   --reload                  reload unchanged implementation/helper files too
 #
 # Examples:
 #   julia --project -t 4 harness/run.jl --impl=student --target=cpu
@@ -27,7 +29,8 @@
 #   srun -n 2 julia --project -t 3 harness/run.jl --impl=student --mpi
 
 const USE_MPI = "--mpi" in ARGS
-const USE_GPU = any(a -> a in ("--target=gpu", "--target=mixed"), ARGS)
+const USE_GPU = isdefined(@__MODULE__, :INTERACTIVE_SESSION) ||
+                any(a -> a in ("--target=gpu", "--target=mixed"), ARGS)
 
 if USE_MPI
     using MPI
@@ -47,8 +50,9 @@ function main(args)
     BLAS.set_num_threads(1)
 
     say("== Dagger Cholesky harness ==")
-    say("impl=$(o.impl)  target=$(o.target)  ranks=$(nranks())  threads/rank=$(Threads.nthreads())  bs=$(o.bs)", o.strict ? "  STRICT" : "")
-    USE_GPU && say("GPU: ", AMDGPU.device(), "  functional=", AMDGPU.functional())
+    say("impl=$(o.impl)  target=$(o.target)  gpus=$(o.gpus)  ranks=$(nranks())  threads/rank=$(Threads.nthreads())  bs=$(o.bs)", o.strict ? "  STRICT" : "")
+    o.target != "cpu" && say("GPU: ", AMDGPU.device(), "  functional=", AMDGPU.functional(),
+                            "  visible devices/rank=", length(AMDGPU.devices()))
 
     run! = make_runner(o)
 
@@ -94,6 +98,8 @@ function main(args)
     return failed ? 1 : 0
 end
 
-code = main(ARGS)
-USE_MPI && MPI.Barrier(MPI.COMM_WORLD)
-exit(code)
+if abspath(PROGRAM_FILE) == @__FILE__
+    code = main(ARGS)
+    USE_MPI && MPI.Barrier(MPI.COMM_WORLD)
+    exit(code)
+end

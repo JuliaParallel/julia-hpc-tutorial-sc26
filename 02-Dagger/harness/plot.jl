@@ -42,7 +42,11 @@ function main(args)
     # UnicodePlots sizes the axes from the first series only, so fix them up front
     all_n = [n for d in values(series) for n in keys(d)]
     ymax = maximum(v for d in values(series) for v in values(d))
-    lims = (xlim=(minimum(all_n), maximum(all_n)), ylim=(0, ceil(Int, 1.05ymax)))
+    xmin, xmax = extrema(all_n)
+    if xmin == xmax
+        xmin, xmax = xmin / 2, xmax * 2
+    end
+    lims = (xlim=(xmin, xmax), ylim=(0, max(1, ceil(Int, 1.05ymax))))
     plt = nothing
     for name in names
         ns = sort!(collect(keys(series[name])))
@@ -64,4 +68,4 @@ function main(args)
     end
 end
 
-main(ARGS)
+abspath(PROGRAM_FILE) == (@__FILE__) && main(ARGS)

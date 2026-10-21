@@ -6,11 +6,28 @@ threads, on an AMD GPU, and across MPI ranks.
 
 Edit `exercise/my_cholesky.jl` following the steps below. Allow about
 12 minutes for the CPU implementation, 8 minutes for the GPU run,
-6 minutes for MPI, and 4 minutes to plot and discuss results.
+6 minutes for MPI, and 4 minutes to plot and discuss results when continuous
+Odo access is confirmed. Rotating access uses the alternative schedule linked below.
 
 Run all commands from `02-Dagger/`. For a laptop or workstation, use
 `julia --project -t 4 harness/run.jl` in place of `bash frontier/run.sh 1`;
 see the [quickstart](../README.md) for the local MPI launch command.
+
+The course assumes 25 independent attendees and one presenter, each with one
+compute node. MPI uses multiple ranks on that node. Everyone works in their own
+source copy and account. If Odo
+access is scheduled in windows, do CPU work locally until your assigned window;
+install and check the environment before the conference. For a small CPU check:
+
+```bash
+julia --project -t 4 harness/run.jl --impl=student --sizes=1024 --bs=256 --trials=1
+```
+
+Use the organizer's allocation time limit and reservation during your Odo
+window. The local path requires a working Julia environment on your laptop or
+the alternate CPU service arranged before the event. Keep computation off Odo
+login nodes. See the [access plan](../PLAN.md#resource-plan-for-25-attendees-and-one-presenter)
+for the alternative schedule and which checkpoints run remotely.
 
 ## The algorithm in one picture
 
@@ -29,10 +46,13 @@ any of that; Dagger does, from your `In`/`InOut` annotations.
 
 ## Steps
 
-**0. Get onto a compute node** (do this during the talk):
+**0. Get onto a compute node** (during your assigned access window, or during
+the talk if continuous access has been confirmed):
 
 ```bash
 source frontier/env.sh
+export SC26_NODES=1
+# For rotating access, first export the organizer's SC26_TIME and SC26_RESERVATION.
 bash frontier/allocate.sh
 ```
 
@@ -56,18 +76,26 @@ Done when every line says `PASS`.
 
 **2. Same code, on the GPU.** No edits:
 
-This step requires a working AMD GPU environment. If the GPU path is
-unavailable, use the instructor demonstration and continue to MPI.
+Use the smaller default sizes first for quick correctness feedback. Keep a
+warm REPL with `bash frontier/repl.sh` if repeated Julia startup slows iteration;
+call `TutorialSession.benchmark(impl="student", target="gpu", sizes=[2048], bs=512)`.
 
 ```bash
 bash frontier/run.sh 1 --impl=student --target=gpu
 ```
 
-**3. Same code, on MPI.** No edits:
+**3. Same code, on MPI.** Two ranks on your existing node; no second node is
+needed. No edits. If you used the warm Julia REPL, first
+enter `exit()` to release its Slurm step. Then either use a fresh run:
 
 ```bash
 bash frontier/run.sh 2 --impl=student --mpi --strict
 ```
+
+For repeated runs, use `bash frontier/mpi-repl.sh 2`. After its initial warm-up,
+enter `--impl=student --strict --sizes=1024 --bs=256` at the `mpi>` prompt.
+Add `--target=gpu` for two GPU ranks on your node; `plot` draws the results and
+`quit` releases the step. Edited implementation files reload automatically.
 
 `--strict` makes Dagger place tasks away from their data, so a missing
 `InOut` loses its writes and fails the check. It can pass without
@@ -79,11 +107,16 @@ bash frontier/run.sh 2 --impl=student --mpi --strict
 julia --project harness/plot.jl --label=$USER
 ```
 
+For a warm session, `TutorialSession.plot()` draws the chart in your SSH
+terminal. The instructor can also export PNG/SVG charts and browser task
+timelines; see the [visual feedback workflow](../README.md#fast-feedback-and-plots-over-ssh).
+
 ## Stretch goals
 
 - **Tune the tile size:** `--bs=512`, `--bs=1024`, `--bs=4096` on the GPU. Why is there a sweet spot?
 - **Compare:** `--impl=builtin` (Dagger's own Cholesky) and `--impl=vendor`
   (one LAPACK or rocSOLVER call on the whole matrix).
+- **All visible GPUs:** `--target=gpu --gpus=all`. Use the topology demo to see device placement.
 - **CPU and GPU together:** `--target=mixed`. Is it faster? Why not?
 - Look at `solution/my_cholesky.jl` only once you're done.
 

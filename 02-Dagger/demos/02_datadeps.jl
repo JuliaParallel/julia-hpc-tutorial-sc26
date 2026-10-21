@@ -12,7 +12,9 @@ Dagger.spawn_datadeps() do
     Dagger.@spawn add!(InOut(B), In(A))      # B += A
     Dagger.@spawn copyto!(Out(C), In(B))     # C = B  (waits for add! -- reads B)
 end
-println("ordered correctly: ", C ≈ B0 .+ A)
+ordered = C ≈ B0 .+ A
+println("ordered correctly: ", ordered)
+@assert ordered
 # Delete every `Dagger.@spawn` and the In/InOut wrappers: this is still
 # correct serial code. Datadeps keeps the program's sequential meaning.
 
@@ -24,4 +26,6 @@ Dagger.spawn_datadeps() do
         Dagger.@spawn double!(InOut(tile))
     end
 end
-println("16 tiles doubled in parallel: ", collect(DA) ≈ 2 .* A0)
+doubled = collect(DA) ≈ 2 .* A0
+println("16 tiles doubled in parallel: ", doubled)
+@assert doubled

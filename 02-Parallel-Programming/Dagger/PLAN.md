@@ -70,7 +70,7 @@ on a single device.
 ## Session preparation
 
 - Confirm the resource layout below before assigning Odo allocation windows. Each attendee uses their own account, source copy, and results. Use `frontier/allocate.sh` only during the assigned window if access is rotated.
-- Download packages on the login node with `frontier/prepare.sh`, then precompile on a compute node with `frontier/setup.sh`. Prepare a shared course depot before attendees log in.
+- `frontier/allocate.sh` downloads packages on the login node with `frontier/prepare.sh` before requesting resources. Then precompile on a compute node with `frontier/setup.sh`. For allocations obtained another way, run `prepare.sh` on the login node first. Prepare a shared course depot before attendees log in.
 - Run `frontier/validate.sh` in a one-node allocation, including the four-rank GPU checks. Revalidate whenever the resolved Dagger master commit or ROCm module changes.
 - Run each demo before the session and keep a warm Julia REPL for demos 1–3.
 - Launch MPI in a separate terminal; release the REPL step first if it reserves the resources that MPI needs. Prepare recorded GPU and MPI demonstrations as fallbacks.

@@ -196,15 +196,16 @@ Keep this session open for the demos.
 :::
 
 ::: {.small}
-The launcher installs dependencies before starting Julia. First launch may take longer.
+<code>allocate.sh</code> installs dependencies on the login node before requesting a node.
 :::
 
 ::: {.notes}
 At 6:00, before the first demo. The checkout location matches the repository's
 Odo access instructions; adjust the first cd if you cloned elsewhere.
-Clone the repository before class. repl.sh runs prepare.sh in the login-node
-allocation shell before launching the compute step, so missing packages and
-lazy artifacts are downloaded and Cray MPI preferences are configured there.
+Clone the repository before class. allocate.sh runs prepare.sh on the login
+node before calling salloc, so missing packages and lazy artifacts are downloaded
+and Cray MPI preferences are configured before entering the allocation shell.
+The REPL launchers do not download packages and set Julia's package manager offline.
 Package compilation takes place on the compute node. Instructors should still
 prepare and precompile the environment before class to avoid startup delays.
 Obtain the one-node allocation in advance where possible. Skip allocate.sh if

@@ -2,6 +2,10 @@
 # Download packages on the LOGIN node; compute nodes cannot reach package servers.
 # Then run setup.sh in a compute step to precompile and check devices.
 set -euo pipefail
+if [[ "$(hostname -s)" != login* ]]; then
+    echo "Run frontier/prepare.sh on an Odo login node before requesting an allocation." >&2
+    exit 1
+fi
 source "$(dirname "$0")/env.sh"
 mkdir -p "$SC26_DEPOT"
 julia --project="$SC26_ROOT" -e '

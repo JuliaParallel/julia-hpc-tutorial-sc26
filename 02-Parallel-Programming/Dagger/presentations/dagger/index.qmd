@@ -176,14 +176,55 @@ Spawn returns a handle promptly. No manual wait is needed between these calls.
 Ask: which two tasks could overlap? Use the graph rather than terminology.
 :::
 
+## Open your compute-node REPL
+
+::: {.small}
+In an Odo login terminal, with the course repository already cloned:
+:::
+
+```bash
+cd /gpfs/wolf2/olcf/trn047/scratch/$USER
+cd julia-hpc-tutorial-sc26/02-Parallel-Programming/Dagger
+export SC26_NODES=1
+bash frontier/allocate.sh  # skip if already in your allocation
+bash frontier/repl.sh
+```
+
+::: {.takeaway}
+Wait for <code>julia&gt;</code>. You are now running Julia on a compute node.<br>
+Keep this session open for the demos.
+:::
+
+::: {.small}
+The launcher installs dependencies before starting Julia. First launch may take longer.
+:::
+
+::: {.notes}
+At 6:00, before the first demo. The checkout location matches the repository's
+Odo access instructions; adjust the first cd if you cloned elsewhere.
+Clone the repository before class. repl.sh runs prepare.sh in the login-node
+allocation shell before launching the compute step, so missing packages and
+lazy artifacts are downloaded and Cray MPI preferences are configured there.
+Package compilation takes place on the compute node. Instructors should still
+prepare and precompile the environment before class to avoid startup delays.
+Obtain the one-node allocation in advance where possible. Skip allocate.sh if
+already in that allocation shell, and skip repl.sh if Julia is already open.
+The launcher selects the tutorial project and CPU threads on the compute node.
+Keep this transition and the following demo within the 6:00–8:00 slot.
+:::
+
 ## See the graph become work {.demo}
 
 ::: {.kicker}
 Live demo / 01 / Tasks
 :::
 
-```julia
-include("demos/01_tasks.jl")
+::: {.small}
+In the compute-node Julia session you just opened:
+:::
+
+```julia-repl
+julia> include("demos/01_tasks.jl")
 ```
 
 ::: {.prompt}

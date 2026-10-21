@@ -151,6 +151,13 @@ shell exits, even after Julia exits:
 bash frontier/repl.sh
 ```
 
+Run this from the login-node allocation shell. Both `repl.sh` and `mpi-repl.sh`
+automatically run `prepare.sh` before launching the compute step: packages are
+instantiated in the tutorial depot, required lazy artifacts are downloaded, and
+Cray MPI preferences are configured. Automatic precompilation is disabled during
+this preparation; Julia compiles packages on the compute node as they load.
+The first launch can take longer while dependencies are installed.
+
 In that REPL:
 
 ```julia

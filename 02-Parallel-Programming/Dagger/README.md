@@ -79,9 +79,8 @@ KernelAbstractions 0.9 dependency; AMDGPU's newer main branch requires 0.10.
 Use the login node for downloads and compute nodes for precompilation and work:
 
 ```bash
-bash frontier/prepare.sh                         # login node: download + Cray MPI preferences
 export SC26_NODES=1                              # course layout for every launch
-bash frontier/allocate.sh                        # one whole compute node
+bash frontier/allocate.sh                        # login node: prepare packages, then allocate
 source frontier/env.sh
 srun -N1 -n1 -c7 --threads-per-core=1 --gpus-per-task=8 --gpu-bind=none bash frontier/setup.sh
 bash frontier/run.sh 1 --impl=solution            # check the reference first
@@ -95,7 +94,9 @@ julia --project harness/plot.jl
 on Odo. The cache defaults to your project scratch directory on wolf2, not
 Frontier's Orion filesystem. Set `SC26_ACCOUNT`, `SC26_DEPOT`, and
 `SC26_SHARED_DEPOT` as appropriate. `prepare.sh` must run on a login node:
-compute nodes cannot reach the Julia package server. Each user needs a writable
+compute nodes cannot reach the Julia package server. `allocate.sh` runs it
+automatically before calling `salloc`. For an allocation obtained another way,
+run `bash frontier/prepare.sh` on the login node first. Each user needs a writable
 first depot; instructors can prepare a readable shared depot using `SC26_DEPOT`.
 Keep MPI preferences in each project copy (`LocalPreferences.toml`).
 
@@ -151,12 +152,13 @@ shell exits, even after Julia exits:
 bash frontier/repl.sh
 ```
 
-Run this from the login-node allocation shell. Both `repl.sh` and `mpi-repl.sh`
-automatically run `prepare.sh` before launching the compute step: packages are
-instantiated in the tutorial depot, required lazy artifacts are downloaded, and
-Cray MPI preferences are configured. Automatic precompilation is disabled during
-this preparation; Julia compiles packages on the compute node as they load.
-The first launch can take longer while dependencies are installed.
+Both REPL launchers use the environment prepared by `allocate.sh` before it
+requests compute resources. That preparation instantiates packages in the
+tutorial depot, downloads required lazy artifacts, and configures Cray MPI on
+the login node, with automatic precompilation disabled. The REPL launchers do
+not run package preparation; they set Julia's package manager to offline mode.
+Julia compiles packages on the compute node as they load. The first allocation
+can take longer while dependencies are installed.
 
 In that REPL:
 

@@ -241,6 +241,23 @@ Use explicit placement output to establish that multiple hosts/devices are
 working, rather than inferring it from elapsed time alone. Keep validated logs,
 charts, and a task trace as presentation fallbacks.
 
+## Interactive startup validation (October 21, 2026)
+
+Validated the scratch checkout on Odo with Julia 1.13.1, Dagger 0.22.7, and
+the pinned AMDGPU revision. `allocate.sh` completed package preparation on
+`login1` before `salloc` opened the allocation shell on `odo03`. Calling
+`prepare.sh` from that compute shell stopped with the login-node instruction.
+
+Within the same one-node allocation, `repl.sh` opened a Julia prompt with
+`JULIA_PKG_OFFLINE=true`. The tasks demo and reference CPU/GPU checks passed
+at size 1024 with 256-wide tiles. After exiting Julia, `mpi-repl.sh 4` opened
+its persistent prompt with one visible GPU per rank. Its initial strict GPU
+check and subsequent strict CPU/GPU checks all passed. The first MPI GPU
+warm-up reported 59.4 seconds; a repeated GPU warm-up reported below 0.1 seconds.
+Package compilation occurred on the compute node, without package preparation
+or a package-server error there. These were targeted startup and interactive
+checks; the complete revised smoke suite remains a pre-event check.
+
 ## Validation notes (October 14, 2026)
 
 These historical measurements include the earlier two-node layout. The current

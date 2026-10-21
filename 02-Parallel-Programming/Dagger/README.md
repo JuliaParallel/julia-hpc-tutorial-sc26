@@ -96,8 +96,10 @@ Frontier's Orion filesystem. Set `SC26_ACCOUNT`, `SC26_DEPOT`, and
 `SC26_SHARED_DEPOT` as appropriate. `prepare.sh` must run on a login node:
 compute nodes cannot reach the Julia package server. `allocate.sh` runs it
 automatically before calling `salloc`. For an allocation obtained another way,
-run `bash frontier/prepare.sh` on the login node first. Each user needs a writable
-first depot; instructors can prepare a readable shared depot using `SC26_DEPOT`.
+run `bash frontier/prepare.sh` on the login node first. On Odo, `salloc` opens
+the allocation shell on a compute node, so downloads must finish before that
+transition. Each user needs a writable first depot; instructors can prepare a
+readable shared depot using `SC26_DEPOT`.
 Keep MPI preferences in each project copy (`LocalPreferences.toml`).
 
 Every Slurm job currently occupies whole nodes, even when requesting one GPU.

@@ -104,15 +104,43 @@ def diagrams():
     s.text(210, 20, "4096", 19, MUTED, "middle")
     s.save()
 
-    s = SVG("topology.svg", 1120, 385, "Four MPI ranks on one node, each bound to a distinct GPU")
-    s.rect(15, 15, 1090, 335, fill=PANEL)
-    s.text(45, 55, "ONE COMPUTE NODE / FOUR MPI RANKS / FOUR DISTINCT GPUS", 19, MUTED, weight=600)
-    for rank in range(4):
-        x = 45 + 260 * rank
-        s.box(x, 85, 230, 75, f"MPI rank {rank}", MINT)
-        s.line(x + 115, 169, x + 115, 206, arrow=True)
-        s.box(x, 218, 230, 90, "GPU device 1", VIOLET, "rank-local device index", 23)
-    s.text(560, 378, "MPI communication stays within this node", 20, MUTED, "middle")
+    s = SVG("topology.svg", 1120, 350, "One Julia process splits one matrix product across two GPUs on one node")
+    s.rect(15, 15, 1090, 295, fill=PANEL)
+    s.text(45, 50, "ONE SERVER / ONE JULIA PROCESS / TWO GPU DEVICES", 19, MUTED, weight=600)
+    s.box(80, 80, 180, 60, "A₁", MINT)
+    s.box(470, 80, 180, 60, "Shared B", AMBER, size=23)
+    s.box(860, 80, 180, 60, "A₂", MINT)
+    s.line(170, 145, 240, 195, arrow=True)
+    s.line(950, 145, 880, 195, arrow=True)
+    s.line(530, 145, 360, 195, arrow=True)
+    s.line(590, 145, 760, 195, arrow=True)
+    s.box(85, 205, 360, 85, "GPU 1", VIOLET, "C₁ = A₁ × B", 28)
+    s.box(675, 205, 360, 85, "GPU 2", VIOLET, "C₂ = A₂ × B", 28)
+    s.text(560, 340, "One output matrix: C = [ C₁ ; C₂ ] = A × B", 23, WHITE, "middle")
+    s.save()
+
+    s = SVG("multinode.svg", 1120, 260, "Two servers execute one Dagger program through MPI ranks on CPU threads")
+    for x, host, rank in [(20, "SERVER A", 0), (670, "SERVER B", 1)]:
+        s.rect(x, 15, 430, 200, fill=PANEL)
+        s.text(x + 25, 55, host, 20, MUTED, weight=600)
+        s.box(x + 40, 80, 350, 100, f"MPI rank {rank}", MINT, "CPU threads", 28)
+    s.line(460, 130, 660, 130, arrow=True, both=True)
+    s.text(560, 105, "network", 21, AMBER, "middle")
+    s.text(560, 250, "Every rank builds the same task graph", 23, WHITE, "middle")
+    s.save()
+
+    s = SVG("multinode-gpu.svg", 1120, 350, "MPI connects two servers, each running tasks on two GPU devices")
+    for x, host, rank in [(20, "SERVER A", 0), (670, "SERVER B", 1)]:
+        s.rect(x, 15, 430, 285, fill=PANEL)
+        s.text(x + 25, 55, host, 20, MUTED, weight=600)
+        s.box(x + 40, 80, 350, 65, f"MPI rank {rank}", MINT, size=26)
+        for i in range(2):
+            gx = x + 30 + 195 * i
+            s.line(x + 215, 150, gx + 87, 195, arrow=True)
+            s.box(gx, 205, 175, 70, f"GPU {i + 1}", VIOLET, size=26)
+    s.line(460, 112, 660, 112, arrow=True, both=True)
+    s.text(560, 88, "network", 21, AMBER, "middle")
+    s.text(560, 340, "One distributed algorithm / four GPU devices / two servers", 23, WHITE, "middle")
     s.save()
 
     s = SVG("cholesky.svg", 480, 385, "First panel of a four by four tiled Cholesky factorization")

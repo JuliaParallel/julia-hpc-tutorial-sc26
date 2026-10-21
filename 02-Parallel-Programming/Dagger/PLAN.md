@@ -26,7 +26,8 @@ tasks access data, and let Dagger schedule tasks and move data.
 | 3:00–8:00 | Tasks | `Dagger.@spawn`, `fetch`, and implicit dependency graphs. | `demos/01_tasks.jl` |
 | 8:00–16:00 | Datadeps and tiles | Mutating tasks with `In`/`Out`/`InOut`; `DArray`, `Blocks`, and `.chunks`. Work through read/write dependencies together. | `demos/02_datadeps.jl` |
 | 16:00–20:00 | GPU scopes | Select an AMD GPU with `Dagger.scope(rocm_gpu=1)`. Explain data movement and BLAS dispatch. | `demos/03_gpu.jl` |
-| 20:00–25:00 | MPI | `Dagger.accelerate!(:mpi)` and SPMD: every rank runs the same Dagger code and makes the same decisions. | `demos/04_mpi.jl` |
+| 20:00–23:00 | Same-node multi-GPU | One Julia process partitions one matrix product across two or four distinct GPUs. | `demos/05_multigpu.jl` |
+| 23:00–25:00 | Multi-node concepts | MPI/SPMD across servers, then MPI plus multiple GPUs per server. The hands-on version keeps ranks on one node. | `demos/04_mpi.jl` and topology diagrams |
 | 25:00–30:00 | Exercise brief | Tiled Cholesky (POTRF/TRSM/SYRK/GEMM), its dependency graph, commands, and correctness checks. | `exercise/README.md` |
 | 30:00–42:00 | Hands-on: CPU | Add Datadeps and task annotations, run the harness, and fix errors. | `exercise/my_cholesky.jl` |
 | 42:00–50:00 | Hands-on: GPU | Run the same function with a GPU scope and compare results. | Harness with `--target=gpu` |
@@ -42,11 +43,12 @@ tasks access data, and let Dagger schedule tasks and move data.
 5. Datadeps: `spawn_datadeps`, `In`, `Out`, and `InOut` (`demos/02_datadeps.jl`).
 6. Tiles: `DArray(A, Blocks(bs, bs))` and `.chunks`.
 7. GPU scopes and direct BLAS/LAPACK task dispatch (`demos/03_gpu.jl`).
-8. MPI: SPMD and uniform decisions across ranks (`demos/04_mpi.jl`).
-9. Tiled Cholesky: four kernels and a dependency graph for a 4×4 tile grid.
-10. Exercise: edit the template, check correctness, then change execution targets.
-11. Results: tile-size effects and comparison with built-in and vendor implementations.
-12. Discussion: when task parallelism helps and how data movement affects performance.
+8. Multiple GPUs on one server: one matrix product partitioned across distinct GPUs (`demos/05_multigpu.jl`).
+9. Multiple servers: MPI/SPMD and uniform decisions across ranks (`demos/04_mpi.jl`), followed by MPI plus multiple GPUs per server. These topologies are conceptual; attendee ranks stay on one node.
+10. Tiled Cholesky: four kernels and a dependency graph for a 4×4 tile grid.
+11. Exercise: edit the template, check correctness, then change execution targets.
+12. Results: tile-size effects and comparison with built-in and vendor implementations.
+13. Discussion: when task parallelism helps and how data movement affects performance.
 
 ## Hands-on checkpoints
 
@@ -119,8 +121,9 @@ The sharing bound counts GPU devices; CPU/memory placement and scheduling
 still need rehearsal. The current allocator requests all eight GPUs and 56
 physical CPU cores per node. Both requests would need revision for sharing.
 Limiting `SC26_GPUS_PER_TASK` only changes a step inside the whole-node
-allocation. Two GPUs suffice for the single-process topology demo; the
-four-rank MPI demo assigns one GPU per rank, using four GPUs on one node.
+allocation. The single-process matrix-product demo uses two GPUs by default,
+with `--gpus=4` to demonstrate four devices. The four-rank MPI demo assigns one
+GPU per rank, using four GPUs on one node.
 Same-node MPI teaches SPMD, process communication, GPU placement, and strict
 mutation checks. It does not exercise communication between physical hosts or
 measure network scaling.
@@ -233,12 +236,12 @@ users append to one shared file.
 For the same-node MPI demo, use `SC26_NODES=1 bash frontier/mpi-repl.sh 4` in a second
 tmux pane. It warms up once, then broadcasts harness option lines from rank 0
 so all ranks rerun the edited implementation without restarting Julia. Use the
-four-rank/one-node topology demo before the Cholesky run. The default REPL step
+four-rank/one-node matrix-product demo before the Cholesky run. The default REPL step
 holds all eight GPUs on one node; exit it before MPI steps that need that node.
 Alternatively, `SC26_GPUS_PER_TASK=2 bash frontier/repl.sh` limits the warm REPL
 to two GPUs, leaving other devices for separate steps under the same allocation.
-Use explicit placement output to establish that multiple hosts/devices are
-working, rather than inferring it from elapsed time alone. Keep validated logs,
+Use the output-tile reports and distinct-device checks to establish GPU
+participation. Keep validated logs,
 charts, and a task trace as presentation fallbacks.
 
 ## Interactive startup validation (October 21, 2026)
@@ -257,6 +260,13 @@ warm-up reported 59.4 seconds; a repeated GPU warm-up reported below 0.1 seconds
 Package compilation occurred on the compute node, without package preparation
 or a package-server error there. These were targeted startup and interactive
 checks; the complete revised smoke suite remains a pre-event check.
+
+The matrix-product demo also passed on `odo03` with two and four GPUs in one
+Julia process, and with four MPI ranks using one GPU each on that node. Each
+run assembled a single `C = A * B`, checked it against the dense reference, and
+verified distinct physical devices using hostname plus PCI address returned
+from the actual matrix-multiplication tasks. Logs are under
+`results/validation/matmul-{2gpu,4gpu,mpi}.log` in the Odo scratch checkout.
 
 ## Validation notes (October 14, 2026)
 

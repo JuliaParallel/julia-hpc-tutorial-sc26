@@ -116,7 +116,7 @@ timelines; see the [visual feedback workflow](../README.md#fast-feedback-and-plo
 - **Tune the tile size:** `--bs=512`, `--bs=1024`, `--bs=4096` on the GPU. Why is there a sweet spot?
 - **Compare:** `--impl=builtin` (Dagger's own Cholesky) and `--impl=vendor`
   (one LAPACK or rocSOLVER call on the whole matrix).
-- **All visible GPUs:** `--target=gpu --gpus=all`. Use the topology demo to see device placement.
+- **All visible GPUs:** `--target=gpu --gpus=all`. The matrix-product demo in `demos/05_multigpu.jl` shows output tiles computed on distinct GPUs.
 - **CPU and GPU together:** `--target=mixed`. Is it faster? Why not?
 - Look at `solution/my_cholesky.jl` only once you're done.
 

@@ -2,7 +2,7 @@
 # Run on the laptop, after an Odo benchmark. Export charts locally.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
-remote="${SC26_REMOTE_ROOT:-/gpfs/wolf2/olcf/${SC26_ACCOUNT:-trn047}/scratch/$USER/sc26-dagger/02-Dagger}"
+remote="${SC26_REMOTE_ROOT:-/gpfs/wolf2/olcf/${SC26_ACCOUNT:-trn047}/scratch/$USER/sc26-dagger/02-Parallel-Programming/Dagger}"
 mkdir -p "$root/results"
 # Odo permits one session per transport. Keep transfers off the interactive
 # terminal's transport, while still authenticating only once per idle lifetime.

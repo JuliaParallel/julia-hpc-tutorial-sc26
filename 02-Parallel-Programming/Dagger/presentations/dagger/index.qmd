@@ -126,7 +126,7 @@ Success = correct results on each target, plus a plot you can explain.
 :::
 
 ::: {.notes}
-0:00–3:00, including the next slide. All commands are run from 02-Dagger/.
+0:00–3:00, including the next slide. All commands are run from 02-Parallel-Programming/Dagger/.
 Confirm the chosen access schedule. With rotated Odo access, attendees obtain
 allocations only in their assigned windows and start CPU work locally.
 This deck supports the demos; switch to the terminal often.
@@ -676,7 +676,7 @@ Esc opens the slide overview. S opens speaker notes when served over HTTP.
 ## Appendix / Launch reference
 
 ::: {.small}
-Run inside the appropriate compute allocation, from <code>02-Dagger/</code>.
+Run inside the appropriate compute allocation, from <code>02-Parallel-Programming/Dagger/</code>.
 :::
 
 ```bash

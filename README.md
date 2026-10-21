@@ -13,7 +13,7 @@ Registered participants: please look at the end of this file for access to the O
 
 - Introduction to the Julia language and ecosystem for high-productivity
 - Vendor-neutral parallel computing in Julia, intra-node: [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl), [JACC.jl](https://github.com/JuliaGPU/JACC.jl), inter-node: [MPI.jl](https://github.com/JuliaParallel/MPI.jl), [Dagger.jl](https://github.com/JuliaParallel/Dagger.jl)
-- Task-based parallel programming with [Dagger.jl](02-Dagger/README.md) (1 hour), building on the parallel, portable GPU programming section
+- Task-based parallel programming with [Dagger.jl](02-Parallel-Programming/Dagger/README.md) (1 hour), building on the parallel, portable GPU programming section
 - Running and profiling a Julia application, the Gray-Scott diffusion-reaction partial differential equation solver on a HPC Cluster (CPU and GPU).
 
 ## Final Agenda

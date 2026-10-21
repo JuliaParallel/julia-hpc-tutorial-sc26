@@ -9,7 +9,7 @@ Edit `exercise/my_cholesky.jl` following the steps below. Allow about
 6 minutes for MPI, and 4 minutes to plot and discuss results when continuous
 Odo access is confirmed. Rotating access uses the alternative schedule linked below.
 
-Run all commands from `02-Dagger/`. For a laptop or workstation, use
+Run all commands from `02-Parallel-Programming/Dagger/`. For a laptop or workstation, use
 `julia --project -t 4 harness/run.jl` in place of `bash frontier/run.sh 1`;
 see the [quickstart](../README.md) for the local MPI launch command.
 

@@ -1,8 +1,9 @@
 # SC26 Julia tutorial: Dagger.jl for HPC (1 hour)
 
-This session follows the introduction to Julia and precedes vendor-neutral
-parallel programming. It includes 30 minutes of teaching and demos and
-30 minutes of hands-on work.
+This session follows the introduction to Julia and the parallel, portable GPU
+programming section. It builds on GPU concepts with task dependencies, data
+movement, and scheduling across CPU threads, GPU devices, and MPI ranks on one
+node. It includes 30 minutes of teaching and demos and 30 minutes of hands-on work.
 
 ## Learning objectives
 
@@ -68,12 +69,13 @@ on a single device.
 
 ## Session preparation
 
-- Obtain Odo compute allocations before the exercise, using `frontier/allocate.sh`.
-- Confirm the Odo configuration placeholders in `frontier/*.sh` and build the shared depot with `frontier/setup.sh`.
-- Validate the CPU, GPU, and MPI commands on the tutorial hardware. GPU runs have shown intermittent failures in local ROCm 7.2 testing; Odo validation is still required.
+- Confirm the resource layout below before assigning Odo allocation windows. Each attendee uses their own account, source copy, and results. Use `frontier/allocate.sh` only during the assigned window if access is rotated.
+- Download packages on the login node with `frontier/prepare.sh`, then precompile on a compute node with `frontier/setup.sh`. Prepare a shared course depot before attendees log in.
+- Run `frontier/validate.sh` in a one-node allocation, including the four-rank GPU checks. Revalidate whenever the resolved Dagger master commit or ROCm module changes.
 - Run each demo before the session and keep a warm Julia REPL for demos 1–3.
-- Launch MPI in a separate terminal. Prepare recorded GPU and MPI demonstrations as fallbacks.
-- If GPU execution is unavailable, use the instructor demonstration for that checkpoint and continue with CPU and MPI work.
+- Launch MPI in a separate terminal; release the REPL step first if it reserves the resources that MPI needs. Prepare recorded GPU and MPI demonstrations as fallbacks.
+- If remote capacity requires the fallback below, preflight independent CPU work on attendees' laptops (including local MPI if used), or arrange a separate CPU service before the event. Odo login nodes are for editing and downloads, not class-wide computation.
+- If GPU execution is unavailable, use the instructor demonstration or recordings for that checkpoint and continue independent CPU work on the preflighted local/alternate service.
 
 ## Materials
 
@@ -89,3 +91,191 @@ harness/                    correctness checks, timing, CSV output, plotting
 demos/                      tasks, Datadeps, GPU scopes, MPI
 frontier/                   Odo environment, setup, allocation, launch scripts
 ```
+
+## Resource plan for 25 attendees and one presenter
+
+Every attendee works independently with their own account, implementation,
+results, and one-node allocation. The presenter also uses one node. All
+scheduled MPI examples use multiple ranks on that same node, including the
+four-rank GPU placement demo. Reserve **26 healthy compute nodes** for the
+session; the presenter keeps their allocation throughout.
+
+The October 14, 2026 Slurm inspection found 30 batch nodes with eight GPU GCDs
+per node, one drained node, a 12-hour partition limit, and no reservations.
+That snapshot leaves at most 29 healthy nodes, so the 26-node layout has three
+spare nodes if all other capacity is available. The account/user associations
+allow four running jobs per user and 100 submitted jobs. The batch partition
+reports `OverSubscribe=EXCLUSIVE`: independent jobs occupy whole nodes even
+when using fewer GPUs. These are recorded settings, not a tutorial-day
+availability guarantee. See the [Odo user guide](https://docs.olcf.ornl.gov/systems/odo_user_guide.html)
+for architecture and storage.
+
+| Independent session arrangement | Attendee nodes | Presenter nodes | Total | Assessment |
+|---|---:|---:|---:|---|
+| 25 simultaneous one-node jobs, exclusive policy | 25 | 1 | 26 | Recommended; supports CPU, multi-GPU, and same-node MPI |
+| 25 simultaneous two-GPU sessions, sharing allowed | at least 7 | 1 | at least 8 | Optional capacity saving; not required for the tutorial |
+
+The sharing bound counts GPU devices; CPU/memory placement and scheduling
+still need rehearsal. The current allocator requests all eight GPUs and 56
+physical CPU cores per node. Both requests would need revision for sharing.
+Limiting `SC26_GPUS_PER_TASK` only changes a step inside the whole-node
+allocation. Two GPUs suffice for the single-process topology demo; the
+four-rank MPI demo assigns one GPU per rank, using four GPUs on one node.
+Same-node MPI teaches SPMD, process communication, GPU placement, and strict
+mutation checks. It does not exercise communication between physical hosts or
+measure network scaling.
+
+Slurm job steps run under the allocation owner's UID. Each attendee launches
+under their own account; setting `SLURM_JOB_ID` does not let them join a
+presenter's allocation. The presenter is never the execution service for
+attendee code. See Slurm's [job launch guide](https://slurm.schedmd.com/job_launch.html).
+
+### If node sharing is denied
+
+Use the 26-node exclusive layout above. It supports all 25 attendees and the
+presenter concurrently without rotating access or requiring laptop computation.
+Keep the original 12-minute CPU, 8-minute GPU, 6-minute MPI, and 4-minute results
+schedule. Attendees obtain one-node allocations during the talk and retain
+these through the exercise. No policy change is needed, but a reservation for
+26 healthy nodes is still necessary to guarantee access.
+
+If fewer than 26 nodes can be guaranteed, use two waves of 13 and 12 independent
+one-node sessions, retaining one presenter node: **14 nodes at peak**. A
+proposed 30-minute fallback is ten minutes of local CPU work, a nine-minute
+remote window for attendees 1-13, a nine-minute window for attendees 14-25,
+then two minutes of results. Attendees outside their remote window continue
+independent CPU/MPI checks, editing, or analysis on preflighted laptops or a
+separately arranged CPU service. Each window covers GPU and same-node MPI
+checkpoints. Rehearse compilation and handoffs before adopting this shorter
+remote experience; this wave schedule has not been tested at class scale.
+
+For rotating access, bound each allocation with the agreed `SC26_TIME`, for
+example `SC26_TIME=00:09:00 bash frontier/allocate.sh`, and use the event's
+`SC26_RESERVATION`. The default two-hour allocation is for continuous access.
+Time limits start when allocations are granted, so queue delays shift handoffs.
+Do not compute or precompile the class's workloads on Odo login nodes.
+
+Short per-attendee batch jobs on one node are another fallback: everyone edits
+independently and receives their own logs/results, with queueing and cold
+startup in the turnaround. The existing `frontier/batch.sh` runs one harness
+configuration per submission; a combined checkpoint runner would be additional
+work. Without a compute reservation, fixed interactive windows are not
+guaranteed. Preflight local CPU/MPI work and prepare recordings if remote
+capacity cannot be secured. Continuous remote access requires 26 healthy nodes
+under the current exclusive policy, or a validated alternative system.
+
+Read `sinfo`, `scontrol show partition`, `sacctmgr show assoc`, and
+`scontrol show reservation` before coordinating the event reservation. Do not
+submit 25 speculative allocations to discover capacity. Confirm attendee
+accounts, project storage permissions, and shared depot access, then rehearse
+with a bounded subset of real attendee accounts. Prepare and precompile the
+depot on compute nodes before the event. Disk precompilation does not eliminate
+process-local GPU/MPI warm-up: the October 14 MPI GPU runs recorded 36-54 seconds
+of cold warm-up. Rerun the single-node smoke suite, including four GPU ranks,
+before freezing the course environment.
+
+### What stays alive during interactive work
+
+`frontier/allocate.sh` holds one Slurm allocation and its shell. It reserves the
+node until the allocation ends, even when no computation is running. Exiting
+Julia releases its job step; exit the allocation shell to release the node.
+Slurm's [salloc documentation](https://slurm.schedmd.com/salloc.html) describes
+this lifetime.
+
+`frontier/repl.sh` keeps one Julia process alive, retaining loaded packages,
+compiled functions/kernels, GPU initialization, and unchanged implementation
+modules. Attendees edit their source and invoke complete harness checks again;
+changed source reloads in a fresh module. The exercise does not require keeping
+an unfinished computation or a particular matrix alive between checks.
+
+`frontier/mpi-repl.sh 4` keeps four Julia ranks on the same node, their MPI
+communicator, and their initialized runtimes alive. Rank 0 reads harness options
+and broadcasts commands and source snapshots so every rank executes the same
+check. `quit` releases all ranks. `frontier/run.sh` provides an alternative that
+starts fresh Julia processes for each run, paying startup and warm-up again.
+
+## Presenter workflow and visual feedback
+
+Use the [Quarto deck](presentations/dagger/index.qmd) for the task graph, the
+four Cholesky kernels, the hardware picture, and timed exercise checkpoints.
+The opening connects to the preceding parallel, portable GPU programming
+section; speaker notes give demo cues and pacing. Render with
+`quarto render presentations/dagger/index.qmd` (see README.md for preview and
+PDF instructions). Spend most of the session in a large-font SSH terminal with
+three remote tmux panes: code, a warm compute-node Julia REPL, and results. Odo
+currently permits one SSH session per transport, so put the panes inside one
+SSH connection. Keep the login-node shell inside tmux so a network interruption does not lose the
+allocation or launch process. After allocation, use
+`tmux -L sc26 new-session -s tutorial` so new panes inherit the allocation
+environment. Start the allocation and warm CPU/GPU examples
+before the audience joins.
+
+Use `frontier/repl.sh` and `TutorialSession.benchmark(...)` for rapid edit/run
+cycles. Edits reload the student's function in a fresh module; unchanged code, loaded
+libraries, and compiled kernels are retained between runs. Start with the small default
+correctness checkpoint, then increase matrix/tile size for performance. Show
+the first compilation delay explicitly, then demonstrate the warm feedback
+loop. Call `TutorialSession.plot()` after each configuration so everyone sees
+the terminal throughput chart change. The reference solution is an environment
+check; the supplied student template must initially fail.
+
+Use `harness/plot.py` on the laptop to export PNG/SVG performance charts from
+copied CSV results. `frontier/fetch-results.sh` uses a second persistent SSH
+transport so transfers work while the interactive terminal remains connected.
+Keep a browser open to the SVG for the audience, or put the
+PNG into slides. Use `TutorialSession.trace(...)` and open the copied JSON in
+Perfetto when discussing task overlap and data movement. Trace timings include
+logging overhead and describe host-side task events; show separate untraced
+benchmark numbers. Each participant writes their own result file by default;
+combine participant CSVs only after the session rather than letting concurrent
+users append to one shared file.
+
+For the same-node MPI demo, use `SC26_NODES=1 bash frontier/mpi-repl.sh 4` in a second
+tmux pane. It warms up once, then broadcasts harness option lines from rank 0
+so all ranks rerun the edited implementation without restarting Julia. Use the
+four-rank/one-node topology demo before the Cholesky run. The default REPL step
+holds all eight GPUs on one node; exit it before MPI steps that need that node.
+Alternatively, `SC26_GPUS_PER_TASK=2 bash frontier/repl.sh` limits the warm REPL
+to two GPUs, leaving other devices for separate steps under the same allocation.
+Use explicit placement output to establish that multiple hosts/devices are
+working, rather than inferring it from elapsed time alone. Keep validated logs,
+charts, and a task trace as presentation fallbacks.
+
+## Validation notes (October 14, 2026)
+
+These historical measurements include the earlier two-node layout. The current
+course uses one node per person; rerun the revised smoke suite on Odo to validate
+the four-rank/one-node GPU path before the event.
+
+The initial reference suite passed all 16 compute checks on `odo07`/`odo08`:
+CPU, GPU, all-eight-GPU, mixed CPU/GPU, two MPI ranks on one node, two ranks on
+two nodes, and four GPU ranks across two nodes. The incomplete template produced
+the intended diagnostic. An intentionally incorrect solution marking all tiles
+`In` failed the strict MPI residual check. A real batch job also completed with
+exit code zero. Two independent Slurm steps overlapped for five seconds on
+`odo08`, with distinct `ROCR_VISIBLE_DEVICES=0` and `1`, confirming resource
+sharing within one owner's allocation.
+
+The larger 16384-by-16384 run passed residual checks but exposed an AMDGPU 2.8.0
+handle-cache finalizer bug. `Project.toml` therefore pins AMDGPU to upstream
+revision `482cd054172541a0ef5e4626f6c3505fc3ae7972`, including the destructor and
+context-ownership fixes. Dagger stays on master (`034f72a`, version 0.22.7).
+The corrected environment passed the full suite plus the incomplete-template
+check, CPU/GPU built-in and vendor baselines, and the larger 16384-size run;
+no finalizer errors remained. The four-rank/two-node interactive MPI prompt
+passed CPU, GPU, and mixed targets, plotting, missing-file recovery, and forced
+reload. Retaining unchanged implementation modules reduced repeat strict GPU
+warm-up to below the displayed 0.1-second precision; timed 1024-size trials were
+about 0.026–0.031 seconds. Edited files reload automatically, and source snapshots
+are broadcast from rank 0 so ranks compile the same version. Use `--reload` for
+changes to included helper files.
+
+Cold MPI GPU warm-up took approximately 36–54 seconds in the initial runs;
+warm timed 1024-size trials took roughly 0.02–0.30 seconds. Prelaunch MPI demos
+and make compilation visible to the audience. The launcher gives each MPI rank
+seven physical cores and one visible GPU. Use 56 threads for a whole-node
+single-process scaling run if desired (`SC26_THREADS=56`). The measured one-GPU
+and eight-GPU results at sizes up to 16384 did not show an eight-GPU speedup;
+show placement and correctness separately from performance, and use the plots
+to discuss tile size, task overhead, communication, and the Cholesky critical
+path. These samples are rehearsal measurements, not peak-performance claims.

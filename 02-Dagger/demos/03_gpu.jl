@@ -14,10 +14,15 @@ Dagger.with_options(scope=gpu) do
             Dagger.@spawn double!(InOut(tile))   # unchanged from demo 2
         end
     end
-    println("doubled on GPU: ", collect(DA) ≈ 2 .* A0)
+    doubled = collect(DA) ≈ 2 .* A0
+    println("doubled on GPU: ", doubled)
+    @assert doubled
     println("inside a GPU task, a tile is a ", fetch(Dagger.@spawn typeof(DA.chunks[1, 1])))
 
     # Library code built on Datadeps works too: DArray matmul, now on the GPU
     DC = DA * DA
-    println("GPU matmul correct: ", collect(DC) ≈ collect(DA) * collect(DA))
+    host_A = collect(DA)
+    product_correct = collect(DC) ≈ host_A * host_A
+    println("GPU matmul correct: ", product_correct)
+    @assert product_correct
 end

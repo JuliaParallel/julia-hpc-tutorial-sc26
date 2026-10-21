@@ -381,7 +381,7 @@ There are sixteen tiles, so sixteen independent tasks. Run demos/02_datadeps.jl.
 The tile count exposes concurrency; it is not a promise of simultaneous execution.
 :::
 
-## Keep the algorithm. Change the scope.
+## One GPU: keep the algorithm
 
 ```julia
 using Dagger, AMDGPU
@@ -414,64 +414,120 @@ arbitrary CPU-only code is not automatically a GPU kernel. For the Cholesky
 exercise, spawn BLAS/LAPACK calls directly so Dagger can select replacements.
 :::
 
-## MPI: one program, the same decisions
+## One server. Multiple GPUs. One algorithm.
+
+![](assets/topology.svg){.diagram fig-alt="One Julia process on one server splits A into two block rows. GPU 1 computes C1 = A1 times B, and GPU 2 computes C2 = A2 times B. The two block rows form one output matrix C = A times B."}
 
 ```julia
-using Dagger, MPI, Random
-Dagger.accelerate!(:mpi)
-
-A = rand(Xoshiro(1), 4096, 4096)
-DA = DArray(A, Blocks(1024, 1024))
-# Every rank constructs and runs the same Dagger program.
+gpus = Dagger.scope(rocm_gpus=1:2)
 ```
 
 ::: {.takeaway}
-Build the same graph on every rank. Keep rank-0-only branches for reporting.
+Split one matrix product into output tiles. Schedule those tiles on distinct GPUs.
 :::
 
 ::: {.notes}
-20:00–22:00. Explain SPMD: same program, multiple ranks. Use deterministic
-input and uniform decisions. Do not wrap the Dagger work in if rank == 0.
-Run demos/04_mpi.jl if time permits. All tutorial ranks share one compute node.
+20:00–22:00. Multi-GPU on a server does not require MPI. One Julia process
+can schedule tasks onto GPU devices 1 and 2. The scope above selects both.
+Walk through C = A * B: split A into block rows, reuse B for both, and compute
+the corresponding block rows of C on different GPUs. This is one matrix product.
+The demo explicitly places one output-tile task on each selected GPU so device
+participation is visible. Dagger moves inputs and tracks the output writes.
+On Odo the GPU device IDs refer to MI250X GCDs; two IDs need not mean two packages.
 :::
 
-## Four GPU ranks. One physical node.
+## One product. Two GPUs. {.demo}
 
-![](assets/topology.svg){.diagram .full-diagram fig-alt="One compute node hosts MPI ranks 0 through 3, each bound to a distinct GPU. Each rank sees its assigned GPU as local device 1."}
-
-::: {.takeaway}
-Each rank sees its assigned GPU as device 1. The algorithm stays unchanged.
-:::
-
-::: {.notes}
-22:00–23:00. Odo has eight schedulable GPU GCDs per compute node; this demo
-uses four on one node. They are not eight separate MI250X packages.
-The validated MPI GPU path uses host-staged transfers. Do not imply GPU-direct.
-:::
-
-## Prove placement before timing {.demo}
-
-::: {.kicker}
-Live demo / Multi-GPU + MPI on one node
+::: {.small}
+In the allocation shell, after leaving the Julia REPL with <code>exit()</code>:
 :::
 
 ```bash
-# Inside the existing one-node allocation
-SC26_NODES=1 bash frontier/launch.sh 4 \
-  demos/05_multigpu.jl --mpi
+bash frontier/launch.sh 1 demos/05_multigpu.jl
 ```
 
-::: {.prompt}
-Watch for: one hostname, four ranks, distinct device bindings, and PASS.
+```text
+One matrix product: A(1024, 512) * B(512, 512)
+  output tile row 1 -> GPU 1 on odo03
+  output tile row 2 -> GPU 2 on odo03
+PASS: C ≈ A * B
+GPUs: 2 | nodes: 1 | Julia processes: 1
+```
+
+::: {.takeaway}
+One process, one result, two distinct GPU devices doing matrix multiplication.
+:::
+
+::: {.source-note}
+Example output; hostname varies. Add <code>--gpus=4</code> to use four GPUs.
 :::
 
 ::: {.notes}
-23:00–25:00. Exit an existing REPL step if it holds these GPUs. The topology
-demo explicitly schedules a tile to each selected scope. The local device
-number is 1 for each rank, so use host/rank and ROCR_VISIBLE_DEVICES to explain
-physical placement. A single-process two-GPU alternative is
-SC26_GPUS_PER_TASK=2 bash frontier/launch.sh 1 demos/05_multigpu.jl.
-This demonstrates process/device placement, not network scaling.
+22:00–23:00. The shell command is one line. The launcher's argument 1 requests
+one Julia process, not one GPU; the demo selects two GPU devices by default.
+No device-visibility environment variables are set by attendees. Slurm exposes
+the allocated GPUs and the application uses Dagger scopes to choose among them.
+The reporting helper calls mul! on a GPU output tile, synchronizes that GPU,
+and returns the actual device identity. The demo verifies distinct physical
+devices using hostname plus PCI address internally, and checks C against A * B.
+Each output row belongs to the same C; no independent full-product replicas.
+Exit the warm REPL first because its step reserves these GPU resources.
+:::
+
+## Multiple nodes: add MPI
+
+![](assets/multinode.svg){.diagram fig-alt="MPI connects rank 0 on server A and rank 1 on server B over a network. Each rank runs CPU tasks as part of the same Dagger program."}
+
+```julia
+using Dagger, MPI
+Dagger.accelerate!(:mpi)
+```
+
+::: {.takeaway}
+Same program and input on every rank. MPI carries task data between servers.
+:::
+
+::: {.small}
+Conceptual extension. Hands-on MPI uses two ranks on your existing single node.
+:::
+
+::: {.notes}
+23:00–24:00. Introduce MPI only after single-process multi-GPU. Explain SPMD:
+every rank builds the same graph, with deterministic input and uniform decisions.
+Keep rank-0-only branches for reporting; do not put the Dagger work inside one.
+Here MPI spans two servers; Dagger's tasks still describe one distributed algorithm.
+The attendee launch remains bash frontier/launch.sh 2 demos/04_mpi.jl on one node.
+That exercises the programming model without claiming inter-server communication.
+Do not request additional attendee nodes for this conceptual extension.
+:::
+
+## Multiple nodes × multiple GPUs
+
+![](assets/multinode-gpu.svg){.diagram height=285 fig-alt="Two servers each host one MPI rank and two GPU devices. MPI connects the ranks across the network; GPU scopes distribute tiles within each server. All four GPUs contribute to one distributed algorithm."}
+
+```julia
+Dagger.accelerate!(:mpi)
+gpus = Dagger.scope(rocm_gpus=1:2)  # two GPU devices per rank
+```
+
+::: {.takeaway}
+MPI spans servers. GPU scopes select devices within each server.
+:::
+
+::: {.small}
+Conceptual extension: one MPI rank per server, two GPUs per rank.
+:::
+
+::: {.notes}
+24:00–25:00. Compose the two ideas in the order just taught. All ranks execute
+the same tiled algorithm, and each rank can schedule tasks on more than one GPU.
+The illustrated layout has two hosts and four distinct GPU devices, not copies
+of one rank-local GPU. MPI rank count and GPUs per rank are separate choices.
+The scope applies to devices visible to each rank; the selected hardware layout
+must expose those devices. Avoid device-mask configuration in this teaching flow.
+Our Odo MPI/GPU path uses host-staged transfers; do not imply GPU-direct networking.
+This is an explanation, not a new allocation or hands-on requirement. The live
+MPI exercise and optional four-rank GPU check continue to use one attendee node.
 :::
 
 ## Your algorithm: tiled Cholesky

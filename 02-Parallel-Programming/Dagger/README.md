@@ -116,7 +116,8 @@ course layout, including when reusing a shell from an earlier session:
 
 ```bash
 export SC26_NODES=1
-SC26_GPUS_PER_TASK=2 bash frontier/launch.sh 1 demos/05_multigpu.jl
+bash frontier/launch.sh 1 demos/05_multigpu.jl          # one product, two GPUs
+bash frontier/launch.sh 1 demos/05_multigpu.jl --gpus=4 # one product, four GPUs
 SC26_GPUS_PER_TASK=2 bash frontier/run.sh 1 --impl=solution --target=gpu --gpus=all
 bash frontier/launch.sh 2 demos/04_mpi.jl
 bash frontier/run.sh 2 --impl=solution --mpi --strict
@@ -124,10 +125,18 @@ bash frontier/launch.sh 4 demos/05_multigpu.jl --mpi
 bash frontier/run.sh 4 --impl=solution --mpi --strict --target=gpu
 ```
 
-The four-rank launch uses four GPUs on one node, one per rank. Each rank sees
-its own GPU as device 1, so the algorithm and GPU scope stay unchanged. The
-topology demo runs a tile on every selected device and prints one shared
-hostname, distinct ranks, and device bindings.
+The default multi-GPU demo uses one Julia process and two GPU devices on one
+node. It splits one matrix product `C = A * B` into output block rows, schedules
+each row on a different GPU, and checks the assembled result. `--gpus=4` selects
+four devices; `--gpus=all` selects all visible devices. The output reports which
+GPU computed each output tile, plus the number of GPUs, nodes, and processes.
+An internal check uses hostname and PCI address to ensure distinct physical
+devices participated, including under MPI. No manual device masks are needed.
+
+The optional four-rank launch uses four GPUs on one node, one per rank, for the
+same matrix product. The slides introduce single GPU, single-process multi-GPU,
+multi-node MPI, then multi-node MPI with multiple GPUs per server. The two
+multi-node layouts are conceptual extensions; attendee allocations stay at one node.
 
 For batch execution, after preparing the environment:
 

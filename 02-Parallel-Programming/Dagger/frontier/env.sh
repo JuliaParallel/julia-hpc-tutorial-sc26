@@ -17,6 +17,8 @@ export OPENBLAS_NUM_THREADS=1
 export OMP_NUM_THREADS=1
 # Host-staged GPU MPI transfers; GPU-direct is an optional experiment.
 export DAGGER_MPI_GPU_DIRECT="${DAGGER_MPI_GPU_DIRECT:-0}"
+# Use host staging between local ranks too: ROCm IPC faulted with two GPUs/rank.
+export DAGGER_IPC="${DAGGER_IPC:-false}"
 export MPICH_GPU_SUPPORT_ENABLED="${MPICH_GPU_SUPPORT_ENABLED:-0}"
 # Another rank's first JIT compilation exceeded the default 10-second warning
 # interval in validation; retain the backend's timeout, but give compilation room.

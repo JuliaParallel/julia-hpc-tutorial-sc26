@@ -4,6 +4,10 @@ using .DemoPresentation
 
 @testset "Algorithm display and timeline backend" begin
     @test occursin("\e[", DemoPresentation.highlighted("function f(x)\n return x + 1\nend"))
+    sample = "# λ example\nfunction tiled!(C::Matrix{Float64})\n Dagger.@spawn sum(C) + 2.5\n println(\"done\")\nend\n"
+    colored = DemoPresentation.highlighted(sample)
+    @test replace(colored, r"\e\[[0-9;]*m"=>"") == sample
+    @test length(Set(m.match for m in eachmatch(r"\e\[38;2;\d+;\d+;\d+m", colored))) >= 6
     source = DemoPresentation.source_excerpt(joinpath(@__DIR__, "..", "demos", "01_tasks.jl"))
     @test occursin("a = Dagger.@spawn", source)
     @test !occursin("DemoPresentation", source)

@@ -81,6 +81,28 @@ class ConsoleTests(unittest.TestCase):
                 urllib.request.urlopen(request)
             self.assertEqual(caught.exception.code, 403)
             caught.exception.close()
+            with urllib.request.urlopen(base+"/ansi.js") as response:
+                self.assertEqual(response.status, 200)
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_wildcard_bind_accepts_tailscale_addresses(self):
+        c = console()
+        server = app.ThreadingHTTPServer(("0.0.0.0", 0), app.handler_for(c))
+        server.allowed_hosts = {"127.0.0.1", "localhost", "myhost.example.ts.net"}
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        base = f"http://127.0.0.1:{server.server_port}/api/config"
+        try:
+            for host in ("100.64.0.1", "myhost.example.ts.net"):
+                request = urllib.request.Request(base, headers={"Host":f"{host}:{server.server_port}"})
+                with urllib.request.urlopen(request) as response:
+                    self.assertEqual(response.status, 200)
+            request = urllib.request.Request(base, headers={"Host":f"untrusted.example:{server.server_port}"})
+            with self.assertRaises(urllib.error.HTTPError) as caught:
+                urllib.request.urlopen(request)
+            self.assertEqual(caught.exception.code, 403)
+            caught.exception.close()
         finally:
             server.shutdown()
             server.server_close()

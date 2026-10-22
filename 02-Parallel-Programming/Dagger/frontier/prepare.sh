@@ -8,15 +8,17 @@ if [[ "$(hostname -s)" != login* ]]; then
 fi
 source "$(dirname "$0")/env.sh"
 mkdir -p "$SC26_DEPOT"
+export JULIA_PKG_PRECOMPILE_AUTO=0
 julia --project="$SC26_ROOT" -e '
     using Pkg
-    Pkg.instantiate(; allow_autoprecomp=false)
-    # Refresh stdlib entries if the copied manifest came from another Julia version.
+    # Add newly introduced project dependencies and refresh copied stdlib entries
+    # before instantiating an existing manifest.
     Pkg.resolve()
-    # This compiler helper is lazy: instantiate alone does not fetch it, but
-    # AMDGPU precompilation needs it on compute nodes without network access.
+    Pkg.instantiate(; allow_autoprecomp=false)
+    # Fetch lazy compiler helpers and highlighter themes on the login node.
+    # Compute nodes cannot download artifacts when a demo first needs them.
     for (uuid, dep) in Pkg.dependencies()
-        dep.name == "LLVMDowngrader_jll" || continue
+        dep.name in ("LLVMDowngrader_jll", "Highlights") || continue
         artifacts = joinpath(dep.source, "Artifacts.toml")
         for name in keys(Pkg.Artifacts.select_downloadable_artifacts(
                 artifacts; include_lazy=true, pkg_uuid=uuid))

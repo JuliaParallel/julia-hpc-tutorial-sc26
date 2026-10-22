@@ -247,6 +247,21 @@ charts, and a task trace as presentation fallbacks.
 
 ## Demo presentation and local console validation (October 22, 2026)
 
+The highlighting follow-up uses Highlights.jl 0.6.3 with the Tree-sitter Julia
+grammar and a Dracula theme, including readable gray comments on dark panels.
+Both terminal and web output retain the same 24-bit token colors. Preparation
+resolves new dependencies before instantiating existing manifests and caches
+the highlighter's theme artifacts on the login node. The two-GPU matrix demo
+passed in portal job 45136 on `odo07` with the new dependencies and no compute
+node downloads. Source events contained true-color escapes; browser rendering
+preserved them. The revised checks passed 21 Julia checks, eight Python tests,
+and the JavaScript ANSI conversion tests (including real highlighter output).
+
+The console now listens on `0.0.0.0:8767` by default for Tailscale access.
+IP addresses and detected MagicDNS hostnames pass its request checks; unknown
+DNS hostnames remain rejected. `--host 127.0.0.1` selects loopback-only use.
+HTTP access through the host's Tailscale address was verified.
+
 All seven demos now display marked algorithm excerpts from their actual source,
 enable Dagger compute/movement logging, print a UnicodePlots Gantt, and save
 portable JSON timelines under `results/demo-timelines/`. MPI reports combine

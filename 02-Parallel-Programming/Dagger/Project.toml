@@ -3,14 +3,15 @@ AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
 Dagger = "d58978e5-989f-55fb-8d15-ea34adc7bf54"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+Highlights = "eafb193a-b7ab-5a9e-9068-77385905fa72"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 MPIPreferences = "3da0fdf6-3ccc-4f1b-acd9-58baa6c99267"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
-REPL = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
+tree_sitter_julia_jll = "52be201e-a5e9-5cfe-8bf2-2dc4b062171c"
 
 [sources]
 AMDGPU = {url = "https://github.com/JuliaGPU/AMDGPU.jl", rev = "482cd054172541a0ef5e4626f6c3505fc3ae7972"}
@@ -19,7 +20,9 @@ Dagger = {rev = "master", url = "https://github.com/JuliaParallel/Dagger.jl"}
 [compat]
 AMDGPU = "2"
 Dagger = "0.22.7"
+Highlights = "0.6.3"
 JSON3 = "1"
 MPI = "0.20.22"
 UnicodePlots = "3"
+tree_sitter_julia_jll = "0.25"
 julia = "1.11"

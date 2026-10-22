@@ -880,13 +880,15 @@ Open <code>http://127.0.0.1:8767</code> → Connect & allocate → choose a demo
 :::
 
 ::: {.small}
-Highlighted algorithms · Julia input · task timelines · run history<br>
+Tree-sitter Julia highlighting · Julia input · task timelines · run history<br>
 The browser runs locally; Julia runs on your own Odo node. Release the node when finished.
 :::
 
 ::: {.notes}
 Optional alternative to the terminal commands, with setup in host/README.md.
 The host app needs Python and OpenSSH, not a local Julia installation.
+It listens on 0.0.0.0:8767, including the host's Tailscale interface; use the
+printed Tailscale URL when opening the console from another laptop.
 It uploads course code into a separate portal workspace and prepares packages
 on the login node before requesting one node. A holding job retains that node;
 persistent srun workers receive commands over the same SSH connection.

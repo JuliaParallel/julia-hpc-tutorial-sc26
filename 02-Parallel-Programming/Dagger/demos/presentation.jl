@@ -1,6 +1,10 @@
 # Presentation helpers, kept outside the algorithms shown to attendees.
 module DemoPresentation
-using Dagger, UnicodePlots, JSON3, Dates, REPL
+using Dagger, UnicodePlots, JSON3, Dates, Highlights
+
+# Tree-sitter Julia highlighting, shared by the terminal and web console.
+# Gogh's first Dracula color is nearly black; lift comments for our dark panels.
+const SOURCE_THEME = Highlights.Theme("Dracula"; colors=Dict(1=>"#8b9ca8"))
 
 const PREFIX = "@@SC26@@"
 emit(kind; kwargs...) = if get(ENV, "SC26_PORTAL", "0") == "1"
@@ -33,15 +37,7 @@ function source_excerpt(path)
     return join(parts, "\n\n")
 end
 
-function highlighted(code)
-    if isdefined(REPL, :JuliaSyntaxHighlighting)
-        annotated = REPL.JuliaSyntaxHighlighting.highlight(code)
-        return sprint(io -> print(IOContext(io, :color=>true), annotated))
-    end
-    # Julia 1.11 has no JuliaSyntaxHighlighting stdlib. Keep a small lexer fallback.
-    return replace(code, r"#[^\n]*|\"(?:\\.|[^\"\\])*\"|@[\w.]+|\b(?:function|end|for|in|do|using|if|else|const|return|true|false)\b|\b\d+(?:\.\d+)?\b" =>
-        token -> "\e[$(startswith(token, '#') ? 90 : startswith(token, '\"') ? 32 : 35)m$token\e[0m")
-end
+highlighted(code) = Highlights.highlight(code, :julia, SOURCE_THEME)
 
 "Convert Dagger's paired compute/move events into a portable timeline."
 function timeline_events(logs; rank=0, origin=nothing)

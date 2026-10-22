@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run after prepare.sh + setup.sh, from the login node with an allocation.
+# Run inside an allocation after login-node preparation with allocate.sh.
 # SLURM_JOB_ID=123 bash frontier/validate.sh
 # Course checks all fit in one node, including four MPI GPU ranks.
 set -uo pipefail
@@ -45,5 +45,7 @@ check mpi-gpu bash frontier/run.sh 2 "${small[@]}" --mpi --strict --target=gpu
 check mpi-four-rank-demo bash frontier/launch.sh 4 demos/05_multigpu.jl --mpi
 check mpi-four-rank-cpu bash frontier/run.sh 4 "${small[@]}" --mpi --strict
 check mpi-four-rank-gpu bash frontier/run.sh 4 "${small[@]}" --mpi --strict --target=gpu
+check mpi-matrix-cpu bash frontier/multinode.sh cpu
+check mpi-matrix-gpu bash frontier/multinode.sh gpu
 echo "$failures failed checks; logs: $logdir"
 (( failures == 0 ))

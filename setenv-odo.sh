@@ -18,10 +18,11 @@ export JULIA_DEPOT_PATH=$SCRATCH/.julia-notebooks
 julia -e 'using Pkg; Pkg.add("IJulia")'
 
 # Kernel will show 
-julia -e 'using IJulia; installkernel("julia-hpc-sc26", "--project=@.", env=Dict( "PATH" => ENV["PATH"], "LD_LIBRARY_PATH" => ENV["LD_LIBRARY_PATH"], "JULIA_DEPOT_PATH" => ENV["JULIA_DEPOT_PATH"], "JULIA_NUM_THREADS" => "8"))'
+julia -e 'using IJulia; installkernel("julia-hpc-sc26", "--project=@.", env=Dict( "USER" => ENV["USER"], "PATH" => ENV["PATH"], "LD_LIBRARY_PATH" => ENV["LD_LIBRARY_PATH"], "JULIA_DEPOT_PATH" => ENV["JULIA_DEPOT_PATH"], "JULIA_NUM_THREADS" => "8"))'
 
 # Verify IJulia kernel configuration
 cat ~/.local/share/jupyter/kernels/julia-hpc-sc26-1.13/kernel.json
 
+echo " "
 echo "Now log into https://jupyter-open.olcf.ornl.gov/ and select the julia-hpc-sc26 1.13 kernel"
 echo "Instantiate required packages before each Notebook section. Follow instructors' guidelines"

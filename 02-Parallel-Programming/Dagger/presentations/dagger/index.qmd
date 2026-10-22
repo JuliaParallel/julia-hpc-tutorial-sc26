@@ -483,11 +483,11 @@ bash frontier/multinode.sh cpu
 ```
 
 ::: {.takeaway}
-Two servers contribute tiles to one <code>C = A * B</code>. Check PASS and two hostnames.
+Two MPI ranks contribute tiles to one <code>C = A * B</code>. Check PASS and two processes.
 :::
 
 ::: {.small}
-Presenter demo: requires a two-node allocation. Attendees keep same-node MPI.
+Odo tutorial resource limits: both ranks share one node. The same MPI code runs across nodes.
 :::
 
 ::: {.notes}
@@ -496,12 +496,16 @@ every rank builds the same graph, with deterministic input and uniform decisions
 Keep rank-0-only branches for reporting; do not put the Dagger work inside one.
 The shared implementation enables Dagger.accelerate!(:mpi), builds the same
 matrix product on every rank, and explicitly places output tiles across ranks.
-The entry script demos/06_multinode.jl requires two distinct compute hosts,
-checks the assembled result, and reports the hosts that executed the tile tasks.
-Run the shell command in the presenter's prepared two-node allocation.
+The diagram shows a possible two-server deployment; Odo tutorial capacity
+places both ranks on one server for this live demo.
+The entry script demos/06_multinode.jl requires two MPI ranks, checks the
+assembled result, and reports where the tile tasks executed. Run the shell
+command in the existing one-node allocation. MPI coordinates separate processes
+on either one host or several; only launcher placement changes.
 The attendee launch remains bash frontier/launch.sh 2 demos/04_mpi.jl on one node.
 That exercises the programming model without claiming inter-server communication.
-Do not request additional attendee nodes. See the appendix for presenter setup.
+The same-node demo does not measure inter-node network performance.
+No additional attendee or presenter nodes are required.
 :::
 
 ## Multiple nodes × multiple GPUs
@@ -513,26 +517,28 @@ bash frontier/multinode.sh gpu
 ```
 
 ::: {.takeaway}
-One <code>C = A * B</code>, two servers, four GPU devices. Check PASS and the device counts.
+One <code>C = A * B</code>, two ranks, four distinct GPUs. Check PASS and the device counts.
 :::
 
 ::: {.small}
-Presenter demo: one MPI rank per server, two GPUs per rank.
+Odo tutorial resource limits: two ranks on one node, two GPUs per rank. Same code across nodes.
 :::
 
 ::: {.notes}
 24:00–25:00. Compose the two ideas in the order just taught. All ranks execute
 the same tiled algorithm, and each rank can schedule tasks on more than one GPU.
-The illustrated layout has two hosts and four distinct GPU devices, not copies
-of one rank-local GPU. MPI rank count and GPUs per rank are separate choices.
+The diagram shows a two-server deployment. The Odo demo places both MPI ranks
+on one server, with four distinct GPU devices total. MPI rank count and GPUs
+per rank are separate choices.
 The scope applies to devices visible to each rank; the selected hardware layout
 must expose those devices. Avoid device-mask configuration in this teaching flow.
 Our Odo MPI/GPU path uses host-staged transfers; do not imply GPU-direct networking.
 The entry script demos/07_multinode_multigpu.jl uses the same matrix-product
 implementation as the previous CPU and single-node GPU demos. It requires
-two distinct hosts and at least two GPUs per rank, and checks physical device
-identities as well as the numerical result. The shell wrapper requests one
-rank and two GPUs on each node in the presenter's two-node allocation.
+two MPI ranks and at least two GPUs per rank, and checks physical device
+identities as well as the numerical result. The shell wrapper launches both
+ranks on the existing node and exposes two different GPUs to each rank.
+The same Julia code also runs across nodes when the launcher places ranks there.
 Attendee MPI exercises and optional four-rank GPU checks keep one attendee node.
 :::
 
@@ -859,35 +865,34 @@ Obtain one node in advance with bash frontier/allocate.sh.
 The last command requests four ranks with one GPU each on that node.
 :::
 
-## Appendix / Two-node presenter setup
+## Appendix / MPI demos on Odo
 
 ::: {.small}
-On the login node, after leaving any previous allocation:
+Inside the existing single-node allocation, after exiting any warm REPL step:
 :::
 
 ```bash
-SC26_NODES=2 bash frontier/allocate.sh
-# Inside the new allocation:
-export SC26_NODES=1
 bash frontier/multinode.sh cpu
 bash frontier/multinode.sh gpu
 ```
 
 ::: {.takeaway}
-The multi-node wrapper selects both nodes. Ordinary examples keep using one.
+Two MPI ranks share one node. The GPU demo uses two distinct GPUs per rank.
 :::
 
 ::: {.small}
-25 attendee nodes + 2 presenter nodes = 27 nodes to reserve.
+Odo tutorial resource limits keep the allocation small; the same Julia code runs across nodes.<br>
+25 attendee nodes + 1 presenter node = 26 nodes to reserve.
 :::
 
 ::: {.notes}
-allocate.sh downloads packages on the login node before requesting two nodes.
-Setting SC26_NODES=1 inside that allocation keeps the earlier launch commands
-valid; it does not release the second allocated node. The multi-node wrapper
-overrides the step layout to two ranks on two nodes and checks allocation size.
-Exit REPL steps that reserve resources before launching these demos. Rehearse
-both scripts on the actual hosts and keep recordings for limited-capacity days.
+The wrapper fixes the workshop step layout to one node and two ranks. CPU mode
+requests no GPUs; GPU mode requests two per rank, four distinct devices total.
+There is no second allocation and no physical-host requirement in the Julia
+entry scripts. On a larger allocation, launch the same files with MPI ranks
+placed across nodes. The algorithm and data-access annotations stay unchanged.
+The diagrammed multi-node deployment is a programming-model explanation;
+same-node measurements do not establish inter-node network performance.
 :::
 
 ## Appendix / The four access patterns
@@ -930,22 +935,22 @@ Own account, code, and results.<br>One compute node each.
 :::
 ::: {.card}
 ::: {.number}
-1–2
+1
 :::
-<h3>Presenter nodes</h3>
-One for the standard layout.<br>Two for live multi-node demos.
+<h3>Presenter node</h3>
+Multiple MPI ranks and GPUs.<br>Same layout as every attendee.
 :::
 ::: {.card}
 ::: {.number}
-26–27
+26
 :::
 <h3>Nodes to reserve</h3>
-25 attendee nodes + 1–2 presenter nodes.<br>Three or two spare against the recorded 29 healthy.
+25 attendee nodes + 1 presenter node.<br>Three spare against the recorded 29 healthy.
 :::
 :::
 
 ::: {.source-note}
-Attendees keep one node each. Optional multi-node presenter demos add one reserved node. Independent access fits the recorded whole-node policy without node sharing. Details in PLAN.md.
+All scheduled examples use one node per person. Independent concurrent access fits the recorded whole-node policy without node sharing. Reserve capacity and revalidate before the event. Details in PLAN.md.
 :::
 
 ::: {.notes}
@@ -954,11 +959,10 @@ Organizer reference, not teaching content. The October 14 inspection found
 attendees plus one presenter require 26 healthy nodes, leaving three spare
 if the remaining recorded capacity is available. Each attendee uses one node
 for CPU, multi-GPU, two MPI ranks, and the optional four-rank GPU run.
-The presenter keeps one node by default, or two for live CPU/GPU multi-node
-demos. Those demos verify two physical hosts and require 27 total reserved
-nodes; the one-node presenter layout requires 26. Attendee MPI stays within
-each attendee's node. Node-sharing approval is unnecessary. If fewer nodes
-are available, PLAN.md describes two independent access
+The presenter keeps their own one-node allocation throughout. All ranks in
+these examples communicate within their own node; do not claim network scaling.
+Node-sharing approval is unnecessary for this layout, but reserve 26 healthy
+nodes. If fewer nodes are available, PLAN.md describes two independent access
 windows of 13 and 12 attendees plus one presenter (14 nodes at peak), with
 preflighted local CPU work outside each window. No class-scale rehearsal has
 yet validated the fallback timing. An idle allocation still owns its node.

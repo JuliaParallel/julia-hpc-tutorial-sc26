@@ -74,7 +74,8 @@ interactive task timelines, function-time summaries, and run history.
 See [setup and session behavior](host/README.md).
 
 The terminal workflow below remains available. Every demo now prints its
-actual algorithm source and a UnicodePlots Gantt with Dagger logging enabled.
+actual algorithm source highlighted with Highlights.jl's Tree-sitter Julia
+parser, and a UnicodePlots Gantt with Dagger logging enabled.
 JSON timelines are saved under `results/demo-timelines/`. First runs include
 compilation; repeat for warm execution. GPU lanes show host tasks rather than
 individual GPU kernels.

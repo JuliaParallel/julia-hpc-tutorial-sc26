@@ -4,6 +4,7 @@ import argparse
 import atexit
 import getpass
 import io
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -11,6 +12,7 @@ import re
 import secrets
 import shlex
 import shutil
+import socket
 import subprocess
 import tarfile
 import threading
@@ -255,8 +257,8 @@ def handler_for(console):
             self.wfile.write(body)
 
         def do_GET(self):
-            if not self.local_host():
-                self.reply(dict(error="Use the local console address"), code=403)
+            if not self.allowed_host():
+                self.reply(dict(error="Use this console's IP address or an allowed hostname"), code=403)
                 return
             url = urlsplit(self.path)
             if url.path == "/api/state":
@@ -267,22 +269,35 @@ def handler_for(console):
             elif url.path == "/api/config":
                 self.reply(dict(token=console.token, demos=DEMOS, host=console.args.ssh_host,
                                 remote_root=console.args.remote_root, time=console.args.time))
-            elif url.path in ("/", "/app.js", "/style.css"):
-                file = {"/":"index.html", "/app.js":"app.js", "/style.css":"style.css"}[url.path]
+            elif url.path in ("/", "/app.js", "/ansi.js", "/style.css"):
+                file = {"/":"index.html", "/app.js":"app.js", "/ansi.js":"ansi.js", "/style.css":"style.css"}[url.path]
                 content_type = {"/":"text/html; charset=utf-8", "/app.js":"text/javascript; charset=utf-8",
-                                "/style.css":"text/css; charset=utf-8"}[url.path]
+                                "/ansi.js":"text/javascript; charset=utf-8", "/style.css":"text/css; charset=utf-8"}[url.path]
                 self.reply((ROOT / "host" / file).read_bytes(), content_type)
             else:
                 self.reply(dict(error="Not found"), code=404)
 
-        def local_host(self):
-            return self.headers.get("Host") in (f"127.0.0.1:{self.server.server_port}",
-                                                f"localhost:{self.server.server_port}")
+        def allowed_host(self):
+            try:
+                address = urlsplit("//" + self.headers.get("Host", ""))
+                if address.port != self.server.server_port:
+                    return False
+                name = (address.hostname or "").lower().rstrip(".")
+                if name in getattr(self.server, "allowed_hosts", {"127.0.0.1", "localhost"}):
+                    return True
+                # Wildcard binding accepts literal LAN/Tailscale interface IPs.
+                # Unrecognized DNS names still fail the rebinding check.
+                if self.server.server_address[0] == "0.0.0.0":
+                    ipaddress.ip_address(name)
+                    return True
+            except ValueError:
+                pass
+            return False
 
         def do_POST(self):
-            # Loopback binding plus a per-launch token prevents other websites
-            # from submitting Julia/SSH commands to the user's local server.
-            if not self.local_host() or self.headers.get("X-Console-Token") != console.token:
+            # A recognized host and per-launch token prevent other websites
+            # from submitting Julia/SSH commands to this console.
+            if not self.allowed_host() or self.headers.get("X-Console-Token") != console.token:
                 self.reply(dict(error="Invalid console token"), code=403)
                 return
             try:
@@ -311,6 +326,8 @@ def handler_for(console):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--host", default="0.0.0.0", help="Listen address (default: all IPv4 interfaces)")
+    parser.add_argument("--allow-host", action="append", default=[], help="Additional allowed browser hostname")
     parser.add_argument("--port", type=int, default=8767)
     parser.add_argument("--ssh-host", default="odo")
     parser.add_argument("--account", default=os.environ.get("SC26_ACCOUNT", "trn047"))
@@ -327,10 +344,25 @@ def main():
     if not args.remote_root.startswith("/"):
         parser.error("--remote-root must be an absolute path")
     console = Console(args)
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), handler_for(console))
+    server = ThreadingHTTPServer((args.host, args.port), handler_for(console))
+    server.allowed_hosts = {"127.0.0.1", "localhost", socket.gethostname().lower(), socket.getfqdn().lower(),
+                            *(name.lower().rstrip(".") for name in args.allow_host)}
+    tailscale_ips = []
+    if shutil.which("tailscale"):
+        try:
+            status = subprocess.run(["tailscale", "status", "--json"], capture_output=True, text=True, timeout=3)
+            peer = json.loads(status.stdout).get("Self") or {}
+            if peer.get("DNSName"):
+                server.allowed_hosts.add(peer["DNSName"].lower().rstrip("."))
+            tailscale_ips = [ip for ip in peer.get("TailscaleIPs", []) if ":" not in ip]
+        except (ValueError, OSError, subprocess.TimeoutExpired):
+            pass
     atexit.register(console.disconnect)
     url = f"http://127.0.0.1:{args.port}"
     print(f"Tutorial console: {url}\nOdo workspace: {args.remote_root}\nCtrl-C releases the console's allocation.", flush=True)
+    if args.host == "0.0.0.0":
+        for ip in tailscale_ips:
+            print(f"Tailscale: http://{ip}:{args.port}", flush=True)
     if not args.no_browser:
         webbrowser.open(url)
     try:

@@ -40,9 +40,14 @@ python3 host/app.py --remote-root /gpfs/wolf2/olcf/trn047/scratch/YOUR_ODO_USER/
     --account trn047 --time 02:00:00
 ```
 
+The server listens on **`0.0.0.0:8767`** by default, so you can also open it
+from your laptop over Tailscale. Startup prints the machine's Tailscale URL
+when the Tailscale CLI is available. Tailscale IPs and the machine's MagicDNS
+name are accepted; `--allow-host NAME` adds another browser hostname.
+Use `--host 127.0.0.1` for a loopback-only server.
+
 Other options: `--ssh-host`, `--control-path`, `--reservation`, `--port`,
-and `--no-browser`. `python3 host/app.py --help` lists them. The server binds
-only to `127.0.0.1`; keep it on the user's computer.
+and `--no-browser`. `python3 host/app.py --help` lists them.
 
 ## What stays alive
 
@@ -73,10 +78,14 @@ its Slurm time limit; its job ID appears in the session output/status.
 
 ## Source and plots
 
-Every demo prints syntax-highlighted excerpts from the actual source files,
+Every demo uses Highlights.jl's Tree-sitter Julia parser and a Dracula theme
+to print syntax-highlighted excerpts from the actual source files,
 then runs with Dagger logging and prints a UnicodePlots Gantt. `NO_COLOR` or
 `SC26_COLOR=0` disables terminal source color. This also works with the
 existing terminal launchers and `include("demos/01_tasks.jl")`.
+Function calls, macros, types, numbers, strings and comments receive distinct
+colors. The webpage preserves the same 24-bit colors. The Julia grammar and
+theme artifacts are downloaded on the login node during preparation.
 
 The web console adds processor lanes with task tooltips, a transfer toggle,
 zoom, a function-time summary, and the last 20 timelines for comparison.
@@ -105,6 +114,7 @@ Dagger.show_logs(stdout, logs, :unicode_gantt)
 ```bash
 python3 -m unittest discover -s test -p 'test_*.py'
 julia --project -t 4 test/presentation.jl
+node test/ansi.cjs  # optional developer check; Node is not needed to use the app
 ```
 
 These check the local protocol, allocation cleanup, HTTP command boundary,

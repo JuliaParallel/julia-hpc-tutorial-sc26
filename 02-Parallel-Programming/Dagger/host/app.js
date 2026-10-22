@@ -2,18 +2,13 @@
 const $ = id => document.getElementById(id);
 let config, selected, state = {}, cursor = 0, activeTrace = null;
 const traces = [];
-const colors = {30:"#9fb4bf",31:"#ff8f8f",32:"#72e3c3",33:"#ffbd75",34:"#6acde8",35:"#c8a5ff",36:"#6acde8",37:"#e7f0f4",90:"#8197a3",91:"#ff8f8f",92:"#72e3c3",93:"#ffbd75",94:"#6acde8",95:"#c8a5ff",96:"#6acde8"};
 function ansi(parent, text) {
-  // Interpret only SGR colors. All source and output become text nodes.
-  let color = null, start = 0;
-  const regex = /\x1b\[([0-9;]*)m/g;
-  const append = value => { const span=document.createElement("span"); span.textContent=value; if(color)span.style.color=color; parent.append(span); };
-  for (const match of text.matchAll(regex)) {
-    append(text.slice(start, match.index));
-    for (const value of match[1].split(";").map(Number)) { if(value===0||value===39)color=null; else if(colors[value])color=colors[value]; }
-    start=match.index+match[0].length;
+  for (const run of ansiSegments(text)) {
+    const span = document.createElement("span");
+    span.textContent = run.text;
+    Object.assign(span.style, run.style);
+    parent.append(span);
   }
-  append(text.slice(start));
 }
 async function post(path, body={}) {
   $("alert").hidden=true;

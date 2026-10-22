@@ -51,6 +51,7 @@ check any file. All options are listed at the top of `harness/run.jl`.
 ### Independent access for 25 attendees and one presenter
 
 Reserve **26 healthy compute nodes**: one per attendee and one for the presenter.
+If the presenter runs the optional two-node demos live, reserve **27** instead.
 Everyone keeps their own account, code, results, and allocation. All tutorial
 MPI examples use multiple ranks on one node, so the existing exclusive-node
 policy supports concurrent CPU, multi-GPU, and MPI work without node sharing.
@@ -135,8 +136,50 @@ devices participated, including under MPI. No manual device masks are needed.
 
 The optional four-rank launch uses four GPUs on one node, one per rank, for the
 same matrix product. The slides introduce single GPU, single-process multi-GPU,
-multi-node MPI, then multi-node MPI with multiple GPUs per server. The two
-multi-node layouts are conceptual extensions; attendee allocations stay at one node.
+multi-node MPI, then multi-node MPI with multiple GPUs per server. The multi-node
+demos below are for the presenter or optional exploration; attendee allocations
+stay at one node.
+
+### Presenter demos across two physical nodes
+
+From the Odo login node, obtain a separate two-node allocation. If replacing
+your one-node allocation, exit Julia and that allocation's shell first:
+
+```bash
+SC26_NODES=2 bash frontier/allocate.sh
+```
+
+Inside this allocation, run:
+
+```bash
+export SC26_NODES=1             # ordinary examples use one node within this allocation
+bash frontier/multinode.sh cpu  # one CPU matrix product, one MPI rank per node
+bash frontier/multinode.sh gpu  # same product, two GPUs per node, four GPUs total
+```
+
+`allocate.sh` prepares dependencies on the login node before requesting the
+nodes. `multinode.sh` selects two nodes for its step regardless of `SC26_NODES`,
+and refuses an allocation with fewer than two nodes. The CPU step requests no
+GPUs; the GPU step requests two GPUs per rank. Run it after exiting any REPL
+step that holds the needed resources.
+
+For MPI ranks requesting multiple GPUs, the launcher uses `per_task:N` binding
+to expose the requested count to each rank; see the
+[Slurm launch reference](https://slurm.schedmd.com/srun.html).
+
+The entry scripts are `demos/06_multinode.jl` and
+`demos/07_multinode_multigpu.jl`. Both reuse the matrix-product implementation
+behind `05_multigpu.jl`, verify the assembled `C = A * B`, and report the actual
+hosts where output tiles were computed. They reject ranks placed on only one
+physical host. The GPU version also requires at least two GPUs per rank and
+checks that the devices are distinct. Successful output reports two nodes and
+two Julia processes, with zero GPUs for CPU or four GPUs for GPU execution.
+
+A presenter holding two nodes alongside 25 one-node attendee allocations
+requires **27 healthy nodes**. The default one-node presenter layout still
+requires 26. See the [resource plan](PLAN.md#resource-plan-for-25-attendees-and-one-presenter).
+
+### Batch execution and validation
 
 For batch execution, after preparing the environment:
 

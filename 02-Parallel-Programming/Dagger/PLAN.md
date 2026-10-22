@@ -27,7 +27,7 @@ tasks access data, and let Dagger schedule tasks and move data.
 | 8:00–16:00 | Datadeps and tiles | Mutating tasks with `In`/`Out`/`InOut`; `DArray`, `Blocks`, and `.chunks`. Work through read/write dependencies together. | `demos/02_datadeps.jl` |
 | 16:00–20:00 | GPU scopes | Select an AMD GPU with `Dagger.scope(rocm_gpu=1)`. Explain data movement and BLAS dispatch. | `demos/03_gpu.jl` |
 | 20:00–23:00 | Same-node multi-GPU | One Julia process partitions one matrix product across two or four distinct GPUs. | `demos/05_multigpu.jl` |
-| 23:00–25:00 | Multi-node concepts | MPI/SPMD across servers, then MPI plus multiple GPUs per server. The hands-on version keeps ranks on one node. | `demos/04_mpi.jl` and topology diagrams |
+| 23:00–25:00 | Multi-node presenter demos | One matrix product on CPU across two servers, then across two GPUs per server. Attendee MPI stays on one node. | `demos/06_multinode.jl`, `demos/07_multinode_multigpu.jl` |
 | 25:00–30:00 | Exercise brief | Tiled Cholesky (POTRF/TRSM/SYRK/GEMM), its dependency graph, commands, and correctness checks. | `exercise/README.md` |
 | 30:00–42:00 | Hands-on: CPU | Add Datadeps and task annotations, run the harness, and fix errors. | `exercise/my_cholesky.jl` |
 | 42:00–50:00 | Hands-on: GPU | Run the same function with a GPU scope and compare results. | Harness with `--target=gpu` |
@@ -44,7 +44,7 @@ tasks access data, and let Dagger schedule tasks and move data.
 6. Tiles: `DArray(A, Blocks(bs, bs))` and `.chunks`.
 7. GPU scopes and direct BLAS/LAPACK task dispatch (`demos/03_gpu.jl`).
 8. Multiple GPUs on one server: one matrix product partitioned across distinct GPUs (`demos/05_multigpu.jl`).
-9. Multiple servers: MPI/SPMD and uniform decisions across ranks (`demos/04_mpi.jl`), followed by MPI plus multiple GPUs per server. These topologies are conceptual; attendee ranks stay on one node.
+9. Multiple servers: MPI/SPMD and uniform decisions across ranks (`demos/06_multinode.jl`), followed by MPI plus multiple GPUs per server (`demos/07_multinode_multigpu.jl`). These are presenter/optional demos; attendee ranks stay on one node.
 10. Tiled Cholesky: four kernels and a dependency graph for a 4×4 tile grid.
 11. Exercise: edit the template, check correctness, then change execution targets.
 12. Results: tile-size effects and comparison with built-in and vendor implementations.
@@ -76,6 +76,7 @@ on a single device.
 - Run `frontier/validate.sh` in a one-node allocation, including the four-rank GPU checks. Revalidate whenever the resolved Dagger master commit or ROCm module changes.
 - Run each demo before the session and keep a warm Julia REPL for demos 1–3.
 - Launch MPI in a separate terminal; release the REPL step first if it reserves the resources that MPI needs. Prepare recorded GPU and MPI demonstrations as fallbacks.
+- For live multi-node presenter demos, request two presenter nodes with `SC26_NODES=2 bash frontier/allocate.sh` from the login node, then set `SC26_NODES=1` for ordinary examples. `frontier/multinode.sh cpu` and `gpu` each select both nodes automatically. Rehearse both before the session; reserve 27 total nodes with 25 independent attendees.
 - If remote capacity requires the fallback below, preflight independent CPU work on attendees' laptops (including local MPI if used), or arrange a separate CPU service before the event. Odo login nodes are for editing and downloads, not class-wide computation.
 - If GPU execution is unavailable, use the instructor demonstration or recordings for that checkpoint and continue independent CPU work on the preflighted local/alternate service.
 
@@ -97,15 +98,17 @@ frontier/                   Odo environment, setup, allocation, launch scripts
 ## Resource plan for 25 attendees and one presenter
 
 Every attendee works independently with their own account, implementation,
-results, and one-node allocation. The presenter also uses one node. All
-scheduled MPI examples use multiple ranks on that same node, including the
-four-rank GPU placement demo. Reserve **26 healthy compute nodes** for the
-session; the presenter keeps their allocation throughout.
+results, and one-node allocation. The presenter uses one node by default,
+or two when showing the live multi-node demos. All attendee MPI examples use
+multiple ranks on their same node, including the optional four-rank GPU demo.
+Reserve **26 healthy compute nodes** for the default layout or **27** with
+the two-node presenter demos; the presenter keeps their allocation throughout.
 
 The October 14, 2026 Slurm inspection found 30 batch nodes with eight GPU GCDs
 per node, one drained node, a 12-hour partition limit, and no reservations.
 That snapshot leaves at most 29 healthy nodes, so the 26-node layout has three
-spare nodes if all other capacity is available. The account/user associations
+spare nodes if all other capacity is available, or two spare with a two-node
+presenter. The account/user associations
 allow four running jobs per user and 100 submitted jobs. The batch partition
 reports `OverSubscribe=EXCLUSIVE`: independent jobs occupy whole nodes even
 when using fewer GPUs. These are recorded settings, not a tutorial-day
@@ -115,6 +118,7 @@ for architecture and storage.
 | Independent session arrangement | Attendee nodes | Presenter nodes | Total | Assessment |
 |---|---:|---:|---:|---|
 | 25 simultaneous one-node jobs, exclusive policy | 25 | 1 | 26 | Recommended; supports CPU, multi-GPU, and same-node MPI |
+| 25 one-node attendee jobs plus live multi-node presenter | 25 | 2 | 27 | Supports both two-server demos without changing attendee allocations |
 | 25 simultaneous two-GPU sessions, sharing allowed | at least 7 | 1 | at least 8 | Optional capacity saving; not required for the tutorial |
 
 The sharing bound counts GPU devices; CPU/memory placement and scheduling
@@ -140,11 +144,14 @@ presenter concurrently without rotating access or requiring laptop computation.
 Keep the original 12-minute CPU, 8-minute GPU, 6-minute MPI, and 4-minute results
 schedule. Attendees obtain one-node allocations during the talk and retain
 these through the exercise. No policy change is needed, but a reservation for
-26 healthy nodes is still necessary to guarantee access.
+26 healthy nodes is still necessary to guarantee access, or 27 when retaining
+two presenter nodes for the live multi-node demos.
 
 If fewer than 26 nodes can be guaranteed, use two waves of 13 and 12 independent
-one-node sessions, retaining one presenter node: **14 nodes at peak**. A
-proposed 30-minute fallback is ten minutes of local CPU work, a nine-minute
+one-node sessions, retaining one presenter node: **14 nodes at peak**. Retaining
+two presenter nodes would raise that peak to 15; use recorded multi-node demos
+when only the 14-node fallback can be reserved. A proposed 30-minute fallback
+is ten minutes of local CPU work, a nine-minute
 remote window for attendees 1-13, a nine-minute window for attendees 14-25,
 then two minutes of results. Attendees outside their remote window continue
 independent CPU/MPI checks, editing, or analysis on preflighted laptops or a
@@ -165,7 +172,8 @@ configuration per submission; a combined checkpoint runner would be additional
 work. Without a compute reservation, fixed interactive windows are not
 guaranteed. Preflight local CPU/MPI work and prepare recordings if remote
 capacity cannot be secured. Continuous remote access requires 26 healthy nodes
-under the current exclusive policy, or a validated alternative system.
+(27 with a two-node presenter) under the current exclusive policy, or a
+validated alternative system.
 
 Read `sinfo`, `scontrol show partition`, `sacctmgr show assoc`, and
 `scontrol show reservation` before coordinating the event reservation. Do not
@@ -267,6 +275,16 @@ run assembled a single `C = A * B`, checked it against the dense reference, and
 verified distinct physical devices using hostname plus PCI address returned
 from the actual matrix-multiplication tasks. Logs are under
 `results/validation/matmul-{2gpu,4gpu,mpi}.log` in the Odo scratch checkout.
+
+The presenter demos passed across `odo06` and `odo07`: `multinode.sh cpu`
+reported two hosts and two Julia processes; `multinode.sh gpu` reported two
+GPU devices on each host, four distinct devices total, and two Julia processes.
+Both compared their assembled matrix product against the dense reference.
+The shared implementation also passed the original one-node/two-GPU demo.
+A direct two-rank launch on one host was rejected by the multi-node entry.
+The GPU launch uses `per_task:2` binding: the earlier `closest` binding exposed
+only one device despite requesting two per rank. Logs are
+`results/validation/multinode-{cpu,gpu,reject-single-host}.log` on Odo.
 
 ## Validation notes (October 14, 2026)
 

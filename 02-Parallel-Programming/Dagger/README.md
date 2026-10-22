@@ -54,6 +54,7 @@ Reserve **26 healthy compute nodes**: one per attendee and one for the presenter
 Everyone keeps their own account, code, results, and allocation. All tutorial
 MPI examples use multiple ranks on one node, so the existing exclusive-node
 policy supports concurrent CPU, multi-GPU, and MPI work without node sharing.
+
 The recorded 29 healthy nodes leave three spare if otherwise available.
 
 See the [resource plan](PLAN.md#resource-plan-for-25-attendees-and-one-presenter)
@@ -62,6 +63,21 @@ That fallback uses two windows of 13 and 12 independent sessions, plus one
 presenter node (14 nodes at peak), with local CPU work outside each window.
 Same-node MPI exercises process communication and placement; it does not measure
 communication between physical hosts.
+
+### Local web console
+
+From this directory on your laptop, run `python3 host/app.py`, then open
+**http://127.0.0.1:8767**. The console connects to Odo, prepares packages on the
+login node, and manages your one-node allocation and persistent Julia workers.
+It offers all seven demos, a multiline Julia evaluator, highlighted source,
+interactive task timelines, function-time summaries, and run history.
+See [setup and session behavior](host/README.md).
+
+The terminal workflow below remains available. Every demo now prints its
+actual algorithm source and a UnicodePlots Gantt with Dagger logging enabled.
+JSON timelines are saved under `results/demo-timelines/`. First runs include
+compilation; repeat for warm execution. GPU lanes show host tasks rather than
+individual GPU kernels.
 
 ## On Odo (Frontier training system)
 

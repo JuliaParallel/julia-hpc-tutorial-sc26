@@ -13,6 +13,8 @@ rpn=$((np / nodes))
 gpt="${SC26_GPUS_PER_TASK:-1}"
 bind=closest
 if (( np == 1 )); then gpt="${SC26_GPUS_PER_TASK:-8}"; bind=none; fi
+# "closest" can expose only one GPU even when a rank requested several.
+if (( np > 1 && gpt > 1 )); then bind="per_task:$gpt"; fi
 if (( gpt == 0 )); then bind=none; fi
 (( rpn * gpt <= 8 )) || { echo "Requested more than eight GPUs per node" >&2; exit 2; }
 cd "$SC26_ROOT"

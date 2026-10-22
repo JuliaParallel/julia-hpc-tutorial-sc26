@@ -12,9 +12,9 @@ const rank = DEMO_USE_MPI ? MPI.Comm_rank(MPI.COMM_WORLD) : 0
 const ranks = DEMO_USE_MPI ? MPI.Comm_size(MPI.COMM_WORLD) : 1
 BLAS.set_num_threads(1)
 
-# Record the device from inside the actual matrix-multiplication task, after
-# its GPU work completes. The PCI address distinguishes physical GPU devices
-# even when different MPI ranks have the same local device numbering.
+# Record where the actual matrix-multiplication task executes. For GPU work,
+# synchronize before reporting and use PCI addresses to distinguish devices
+# even when different MPI ranks have the same local numbering.
 function multiply_and_report!(C, A, B)
     mul!(C, A, B)
     if DEMO_USE_GPU
@@ -34,8 +34,8 @@ end
 function tiled_matmul!(DC, DA, DB, scopes)
     tasks = []
     Dagger.spawn_datadeps() do
-        for (i, gpu) in enumerate(scopes)
-            task = Dagger.@spawn scope=gpu multiply_and_report!(
+        for (i, placement) in enumerate(scopes)
+            task = Dagger.@spawn scope=placement multiply_and_report!(
                 Out(DC.chunks[i, 1]), In(DA.chunks[i, 1]), In(DB.chunks[1, 1]))
             push!(tasks, task)
         end

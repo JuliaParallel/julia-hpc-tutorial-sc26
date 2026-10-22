@@ -478,44 +478,46 @@ Exit the warm REPL first because its step reserves these GPU resources.
 
 ![](assets/multinode.svg){.diagram fig-alt="MPI connects rank 0 on server A and rank 1 on server B over a network. Each rank runs CPU tasks as part of the same Dagger program."}
 
-```julia
-using Dagger, MPI
-Dagger.accelerate!(:mpi)
+```bash
+bash frontier/multinode.sh cpu
 ```
 
 ::: {.takeaway}
-Same program and input on every rank. MPI carries task data between servers.
+Two servers contribute tiles to one <code>C = A * B</code>. Check PASS and two hostnames.
 :::
 
 ::: {.small}
-Conceptual extension. Hands-on MPI uses two ranks on your existing single node.
+Presenter demo: requires a two-node allocation. Attendees keep same-node MPI.
 :::
 
 ::: {.notes}
 23:00–24:00. Introduce MPI only after single-process multi-GPU. Explain SPMD:
 every rank builds the same graph, with deterministic input and uniform decisions.
 Keep rank-0-only branches for reporting; do not put the Dagger work inside one.
-Here MPI spans two servers; Dagger's tasks still describe one distributed algorithm.
+The shared implementation enables Dagger.accelerate!(:mpi), builds the same
+matrix product on every rank, and explicitly places output tiles across ranks.
+The entry script demos/06_multinode.jl requires two distinct compute hosts,
+checks the assembled result, and reports the hosts that executed the tile tasks.
+Run the shell command in the presenter's prepared two-node allocation.
 The attendee launch remains bash frontier/launch.sh 2 demos/04_mpi.jl on one node.
 That exercises the programming model without claiming inter-server communication.
-Do not request additional attendee nodes for this conceptual extension.
+Do not request additional attendee nodes. See the appendix for presenter setup.
 :::
 
 ## Multiple nodes × multiple GPUs
 
 ![](assets/multinode-gpu.svg){.diagram height=285 fig-alt="Two servers each host one MPI rank and two GPU devices. MPI connects the ranks across the network; GPU scopes distribute tiles within each server. All four GPUs contribute to one distributed algorithm."}
 
-```julia
-Dagger.accelerate!(:mpi)
-gpus = Dagger.scope(rocm_gpus=1:2)  # two GPU devices per rank
+```bash
+bash frontier/multinode.sh gpu
 ```
 
 ::: {.takeaway}
-MPI spans servers. GPU scopes select devices within each server.
+One <code>C = A * B</code>, two servers, four GPU devices. Check PASS and the device counts.
 :::
 
 ::: {.small}
-Conceptual extension: one MPI rank per server, two GPUs per rank.
+Presenter demo: one MPI rank per server, two GPUs per rank.
 :::
 
 ::: {.notes}
@@ -526,8 +528,12 @@ of one rank-local GPU. MPI rank count and GPUs per rank are separate choices.
 The scope applies to devices visible to each rank; the selected hardware layout
 must expose those devices. Avoid device-mask configuration in this teaching flow.
 Our Odo MPI/GPU path uses host-staged transfers; do not imply GPU-direct networking.
-This is an explanation, not a new allocation or hands-on requirement. The live
-MPI exercise and optional four-rank GPU check continue to use one attendee node.
+The entry script demos/07_multinode_multigpu.jl uses the same matrix-product
+implementation as the previous CPU and single-node GPU demos. It requires
+two distinct hosts and at least two GPUs per rank, and checks physical device
+identities as well as the numerical result. The shell wrapper requests one
+rank and two GPUs on each node in the presenter's two-node allocation.
+Attendee MPI exercises and optional four-rank GPU checks keep one attendee node.
 :::
 
 ## Your algorithm: tiled Cholesky
@@ -853,6 +859,37 @@ Obtain one node in advance with bash frontier/allocate.sh.
 The last command requests four ranks with one GPU each on that node.
 :::
 
+## Appendix / Two-node presenter setup
+
+::: {.small}
+On the login node, after leaving any previous allocation:
+:::
+
+```bash
+SC26_NODES=2 bash frontier/allocate.sh
+# Inside the new allocation:
+export SC26_NODES=1
+bash frontier/multinode.sh cpu
+bash frontier/multinode.sh gpu
+```
+
+::: {.takeaway}
+The multi-node wrapper selects both nodes. Ordinary examples keep using one.
+:::
+
+::: {.small}
+25 attendee nodes + 2 presenter nodes = 27 nodes to reserve.
+:::
+
+::: {.notes}
+allocate.sh downloads packages on the login node before requesting two nodes.
+Setting SC26_NODES=1 inside that allocation keeps the earlier launch commands
+valid; it does not release the second allocated node. The multi-node wrapper
+overrides the step layout to two ranks on two nodes and checks allocation size.
+Exit REPL steps that reserve resources before launching these demos. Rehearse
+both scripts on the actual hosts and keep recordings for limited-capacity days.
+:::
+
 ## Appendix / The four access patterns
 
 ::: {.compact-code}
@@ -893,22 +930,22 @@ Own account, code, and results.<br>One compute node each.
 :::
 ::: {.card}
 ::: {.number}
-1
+1–2
 :::
-<h3>Presenter node</h3>
-Multiple MPI ranks and GPUs.<br>Same layout as every attendee.
+<h3>Presenter nodes</h3>
+One for the standard layout.<br>Two for live multi-node demos.
 :::
 ::: {.card}
 ::: {.number}
-26
+26–27
 :::
 <h3>Nodes to reserve</h3>
-25 attendee nodes + 1 presenter node.<br>Three spare against the recorded 29 healthy.
+25 attendee nodes + 1–2 presenter nodes.<br>Three or two spare against the recorded 29 healthy.
 :::
 :::
 
 ::: {.source-note}
-All scheduled examples use one node per person. Independent concurrent access fits the recorded whole-node policy without node sharing. Reserve capacity and revalidate before the event. Details in PLAN.md.
+Attendees keep one node each. Optional multi-node presenter demos add one reserved node. Independent access fits the recorded whole-node policy without node sharing. Details in PLAN.md.
 :::
 
 ::: {.notes}
@@ -917,10 +954,11 @@ Organizer reference, not teaching content. The October 14 inspection found
 attendees plus one presenter require 26 healthy nodes, leaving three spare
 if the remaining recorded capacity is available. Each attendee uses one node
 for CPU, multi-GPU, two MPI ranks, and the optional four-rank GPU run.
-The presenter keeps their own one-node allocation throughout. All ranks in
-these examples communicate within their own node; do not claim network scaling.
-Node-sharing approval is unnecessary for this layout, but reserve 26 healthy
-nodes. If fewer nodes are available, PLAN.md describes two independent access
+The presenter keeps one node by default, or two for live CPU/GPU multi-node
+demos. Those demos verify two physical hosts and require 27 total reserved
+nodes; the one-node presenter layout requires 26. Attendee MPI stays within
+each attendee's node. Node-sharing approval is unnecessary. If fewer nodes
+are available, PLAN.md describes two independent access
 windows of 13 and 12 attendees plus one presenter (14 nodes at peak), with
 preflighted local CPU work outside each window. No class-scale rehearsal has
 yet validated the fallback timing. An idle allocation still owns its node.

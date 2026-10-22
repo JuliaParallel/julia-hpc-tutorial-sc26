@@ -15,10 +15,16 @@ BLAS.set_num_threads(1)
 # Record where the actual matrix-multiplication task executes. For GPU work,
 # synchronize before reporting and use PCI addresses to distinguish devices
 # even when different MPI ranks have the same local numbering.
+# source-begin
 function multiply_and_report!(C, A, B)
     mul!(C, A, B)
+    DEMO_USE_GPU && AMDGPU.synchronize()
+    return task_location()
+end
+# source-end
+
+function task_location()
     if DEMO_USE_GPU
-        AMDGPU.synchronize()
         device = AMDGPU.device()
         properties = AMDGPU.HIP.properties(device)
         pci = join((string(properties.pciDomainID; base=16, pad=4),
@@ -31,6 +37,7 @@ function multiply_and_report!(C, A, B)
     return (; host=gethostname(), pid=getpid(), rank, identity...)
 end
 
+# source-begin
 function tiled_matmul!(DC, DA, DB, scopes)
     tasks = []
     Dagger.spawn_datadeps() do
@@ -42,6 +49,24 @@ function tiled_matmul!(DC, DA, DB, scopes)
     end
     return fetch.(tasks)
 end
+
+# source-end
+
+# source-begin
+function matrix_product(scopes, target)
+    bs = 512
+    A = rand(Xoshiro(1), bs * length(scopes), bs)
+    B = rand(Xoshiro(2), bs, bs)
+    Dagger.with_options(scope=target) do
+        DA = DArray(A, Blocks(bs, bs))
+        DB = DArray(B, Blocks(bs, bs))
+        DC = DArray(zeros(size(A, 1), size(B, 2)), Blocks(bs, bs))
+        reports = tiled_matmul!(DC, DA, DB, scopes)
+        result = collect(DC)
+        return reports, result, A, B
+    end
+end
+# source-end
 
 function demonstrate()
     ranks >= DEMO_MIN_RANKS || error("This demo requires at least $DEMO_MIN_RANKS MPI ranks")
@@ -57,45 +82,44 @@ function demonstrate()
         isempty(options) || error("The CPU demo does not accept --gpus")
         0
     end
+    # source-begin
     scopes = if DEMO_USE_GPU
         [DEMO_USE_MPI ? Dagger.scope(mpi_rank=r, rocm_gpu=g) : Dagger.scope(rocm_gpu=g)
          for r in 0:ranks-1 for g in 1:ngpus]
     else
         [Dagger.constrain(Dagger.scope(mpi_rank=r), Dagger.DefaultScope()) for r in 0:ranks-1]
     end
-    bs = 512
-    A = rand(Xoshiro(1), bs * length(scopes), bs)
-    B = rand(Xoshiro(2), bs, bs)
     target = DEMO_USE_GPU ? Dagger.scope(rocm_gpus=1:ngpus) :
              Dagger.constrain(Dagger.scope(mpi_ranks=:), Dagger.DefaultScope())
-    Dagger.with_options(scope=target) do
-        DA = DArray(A, Blocks(bs, bs))
-        DB = DArray(B, Blocks(bs, bs))
-        DC = DArray(zeros(size(A, 1), size(B, 2)), Blocks(bs, bs))
-        reports = tiled_matmul!(DC, DA, DB, scopes)
-        result = collect(DC)
-        @assert result ≈ A * B
-        nodes = length(Set(r.host for r in reports))
-        processes = length(Set((r.host, r.pid) for r in reports))
-        @assert processes == ranks "Some MPI ranks did not participate in the matrix product"
-        identities = DEMO_USE_GPU ? Set((r.host, r.pci) for r in reports) : Set()
-        if DEMO_USE_GPU
-            @assert length(identities) == length(scopes) "GPU tasks reused a physical device"
-        end
-        if rank == 0
-            println("One matrix product: A$(size(A)) * B$(size(B))")
-            for (i, report) in enumerate(reports)
-                location = if DEMO_USE_GPU
-                    DEMO_USE_MPI ? "rank $(report.rank), local GPU $(report.gpu)" : "GPU $(report.gpu)"
-                else
-                    "rank $(report.rank), CPU threads"
-                end
-                println("  output tile row $i -> $location on $(report.host)")
+    reports, result, A, B = matrix_product(scopes, target)
+    # source-end
+    @assert result ≈ A * B
+    nodes = length(Set(r.host for r in reports))
+    processes = length(Set((r.host, r.pid) for r in reports))
+    @assert processes == ranks "Some MPI ranks did not participate in the matrix product"
+    identities = DEMO_USE_GPU ? Set((r.host, r.pci) for r in reports) : Set()
+    if DEMO_USE_GPU
+        @assert length(identities) == length(scopes) "GPU tasks reused a physical device"
+    end
+    if rank == 0
+        println("One matrix product: A$(size(A)) * B$(size(B))")
+        for (i, report) in enumerate(reports)
+            location = if DEMO_USE_GPU
+                DEMO_USE_MPI ? "rank $(report.rank), local GPU $(report.gpu)" : "GPU $(report.gpu)"
+            else
+                "rank $(report.rank), CPU threads"
             end
-            println("PASS: C ≈ A * B")
-            println("GPUs: $(length(identities)) | nodes: $nodes | Julia processes: $processes")
+            println("  output tile row $i -> $location on $(report.host)")
         end
+        println("PASS: C ≈ A * B")
+        println("GPUs: $(length(identities)) | nodes: $nodes | Julia processes: $processes")
     end
 end
 
-demonstrate()
+isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
+function run_demo()
+    title = DEMO_USE_MPI ? (DEMO_USE_GPU ? "07 MPI and multiple GPUs" : "06 MPI matrix product") : "05 Multiple GPUs"
+    DemoPresentation.present(demonstrate; title, files=[@__FILE__],
+                             mpi=DEMO_USE_MPI ? MPI : nothing)
+end
+get(ENV, "SC26_DEMO_LOAD_ONLY", "0") == "1" || run_demo()

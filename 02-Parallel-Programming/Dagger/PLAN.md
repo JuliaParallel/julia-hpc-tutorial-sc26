@@ -245,6 +245,45 @@ Use the output-tile reports and distinct-device checks to establish GPU
 participation. Keep validated logs,
 charts, and a task trace as presentation fallbacks.
 
+## Demo presentation and local console validation (October 22, 2026)
+
+All seven demos now display marked algorithm excerpts from their actual source,
+enable Dagger compute/movement logging, print a UnicodePlots Gantt, and save
+portable JSON timelines under `results/demo-timelines/`. MPI reports combine
+both ranks' logs; processor labels retain rank identity. Timings are host task
+events, including compilation, rather than GPU kernel profiles. The source
+excerpts remain complete Julia syntax and omit presentation plumbing.
+
+The optional host app (`python3 host/app.py`) serves a local webpage on port
+8767 and uses a dedicated SSH transport. A login-side coordinator prepares
+packages before requesting a one-node Slurm holding job; persistent Julia
+steps receive demo or evaluator commands. Single-process work exposes four
+GPUs; MPI exposes two per rank on the same node. Switching layouts restarts
+Julia. Release, EOF and local shutdown clean up only the console's own job.
+The app uploads into its own marked scratch directory, leaving normal
+checkouts and exercise edits separate. See `host/README.md` for setup and the
+supported evaluator interface.
+
+Live checks on `odo04` passed all seven demos, single-process two- and four-GPU
+matrix products, and the two-rank/four-distinct-GPU MPI product. The CPU-first
+MPI workflow also passed: GPU support is loaded before MPI builds its processor
+inventory. Repeated runs retained the Julia worker, and both single-process
+and MPI evaluator variables persisted across commands. Cancelling a sleeping
+MPI expression stopped the step while retaining its allocation; the subsequent
+single-process evaluator and four-GPU demo passed. Reconnecting obtained a
+fresh allocation and reran CPU/MPI/GPU checks without world-age warnings.
+Validation used portal jobs 45133 and 45134. JSON traces remain in
+`/gpfs/wolf2/olcf/trn047/scratch/jpsamaroo/sc26-dagger/portal/results/demo-timelines/`;
+the local validation transcript is `results/validation/portal-live.json`.
+
+The local suite passed 19 Julia checks and seven Python tests covering source
+extraction, event durations, lane placement, the UnicodePlots backend, command
+serialization, cancellation ownership, HTTP boundaries and stream backpressure.
+Browser checks verified highlighted source, timeline tooltips, transfer toggles,
+zoom and history selection without JavaScript errors or horizontal page overflow.
+These checks validate the console and demos, not class-wide allocation timing
+or the complete Cholesky smoke suite, which remain pre-event checks.
+
 ## Interactive startup validation (October 21, 2026)
 
 Validated the scratch checkout on Odo with Julia 1.13.1, Dagger 0.22.7, and

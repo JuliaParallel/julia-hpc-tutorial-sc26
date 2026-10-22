@@ -865,6 +865,39 @@ Obtain one node in advance with bash frontier/allocate.sh.
 The last command requests four ranks with one GPU each on that node.
 :::
 
+## Appendix / A local web console
+
+::: {.small}
+On your laptop, from <code>02-Parallel-Programming/Dagger</code>:
+:::
+
+```bash
+python3 host/app.py
+```
+
+::: {.takeaway}
+Open <code>http://127.0.0.1:8767</code> → Connect & allocate → choose a demo.
+:::
+
+::: {.small}
+Highlighted algorithms · Julia input · task timelines · run history<br>
+The browser runs locally; Julia runs on your own Odo node. Release the node when finished.
+:::
+
+::: {.notes}
+Optional alternative to the terminal commands, with setup in host/README.md.
+The host app needs Python and OpenSSH, not a local Julia installation.
+It uploads course code into a separate portal workspace and prepares packages
+on the login node before requesting one node. A holding job retains that node;
+persistent srun workers receive commands over the same SSH connection.
+Switching between one process and two MPI ranks restarts Julia and clears REPL
+variables. Plot history stays on the host. All demos also print source and a
+terminal Gantt when launched using the existing shell scripts.
+Charts show logged host tasks, including compilation, not kernel profiling.
+Closing the tab does not release the allocation: click Release node or stop
+the local app. Password/MFA authentication may need an initial local SSH prompt.
+:::
+
 ## Appendix / MPI demos on Odo
 
 ::: {.small}

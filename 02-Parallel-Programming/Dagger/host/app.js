@@ -2,6 +2,8 @@
 const $ = id => document.getElementById(id);
 let config, selected, state = {}, cursor = 0, activeTrace = null;
 const traces = [];
+const runDemos=new Map(), runSources=new Map();
+let sourceVersion=0;
 function ansi(parent, text) {
   for (const run of ansiSegments(text)) {
     const span = document.createElement("span");
@@ -18,13 +20,29 @@ async function post(path, body={}) {
   } catch(error) { alertError(error.message); }
 }
 function alertError(message) { $("alert").textContent=message; $("alert").hidden=false; }
-function selectDemo(demo) {
+function showSources(sources, label="Selected demo") {
+  $("source-label").textContent=label;
+  $("source").replaceChildren();
+  for(const source of sources) {
+    const heading=document.createElement("h4"), pre=document.createElement("pre");
+    heading.textContent=source.file;ansi(pre,source.ansi||source.code);$("source").append(heading,pre);
+  }
+}
+async function selectDemo(demo, snapshot=null) {
   selected=demo;
+  const version=++sourceVersion;
   $("demo-title").textContent=demo[1];
   $("layout-label").textContent=demo[2]==="mpi"?"TWO MPI RANKS / ONE ODO NODE":"ONE JULIA PROCESS";
   $("gpu-control").hidden=demo[0]!=="05_multigpu";
   $("repl-mode").value=demo[2];
   for(const button of $("demos").children)button.classList.toggle("active",button.dataset.demo===demo[0]);
+  if(snapshot?.length){showSources(snapshot,"Executed source");return;}
+  $("source").textContent="Loading algorithm…";
+  try {
+    const response=await fetch(`/api/source?demo=${encodeURIComponent(demo[0])}`);
+    const data=await response.json();if(!response.ok)throw Error(data.error);
+    if(version===sourceVersion)showSources(data.sources);
+  } catch(error){if(version===sourceVersion)$("source").textContent=error.message;}
 }
 function controls() {
   $("status").textContent=state.status;
@@ -39,17 +57,16 @@ function event(item) {
     ansi(out,item.text); if(follow)out.scrollTop=out.scrollHeight;
     while(out.childNodes.length>6000)out.firstChild.remove();
   } else if(item.kind==="run") {
-    const demo=config.demos.find(d=>d[0]===item.label);if(demo)selectDemo(demo);
-    const gpuArg=item.args?.find(a=>a.startsWith("--gpus="));if(gpuArg)$("gpus").value=gpuArg.split("=")[1];
-    const pending=document.createElement("p");pending.className="placeholder";pending.textContent="Starting Julia… algorithm source will appear before computation begins.";$("source").replaceChildren(pending);
+    runDemos.set(item.run,item.label);runSources.set(item.run,[]);
     ansi($("output"),`\n━━ ${item.label} ━━\n`);
     $("output").scrollTop=$("output").scrollHeight;
   } else if(item.kind==="source") {
-    const container=$("source"), heading=document.createElement("h4"), pre=document.createElement("pre");
-    container.querySelector(".placeholder")?.remove();
-    heading.textContent=item.file; ansi(pre,item.ansi||item.code); container.append(heading,pre);
+    const sources=runSources.get(item.run)||[];sources.push(item);runSources.set(item.run,sources);
+    if((item.demo||runDemos.get(item.run))===selected[0]) {
+      ++sourceVersion;showSources(sources,"Executed source");
+    }
   } else if(item.kind==="timeline") {
-    traces.push(item); if(traces.length>20)traces.shift(); activeTrace=item; draw();
+    item=normalizeTimeline(item);traces.push(item); if(traces.length>20)traces.shift(); activeTrace=item; draw();
   } else if(item.kind==="error" || (item.kind==="done"&&!item.ok)) alertError(item.error);
 }
 function svg(tag, attrs={}, text) {
@@ -59,11 +76,12 @@ function svg(tag, attrs={}, text) {
   return element;
 }
 function draw() {
+  $("task-tooltip").hidden=true;
   if(!activeTrace)return;
   const trace=activeTrace, events=trace.events.filter(e=>$("moves").checked||e.category==="compute");
   $("download").disabled=false;
   $("history").replaceChildren();
-  traces.forEach((t,i)=>{const b=document.createElement("button");b.textContent=`${i+1} · ${t.title}`;b.classList.toggle("active",t===trace);b.onclick=()=>{activeTrace=t;draw();};$("history").append(b);});
+  traces.forEach((t,i)=>{const b=document.createElement("button");b.textContent=`${i+1} · ${t.title}`;b.classList.toggle("active",t===trace);b.onclick=()=>{activeTrace=t;const demo=config.demos.find(d=>d[0]===(t.demo||runDemos.get(t.run)));if(demo)selectDemo(demo,t.sources||runSources.get(t.run));draw();};$("history").append(b);});
   const all=trace.events, lanes=[...new Set(events.map(e=>e.lane))].sort();
   const duration=Math.max(0.000001,...all.map(e=>e.start+e.duration));
   const compute=all.filter(e=>e.category==="compute");
@@ -84,7 +102,18 @@ function draw() {
     plot.append(svg("line",{x1:left,x2:width-right,y1:y+10,y2:y+10,stroke:"#203541"}));
     events.filter(e=>e.lane===lane).sort((a,b)=>b.duration-a.duration).forEach(e=>{
       const rect=svg("rect",{x:x(e.start),y:y+(e.category==="move"?15:1),width:Math.max(2,x(e.start+e.duration)-x(e.start)),height:e.category==="move"?5:12,rx:2,fill:e.category==="compute"?"#6acde8":"#ffbd75"});
-      rect.append(svg("title",{},`${e.name}\n${e.lane}\n${e.category} · ${(e.duration*1000).toFixed(3)} ms\nstart ${e.start.toFixed(6)} s`));plot.append(rect);
+      const details=taskDetails(e);
+      rect.setAttribute("tabindex","0");rect.setAttribute("role","img");rect.setAttribute("aria-label",`${e.name}\n${details}`);
+      const show=point=>{
+        const tip=$("task-tooltip"), name=document.createElement("strong"), body=document.createElement("div");
+        name.textContent=e.name;body.textContent=details;tip.replaceChildren(name,body);tip.hidden=false;
+        tip.style.left=`${Math.max(8,Math.min(point.clientX+14,window.innerWidth-tip.offsetWidth-8))}px`;
+        tip.style.top=`${Math.max(8,Math.min(point.clientY+14,window.innerHeight-tip.offsetHeight-8))}px`;
+      };
+      rect.onpointerenter=rect.onpointermove=show;
+      rect.onfocus=()=>{const box=rect.getBoundingClientRect();show({clientX:box.x,clientY:box.bottom});};
+      rect.onpointerleave=rect.onblur=()=>$("task-tooltip").hidden=true;
+      plot.append(rect);
     });
   });
   $("timeline").replaceChildren(plot);

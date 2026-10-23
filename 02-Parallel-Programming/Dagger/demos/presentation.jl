@@ -39,6 +39,19 @@ end
 
 highlighted(code) = Highlights.highlight(code, :julia, SOURCE_THEME)
 
+function mpi_processor(proc)
+    ext = Base.get_extension(Dagger, :MPIExt)
+    return ext !== nothing && proc isa ext.MPIProcessor
+end
+
+function memory_endpoint(space, local_rank)
+    ext = Base.get_extension(Dagger, :MPIExt)
+    if ext !== nothing && space isa ext.MPIMemorySpace
+        return (; rank=space.rank, space=Dagger.short_name(space.innerSpace))
+    end
+    return (; rank=local_rank, space=Dagger.short_name(space))
+end
+
 "Convert Dagger's paired compute/move events into a portable timeline."
 function timeline_events(logs; rank=0, origin=nothing)
     events = NamedTuple[]
@@ -48,6 +61,7 @@ function timeline_events(logs; rank=0, origin=nothing)
     t0 = origin === nothing ? minimum(stamps) : origin
     # Function names are attached to submission events, not compute events.
     names = Dict{Int,String}()
+    uid_to_tid = Dict{UInt,Int}()
     for log in values(logs)
         haskey(log, :taskfuncnames) || continue
         for (i, event) in enumerate(log[:core])
@@ -56,6 +70,25 @@ function timeline_events(logs; rank=0, origin=nothing)
                hasproperty(id, :thunk_id) && log[:taskfuncnames][i] !== nothing
                 names[id.thunk_id] = string(log[:taskfuncnames][i])
             end
+            if haskey(log, :taskuidtotid) && log[:taskuidtotid][i] !== nothing
+                uid, tid = log[:taskuidtotid][i]
+                uid_to_tid[uid] = tid
+            end
+        end
+    end
+    # Datadeps records exact source/destination spaces when it creates move!.
+    # Join its DTask UID to the scheduler's Thunk ID used by compute events.
+    copies = Dict{Int,NamedTuple}()
+    for log in values(logs)
+        haskey(log, :timeline) || continue
+        for (i, event) in enumerate(log[:core])
+            event.category == :datadeps_copy && event.kind == :finish || continue
+            data = log[:timeline][i]
+            data === nothing && continue
+            tid = get(uid_to_tid, data.thunk_id, nothing)
+            tid === nothing && continue
+            copies[tid] = (; source=memory_endpoint(data.from_space, rank),
+                             destination=memory_endpoint(data.to_space, rank))
         end
     end
     Dagger.logs_event_pairs(logs) do worker, first, last
@@ -63,10 +96,30 @@ function timeline_events(logs; rank=0, origin=nothing)
         a, b = log[:core][first], log[:core][last]
         a.category in (:compute, :move) || return
         id = log[:id][first]
-        proc = hasproperty(id, :processor) ? Dagger.short_name(id.processor) : "data"
-        lane = "rank $rank / $proc"
         name = hasproperty(id, :thunk_id) ? get(names, id.thunk_id, string(a.category)) : string(a.category)
-        push!(events, (; rank, worker, lane, name, category=string(a.category),
+        proc = hasproperty(id, :processor) ? id.processor : nothing
+        owner = mpi_processor(proc) ? proc.rank : rank
+        inner = mpi_processor(proc) ? proc.innerProc : proc
+        processor = inner === nothing ? "data" : Dagger.short_name(inner)
+        category = a.category == :move || name == "move!" ? "move" : "compute"
+        # Every MPI rank logs the scheduling wrapper, but only its owner runs
+        # the ordinary function body. Do not plot spectators as extra compute.
+        category == "compute" && owner != rank && return
+        copy_info = hasproperty(id, :thunk_id) ? get(copies, id.thunk_id, nothing) : nothing
+        source = copy_info === nothing ? nothing : copy_info.source
+        destination = copy_info === nothing ? nothing : copy_info.destination
+        if category == "move" && copy_info !== nothing
+            rank in (source.rank, destination.rank) || return
+        end
+        target_rank = destination === nothing ? owner : destination.rank
+        lane = if category == "move"
+            copy_info === nothing ? "rank $rank / data movement" :
+                "transfer $(source.rank) → $(destination.rank) / recorded $rank"
+        else
+            "rank $owner / $processor"
+        end
+        push!(events, (; rank, logger_rank=rank, worker, lane, name, category,
+                       processor, target_rank, source, destination,
                        start=max(0.0, Float64(Int128(a.timestamp) - Int128(t0)) / 1e9),
                        duration=max(0.0, Float64(Int128(b.timestamp) - Int128(a.timestamp)) / 1e9)))
     end
@@ -105,22 +158,25 @@ function Dagger.show_logs(io::IO, logs::Dict, ::Val{:unicode_gantt}; kwargs...)
 end
 
 "Run work with source display, logging, a terminal Gantt and a JSON artifact."
-function present(f; title, files=String[], source=nothing, mpi=nothing)
+function present(f; title, files=String[], source=nothing, mpi=nothing, demo=nothing)
     rank = mpi === nothing ? 0 : mpi.Comm_rank(mpi.COMM_WORLD)
+    source_records = NamedTuple[]
     if rank == 0
         println("\n━━ $title ━━")
         sources = source === nothing ? [(basename(path), source_excerpt(path)) for path in files] : [("REPL", source)]
         for (name, code) in sources
             ansi = highlighted(code)
+            push!(source_records, (; file=name, code, ansi))
             println("\n$name — algorithm source\n")
             println(haskey(ENV, "NO_COLOR") || get(ENV, "SC26_COLOR", "1") == "0" ? code : ansi)
-            emit("source"; title, file=name, code, ansi)
+            emit("source"; title, demo, file=name, code, ansi)
         end
         println("\nRunning with Dagger logging enabled…")
         flush(stdout)
     end
     mpi === nothing || mpi.Barrier(mpi.COMM_WORLD)
-    Dagger.enable_logging!(; all_task_deps=false, taskfuncnames=true)
+    Dagger.enable_logging!(; all_task_deps=false, taskfuncnames=true,
+                            taskuidtotid=true, timeline=true)
     origin = time_ns()
     try
         return f()
@@ -154,7 +210,8 @@ function present(f; title, files=String[], source=nothing, mpi=nothing)
             path = joinpath(@__DIR__, "..", "results", "demo-timelines",
                             "$(replace(title, r"[^\w-]+" => "-"))-$(Dates.format(now(), "yyyymmdd-HHMMSS-sss")).json")
             mkpath(dirname(path))
-            report = (; title, events, clock="seconds from each rank's post-barrier logging start")
+            report = (; title, demo, sources=source_records, events,
+                        clock="seconds from each rank's post-barrier logging start")
             open(io -> JSON3.write(io, report), path, "w")
             println("Timeline saved to $path")
             emit("timeline"; report..., path)

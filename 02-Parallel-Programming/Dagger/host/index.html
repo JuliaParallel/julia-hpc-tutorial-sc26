@@ -56,10 +56,10 @@
 <section class="panel source">
 <div class="panel-head">
 <h3>Algorithm</h3>
-<span class="tag">Actual executed source</span>
+<span class="tag" id="source-label">Selected demo</span>
 </div>
 <div id="source">
-<p class="placeholder">Run a demo to see its syntax-highlighted algorithm here.</p>
+<p class="placeholder">Select a demo to see its syntax-highlighted algorithm.</p>
 </div>
 </section>
 <section class="panel">
@@ -102,6 +102,7 @@ fetch(a)</textarea>
 <div class="plot-key">
 <span class="cyan">━ Compute</span>
 <span class="amber">━ Data movement</span>
+<span>Transfer arrows: source → destination rank</span>
 <span>Hover a task for details · seconds from logging start</span>
 </div>
 <p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Run again to see a warm session.</p>
@@ -119,6 +120,8 @@ fetch(a)</textarea>
 </main>
 </div>
 <footer>The webpage and plots run on your computer. Julia runs on Odo. Release your node when finished.</footer>
+<div id="task-tooltip" role="tooltip" hidden></div>
+<script src="/timeline.js"></script>
 <script src="/ansi.js"></script>
 <script src="/app.js">
 </script>

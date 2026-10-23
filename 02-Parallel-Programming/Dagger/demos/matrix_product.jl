@@ -119,7 +119,8 @@ end
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
 function run_demo()
     title = DEMO_USE_MPI ? (DEMO_USE_GPU ? "07 MPI and multiple GPUs" : "06 MPI matrix product") : "05 Multiple GPUs"
-    DemoPresentation.present(demonstrate; title, files=[@__FILE__],
+    DemoPresentation.present(demonstrate; title, files=[DEMO_SOURCE_FILE, @__FILE__],
+                             demo=splitext(basename(DEMO_SOURCE_FILE))[1],
                              mpi=DEMO_USE_MPI ? MPI : nothing)
 end
 get(ENV, "SC26_DEMO_LOAD_ONLY", "0") == "1" || run_demo()

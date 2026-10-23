@@ -247,6 +247,18 @@ charts, and a task trace as presentation fallbacks.
 
 ## Demo presentation and local console validation (October 22, 2026)
 
+The timeline clarity follow-up passed two-rank CPU and GPU demos in portal
+job 45139 on `odo02`, then released the allocation. Reports contained 11 compute /
+110 movement intervals for CPU and 40 compute / 364 movement intervals for GPU;
+20 and 74 intervals respectively carried exact datadeps source/destination
+endpoints. These are logged host intervals, not kernel counts. `move!` is now
+movement; ordinary MPI scheduling wrappers from non-owning ranks are omitted.
+Transfer lanes show source → destination and the recording rank. Browser checks
+confirmed immediate tooltips, endpoint details, selection-specific algorithms,
+late-source isolation, and executed-source restoration from history. All 37
+Julia checks, 9 Python tests, and both Node checks passed. Highlighted source is
+bundled for all demos so selecting an unrun algorithm needs no local Julia.
+
 The highlighting follow-up uses Highlights.jl 0.6.3 with the Tree-sitter Julia
 grammar and a Dracula theme, including readable gray comments on dark panels.
 Both terminal and web output retain the same 24-bit token colors. Preparation

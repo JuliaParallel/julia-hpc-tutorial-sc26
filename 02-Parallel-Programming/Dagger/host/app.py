@@ -15,6 +15,7 @@ import shutil
 import socket
 import subprocess
 import tarfile
+import textwrap
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
@@ -31,6 +32,34 @@ DEMOS = [
     ("07_multinode_multigpu", "Multi-node + multi-GPU", "mpi"),
     ("04_mpi", "MPI tile processing", "mpi"),
 ]
+
+
+def source_excerpt(path):
+    blocks, lines, active = [], [], False
+    for line in path.read_text().splitlines():
+        if line.strip() == "# source-begin":
+            active, lines = True, []
+        elif line.strip() == "# source-end":
+            blocks.append(textwrap.dedent("\n".join(lines)))
+            active = False
+        elif active:
+            lines.append(line)
+    return "\n\n".join(blocks)
+
+
+def demo_sources(demo):
+    if demo not in {entry[0] for entry in DEMOS}:
+        raise ValueError("Unknown demo")
+    catalog = json.loads((ROOT / "host/demo-sources.json").read_text())
+    entry = next(e for e in catalog if e["demo"] == demo)
+    sources = []
+    for cached in entry["sources"]:
+        code = source_excerpt(ROOT / cached["path"])
+        # Always show current source, even if a developer has not regenerated
+        # the highlighted artifact after an edit. Never pair old ANSI with it.
+        sources.append(dict(file=cached["file"], code=code,
+                            ansi=cached["ansi"] if code == cached["code"] else None))
+    return dict(demo=demo, sources=sources)
 
 
 def snapshot():
@@ -269,10 +298,15 @@ def handler_for(console):
             elif url.path == "/api/config":
                 self.reply(dict(token=console.token, demos=DEMOS, host=console.args.ssh_host,
                                 remote_root=console.args.remote_root, time=console.args.time))
-            elif url.path in ("/", "/app.js", "/ansi.js", "/style.css"):
-                file = {"/":"index.html", "/app.js":"app.js", "/ansi.js":"ansi.js", "/style.css":"style.css"}[url.path]
+            elif url.path == "/api/source":
+                try:
+                    self.reply(demo_sources(parse_qs(url.query).get("demo", [""])[0]))
+                except ValueError as exc:
+                    self.reply(dict(error=str(exc)), code=400)
+            elif url.path in ("/", "/app.js", "/ansi.js", "/timeline.js", "/style.css"):
+                file = {"/":"index.html", "/app.js":"app.js", "/ansi.js":"ansi.js", "/timeline.js":"timeline.js", "/style.css":"style.css"}[url.path]
                 content_type = {"/":"text/html; charset=utf-8", "/app.js":"text/javascript; charset=utf-8",
-                                "/ansi.js":"text/javascript; charset=utf-8", "/style.css":"text/css; charset=utf-8"}[url.path]
+                                "/ansi.js":"text/javascript; charset=utf-8", "/timeline.js":"text/javascript; charset=utf-8", "/style.css":"text/css; charset=utf-8"}[url.path]
                 self.reply((ROOT / "host" / file).read_bytes(), content_type)
             else:
                 self.reply(dict(error="Not found"), code=404)

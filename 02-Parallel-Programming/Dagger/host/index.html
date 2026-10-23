@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dagger · Tutorial console</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+<div>
+<span class="eyebrow">JULIA HPC / SC26</span>
+<h1>Dagger lab<span class="dot">.</span>
+</h1>
+</div>
+<div class="connection">
+<span id="status">Disconnected</span>
+<button id="connect" class="primary">Connect & allocate</button>
+<button id="disconnect" disabled>Release node</button>
+</div>
+</header>
+<div class="layout">
+<aside>
+<div class="eyebrow">EXPLORE THE HARDWARE</div>
+<nav id="demos" aria-label="Demos">
+</nav>
+<div class="allocation">
+<span class="eyebrow">YOUR WORKSPACE</span>
+<p>One node. Your own session.</p>
+<small id="remote">
+</small>
+<p class="muted">“Multi-node” demos use two ranks on this node due to Odo resource limits. The same code works across nodes.</p>
+</div>
+</aside>
+<main>
+<section class="intro">
+<div>
+<span class="eyebrow" id="layout-label">ONE JULIA PROCESS</span>
+<h2 id="demo-title">Tasks & dependencies</h2>
+<p>See the algorithm. Run it. Explore where the work happened.</p>
+</div>
+<div class="run-controls">
+<label id="gpu-control" hidden>GPUs <select id="gpus">
+<option>2</option>
+<option>4</option>
+</select>
+</label>
+<button class="primary" id="run" disabled>Run demo <span>↗</span>
+</button>
+<button id="cancel" disabled>Cancel run</button>
+</div>
+</section>
+<div id="alert" role="alert" hidden>
+</div>
+<div class="workspace">
+<section class="panel source">
+<div class="panel-head">
+<h3>Algorithm</h3>
+<span class="tag" id="source-label">Selected demo</span>
+</div>
+<div id="source">
+<p class="placeholder">Select a demo to see its syntax-highlighted algorithm.</p>
+</div>
+</section>
+<section class="panel">
+<div class="panel-head">
+<h3>Julia REPL</h3>
+<select id="repl-mode" aria-label="REPL layout">
+<option value="single">One process</option>
+<option value="mpi">Two MPI ranks</option>
+</select>
+</div>
+<p class="hint">Variables persist in this layout. Switching layouts or cancelling resets Julia. MPI runs your expression on every rank; keep work uniform.</p>
+<label class="sr-only" for="code">Julia expression</label>
+<textarea id="code" spellcheck="false">a = Dagger.@spawn sum(1:1_000_000)
+fetch(a)</textarea>
+<div class="repl-footer">
+<span>Ctrl / ⌘ + Enter to evaluate</span>
+<button id="eval" disabled>Evaluate →</button>
+</div>
+</section>
+</div>
+<section class="panel plots">
+<div class="panel-head">
+<h3>Task timeline</h3>
+<div class="plot-controls">
+<label>
+<input id="moves" type="checkbox" checked> Transfers</label>
+<label>Zoom <input id="zoom" type="range" min="1" max="12" value="1" step="0.5">
+</label>
+<button id="download" disabled>Save JSON ↓</button>
+</div>
+</div>
+<div class="metrics" id="metrics">
+<span>Waiting for a logged run</span>
+</div>
+<div id="history" aria-label="Run history">
+</div>
+<div class="scroll-plot" id="timeline">
+<p class="placeholder">Compute tasks and data movement will appear on processor lanes.</p>
+</div>
+<div class="plot-key">
+<span class="cyan">━ Compute</span>
+<span class="amber">━ Data movement</span>
+<span>Transfer arrows: source → destination rank</span>
+<span>Hover a task for details · seconds from logging start</span>
+</div>
+<p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Run again to see a warm session.</p>
+<div id="summary">
+</div>
+</section>
+<section class="panel">
+<div class="panel-head">
+<h3>Session output</h3>
+<button id="clear">Clear display</button>
+</div>
+<pre id="output" aria-live="polite">Connect to Odo to prepare packages and request your node.
+</pre>
+</section>
+</main>
+</div>
+<footer>The webpage and plots run on your computer. Julia runs on Odo. Release your node when finished.</footer>
+<div id="task-tooltip" role="tooltip" hidden></div>
+<script src="/timeline.js"></script>
+<script src="/ansi.js"></script>
+<script src="/app.js">
+</script>
+</body>
+</html>

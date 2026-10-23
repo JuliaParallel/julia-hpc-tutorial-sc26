@@ -1,0 +1,15 @@
+const assert=require('node:assert/strict');
+const {normalizeTimeline,taskDetails}=require('../host/timeline.js');
+const task={rank:0,lane:'rank 0 / (MPI: 1, W: 1, TID: 7)',name:'multiply!',category:'compute',start:0,duration:.1};
+assert.equal(normalizeTimeline({events:[task]}).events.length,0);
+const compute=normalizeTimeline({events:[{...task,rank:1}]}).events[0];
+assert.equal(compute.lane,'rank 1 / W: 1, TID: 7');
+const move=normalizeTimeline({events:[{...task,name:'move!'}]}).events[0];
+assert.equal(move.category,'move');
+assert.equal(move.target_rank,1);
+assert.match(taskDetails(move),/Source endpoint not recorded/);
+const transfer={...move,source:{rank:0,space:'CPU'},destination:{rank:1,space:'GPU 2'}};
+assert.match(taskDetails(transfer),/Source: rank 0 \/ CPU\nDestination: rank 1 \/ GPU 2/);
+assert.match(taskDetails(transfer),/Recorded on rank 0/);
+assert.deepEqual(normalizeTimeline({events:[transfer]}).events,[transfer]);
+console.log('Timeline ownership, move! classification and endpoint checks passed');

@@ -9,7 +9,7 @@ double!(X) = (X .*= 2; nothing)
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
 
 function run_demo()
-    DemoPresentation.present(; title="03 Single GPU", files=[@__FILE__]) do
+    DemoPresentation.present(; title="03 Single GPU", files=[@__FILE__], demo=splitext(basename(@__FILE__))[1]) do
         # source-begin
         gpu = Dagger.scope(rocm_gpu=1)
 

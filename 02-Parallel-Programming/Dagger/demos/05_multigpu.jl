@@ -3,9 +3,12 @@
 #   bash frontier/launch.sh 1 demos/05_multigpu.jl --gpus=4
 # Optional same-node MPI check, one GPU per rank:
 #   bash frontier/launch.sh 4 demos/05_multigpu.jl --mpi
+const DEMO_SOURCE_FILE = @__FILE__
+# source-begin
 const DEMO_USE_GPU = true
 const DEMO_USE_MPI = "--mpi" in ARGS
 const DEMO_MIN_RANKS = 1
 const DEMO_MIN_GPUS = 1
 const DEMO_DEFAULT_GPUS = DEMO_USE_MPI ? "all" : "2"
+# source-end
 include(joinpath(@__DIR__, "matrix_product.jl"))

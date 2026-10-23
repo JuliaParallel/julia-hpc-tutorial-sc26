@@ -13,7 +13,7 @@ double!(X) = (X .*= 2; write(stdout, "  tile doubled on rank $rank\n"); nothing)
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
 
 function run_demo()
-    DemoPresentation.present(; title="04 MPI tile processing", files=[@__FILE__], mpi=MPI) do
+    DemoPresentation.present(; title="04 MPI tile processing", files=[@__FILE__], demo=splitext(basename(@__FILE__))[1], mpi=MPI) do
         # source-begin
         # Rule #1 of Dagger+MPI: every rank must make the same decisions -- so build
         # the same data everywhere (same seed), and never branch on `rank` for work.

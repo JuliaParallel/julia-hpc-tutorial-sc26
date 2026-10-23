@@ -432,3 +432,20 @@ main {
 }
 
 }
+
+#task-tooltip {
+  position:fixed;
+  z-index:20;
+  max-width:min(480px,calc(100vw - 16px));
+  padding:10px 14px;
+  color:#e8f3f7;
+  background:#10232f;
+  border:1px solid #6acde8;
+  border-radius:6px;
+  box-shadow:0 5px 22px #0009;
+  pointer-events:none;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  font:12px/1.6 monospace;
+}
+#task-tooltip strong {color:#6acde8;font-size:14px}

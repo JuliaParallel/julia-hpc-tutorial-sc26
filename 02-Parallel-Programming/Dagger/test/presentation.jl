@@ -38,7 +38,42 @@ using .DemoPresentation
     @test all(e.rank == 1 for e in events)
     rendered = sprint(show, MIME"text/plain"(), DemoPresentation.gantt(events))
     @test occursin("rank 1", rendered)
-    lane_row = only(filter(line -> occursin("rank 1", line), split(rendered, '\n')))
+    lane_row = only(filter(line -> occursin("rank 1 / W:", line), split(rendered, '\n')))
     @test any(c -> '⠁' <= c <= '⣿', split(lane_row, '│')[2])
     @test Dagger.render_logs(logs, :unicode_gantt) !== nothing
+end
+
+using MPI
+@testset "MPI ownership and data movement endpoints" begin
+    ext = Base.get_extension(Dagger, :MPIExt)
+    proc = ext.MPIProcessor(Dagger.ThreadProc(1, 2), MPI.COMM_WORLD, 1)
+    from = ext.MPIMemorySpace(Dagger.CPURAMMemorySpace(1), MPI.COMM_WORLD, 0)
+    to = ext.MPIMemorySpace(Dagger.CPURAMMemorySpace(1), MPI.COMM_WORLD, 1)
+    t = UInt64(10^9)
+    function sample(name; copy=false)
+        core = [(;kind=:start, category=:add_thunk, timestamp=t),
+                (;kind=:start, category=:compute, timestamp=t+10),
+                (;kind=:finish, category=:compute, timestamp=t+20),
+                (;kind=:finish, category=:datadeps_copy, timestamp=t+30)]
+        Dict(1 => Dict(:core=>core, :id=>fill((;thunk_id=3, processor=proc), 4),
+            :taskfuncnames=>[name,nothing,nothing,nothing],
+            :taskuidtotid=>[UInt(42)=>3,nothing,nothing,nothing],
+            :timeline=>[nothing,nothing,nothing,copy ? (;thunk_id=UInt(42),from_space=from,to_space=to) : nothing]))
+    end
+    @test isempty(DemoPresentation.timeline_events(sample("multiply!");rank=0))
+    compute = only(DemoPresentation.timeline_events(sample("multiply!");rank=1))
+    @test compute.lane == "rank 1 / W: 1, TID: 2"
+    @test compute.category == "compute"
+    for rank in (0,1)
+        move = only(DemoPresentation.timeline_events(sample("move!";copy=true);rank))
+        @test move.category == "move"
+        @test move.source.rank == 0
+        @test move.destination.rank == 1
+        @test move.logger_rank == rank
+        @test occursin("0 → 1",move.lane)
+    end
+    @test isempty(DemoPresentation.timeline_events(sample("move!";copy=true);rank=2))
+    unknown = only(DemoPresentation.timeline_events(sample("move!");rank=0))
+    @test unknown.source === nothing
+    @test unknown.category == "move"
 end

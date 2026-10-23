@@ -24,6 +24,21 @@ def console():
 
 
 class ConsoleTests(unittest.TestCase):
+    def test_selected_demo_source_matches_current_files(self):
+        for demo, _, _ in app.DEMOS:
+            sources = app.demo_sources(demo)["sources"]
+            self.assertTrue(sources, demo)
+            for source in sources:
+                self.assertTrue(source["code"], demo)
+                self.assertTrue(source["ansi"], demo)
+                self.assertEqual(app.re.sub(r"\x1b\[[0-9;]*m", "", source["ansi"]), source["code"])
+        gpu = app.demo_sources("05_multigpu")["sources"][0]["code"]
+        cpu = app.demo_sources("06_multinode")["sources"][0]["code"]
+        self.assertIn("DEMO_USE_GPU = true", gpu)
+        self.assertIn("DEMO_USE_GPU = false", cpu)
+        with self.assertRaises(ValueError):
+            app.demo_sources("../../Project")
+
     def test_command_layout_and_busy_guard(self):
         c = console()
         c.process = Mock(stdin=io.StringIO())

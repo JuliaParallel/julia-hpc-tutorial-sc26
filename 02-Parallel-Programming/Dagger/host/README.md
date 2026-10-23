@@ -87,7 +87,15 @@ Function calls, macros, types, numbers, strings and comments receive distinct
 colors. The webpage preserves the same 24-bit colors. The Julia grammar and
 theme artifacts are downloaded on the login node during preparation.
 
-The web console adds processor lanes with task tooltips, a transfer toggle,
+The algorithm panel updates immediately when you select a demo, including its
+CPU/GPU and MPI settings. Selecting a past report restores its executed source
+snapshot. REPL output and late events from another demo do not replace the
+selected algorithm. Developers should regenerate the bundled syntax highlighting
+after editing algorithm excerpts with `julia --project host/build_sources.jl`;
+the console always reads the current source and falls back to plain text if the
+highlighted catalog is stale.
+
+The web console adds processor lanes with immediate task tooltips, a transfer toggle,
 zoom, a function-time summary, and the last 20 timelines for comparison.
 **Save JSON** downloads the selected report. Reports also remain in the Odo
 workspace under `results/demo-timelines/` for ordinary terminal runs.
@@ -98,11 +106,21 @@ from both ranks and use seconds since each rank's post-barrier logging start;
 this is approximate alignment across physical hosts, not clock synchronization.
 The workshop uses one host. Repeat a demo to see warm execution.
 
+Compute lanes identify the MPI rank that actually executes the function;
+scheduling wrappers logged by other ranks are omitted. Both ordinary movement
+events and `move!` tasks are classified as data movement, excluded from the
+compute summary. Datadeps transfers show source → destination ranks, with exact
+CPU/GPU memory endpoints in the tooltip. Each transfer interval also identifies
+its recording rank: the sending and receiving ranks can both log their part of
+the same transfer. When Dagger does not record a source endpoint, the tooltip
+says so rather than inferring it from the recording rank.
+
 The backend can also be used directly from Julia:
 
 ```julia
 include("demos/presentation.jl")
-Dagger.enable_logging!(all_task_deps=false, taskfuncnames=true)
+Dagger.enable_logging!(all_task_deps=false, taskfuncnames=true,
+                       taskuidtotid=true, timeline=true)
 # Run and fetch your Dagger tasks here.
 logs = Dagger.fetch_logs!()
 Dagger.disable_logging!()
@@ -114,7 +132,8 @@ Dagger.show_logs(stdout, logs, :unicode_gantt)
 ```bash
 python3 -m unittest discover -s test -p 'test_*.py'
 julia --project -t 4 test/presentation.jl
-node test/ansi.cjs  # optional developer check; Node is not needed to use the app
+node test/ansi.cjs  # optional developer checks; Node is not needed to use the app
+node test/timeline.cjs
 ```
 
 These check the local protocol, allocation cleanup, HTTP command boundary,

@@ -8,7 +8,7 @@ whereami() = (sleep(0.1); Threads.threadid())
 # source-end
 
 function run_demo()
-    DemoPresentation.present(; title="01 Tasks and dependencies", files=[@__FILE__]) do
+    DemoPresentation.present(; title="01 Tasks and dependencies", files=[@__FILE__], demo=splitext(basename(@__FILE__))[1]) do
         # source-begin
         a = Dagger.@spawn rand(2000, 2000)
         b = Dagger.@spawn rand(2000, 2000)

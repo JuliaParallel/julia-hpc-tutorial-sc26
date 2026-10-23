@@ -11,7 +11,7 @@ double!(X) = (X .*= 2; nothing)
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
 
 function run_demo()
-    DemoPresentation.present(; title="02 Mutable data and tiles", files=[@__FILE__]) do
+    DemoPresentation.present(; title="02 Mutable data and tiles", files=[@__FILE__], demo=splitext(basename(@__FILE__))[1]) do
         # source-begin
         A = rand(1000); B = rand(1000); C = zeros(1000)
         B0 = copy(B)

@@ -14,6 +14,9 @@ module load julia/1.13.1
 # Use $SCRATCH as it has more storage space than $HOME
 export JULIA_DEPOT_PATH=$SCRATCH/.julia-notebooks
 
+# Precompile pkgimages for multiple targets
+export JULIA_CPU_TARGET="generic;znver3,-rdrnd,clone_all;x86-64-v4,-rdrnd,base(1)"
+
 # Just install the IJulia package globally
 julia -e 'using Pkg; Pkg.add("IJulia")'
 

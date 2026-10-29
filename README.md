@@ -1,9 +1,9 @@
 # The Julia for HPC Tutorial at SC26
 
-**When**: Monday, 16 November 2026, 8:30am - 5:00pm CST, full day
-**Where** W185d
-**Conference info** = [SC26 event webpage](https://sc26.conference-program.com/presentation/?id=tut134&sess=sess169)
-**Handouts slides** = [Julia for HPC SC26 Handouts](https://drive.google.com/file/d/1aSHfJ3gi_FW_oQfeNJW-yE_Q4PiTQUfh/view?usp=sharing) 
+- **When**: Monday, 16 November 2026, 8:30am - 5:00pm CST, full day
+- **Where** W185d
+- **Conference info** = [SC26 event webpage](https://sc26.conference-program.com/presentation/?id=tut134&sess=sess169)
+- **Handouts slides** = [Julia for HPC SC26 Handouts](https://drive.google.com/file/d/1aSHfJ3gi_FW_oQfeNJW-yE_Q4PiTQUfh/view?usp=sharing) 
 
 Welcome to the Julia for High-performance Computing (HPC) Tutorial at SC26 in Chicago, IL! This **full-day, 6-hour hands-on** tutorial introduces participants to using the Julia programming language effectively in HPC environments, from first principles to end-to-end deployment on a leadership-class system.
 Registered participants: please look at the end of this file for access to the Oak Ridge National Laboratory [Odo system](https://docs.olcf.ornl.gov/systems/odo_user_guide.html) (32 nodes of Frontier, each node has 8 AMD MI250X GPUs). 
@@ -24,12 +24,11 @@ Registered participants: please look at the end of this file for access to the O
 
 **Julia for HPC Tutorial**
 
-**Date** Monday, 16 November 2026
-**Time** 8:30am - 5:00pm CST
-**Location** W185d
+- **Date** Monday, 16 November 2026
+- **Time** 8:30am - 5:00pm CST
+- **Location** W185d
 
-**First Half: Intro to the language, ecosystem, and CPU/GPU programming in Julia**
-**8:30 AM - 12:00 PM** 
+**8:30 AM - 12:00 PM: Intro to the language, ecosystem, and CPU/GPU programming in Julia**
 
 *8:30 AM - 10:00 AM  - Intro to Julia* 
 - Welcome and setup up - 15 minutes
@@ -44,15 +43,12 @@ Registered participants: please look at the end of this file for access to the O
 - CPU/GPU portable programming: [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl) - 30 minutes
 - CPU/GPU portable programming: [JACC.jl, Julia for Accelerators](https://github.com/JuliaGPU/JACC.jl) - 45 minutes
 
+**12:00 PM - 1:30 PM Conference Lunch Break**
 
-**Conference Lunch Break**
-**12:00 PM - 1:30 PM** 
-
-**Second Half: Julia on HPC systems**
-**1:30 PM - 5:00 PM** 
+**1:30 PM - 5:00 PM Julia on HPC systems**
 
 *1:30 AM - 3:00 PM  - Parallel code with Julia - Part II*
-- Recap of first half- 15 minutes
+- Recap of morning contents - 15 minutes
 - Auto-tuning with [KernelTuner.jl](https://github.com/KernelTuner/KernelTuner.jl) - 30 minutes
 - Out-of-core parallel execution with [Dagger.jl](https://github.com/JuliaParallel/Dagger.jl) - 45 minutes
 

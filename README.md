@@ -1,11 +1,11 @@
 # The Julia for HPC Tutorial at SC26
 
-- **When**: Monday, 16 November 2026, 8:30am - 5:00pm CST, full day
-- **Where** W185d
-- **Conference info** = [SC26 event webpage](https://sc26.conference-program.com/presentation/?id=tut134&sess=sess169)
-- **Handouts slides** = [Julia for HPC SC26 Handouts](https://drive.google.com/file/d/1aSHfJ3gi_FW_oQfeNJW-yE_Q4PiTQUfh/view?usp=sharing) 
+- **When** Monday, 16 November 2026, 8:30am - 5:00pm CST, full day
+- **Where** SC26 venue: McCormick Place, Chicago, IL, **Room W185d**
+- **Conference info**  [SC26 event webpage](https://sc26.conference-program.com/presentation/?id=tut134&sess=sess169)
+- **Handouts slides**  [Julia for HPC SC26 Handouts](https://drive.google.com/file/d/1aSHfJ3gi_FW_oQfeNJW-yE_Q4PiTQUfh/view?usp=sharing) 
 
-Welcome to the Julia for High-performance Computing (HPC) Tutorial at SC26 in Chicago, IL! This **full-day, 6-hour hands-on** tutorial introduces participants to using the Julia programming language effectively in HPC environments, from first principles to end-to-end deployment on a leadership-class system.
+Welcome to the Julia for High-performance Computing (HPC) Tutorial at SC26 in Chicago, IL! This **full-day, 6-hour hands-on** tutorial introduces participants to using the Julia programming language effectively on HPC environments, from first principles to end-to-end deployment on a leadership-class system.
 Registered participants: please look at the end of this file for access to the Oak Ridge National Laboratory [Odo system](https://docs.olcf.ornl.gov/systems/odo_user_guide.html) (32 nodes of Frontier, each node has 8 AMD MI250X GPUs). 
 
 ## Audience Target

@@ -107,7 +107,12 @@ Participants are encourage to sign up for access to the Oak Ridge National Labor
   **NOTE**: "Funding source" means simply "who pays you?" (exact precision is not necessary as this is a training account)
 - Questions about Odo access? Please reach out to [William F Godoy](https://www.ornl.gov/staff-profile/william-f-godoy), godoywf@ornl.gov 
 
-Once you have access to Odo please follow these steps to setup access to Julia and this repo:
+Once you have received the email confirmation your ORNL resource account was created, you have access to Odo. (If you are a new user, your account will be created and an email will be sent asking you to set up a password. ) You do not need to use an RSA token to log in to Odo. Please use your XCAMS/UCAMS username and password (which is different from the username and PIN + RSA token code used to log in to other OLCF systems such as Frontier). To log in to Odo, please use your XCAMS/UCAMS username and password:
+
+``` ssh USERNAME@login1.odo.olcf.ornl.gov ```
+
+
+Please follow these steps to setup access to Julia and this repo:
 
 ```
 cd /gpfs/wolf2/olcf/trn047/scratch/$USER

@@ -119,6 +119,68 @@ def diagrams():
     s.text(560, 340, "One output matrix: C = [ C₁ ; C₂ ] = A × B", 23, WHITE, "middle")
     s.save()
 
+    s = SVG("two-gpus.svg", 1040, 454,
+            "One matrix product A times B equals C with two GPUs available on one server")
+    # A and C: single matrices here, no block rows yet. Shared center axis x = 520.
+    s.rect(232, 87, 122, 180, fill=PANEL, stroke=LINE, radius=12)
+    s.text(293, 191, "A", 36, WHITE, "middle", 600)
+    s.text(293, 64, "A · 1024 × 512", 19, MUTED, "middle")
+    s.text(400, 198, "×", 60, WHITE, "middle", 700)
+    s.rect(447, 115, 116, 124, fill=PANEL, stroke=AMBER, radius=10)
+    s.text(505, 190, "B", 38, AMBER, "middle", 600)
+    s.text(505, 64, "B · 512 × 512", 19, MUTED, "middle")
+    s.text(624, 198, "=", 60, WHITE, "middle", 700)
+    s.rect(686, 87, 122, 180, fill=PANEL, stroke=LINE, radius=12)
+    s.text(747, 191, "C", 36, WHITE, "middle", 600)
+    s.text(747, 64, "C · 1024 × 512", 19, MUTED, "middle")
+    # The two devices that will run the product.
+    s.box(90, 320, 340, 85, "GPU 1", MINT, size=28)
+    s.box(610, 320, 340, 85, "GPU 2", VIOLET, size=28)
+    s.text(520, 444, "One Julia process · two GPUs · one product C = A × B",
+           21, MUTED, "middle")
+    s.save()
+
+    s = SVG("product-tiles.svg", 1040, 454,
+            "A splits into two block rows; each multiplied by replicated B on its own GPU; the block rows form C")
+    dashed = ' stroke-dasharray="4 5"'
+    # A: one matrix with a horizontal split into two block rows. Center axis x = 520.
+    s.parts.append(f'<rect x="232" y="87" width="122" height="180" rx="12" fill="none" stroke="{LINE}" stroke-width="1.5"/>')
+    s.rect(238, 93, 110, 80, fill=PANEL, stroke=MINT, radius=8)
+    s.rect(238, 181, 110, 80, fill=PANEL, stroke=VIOLET, radius=8)
+    s.parts.append(f'<line x1="232" y1="177" x2="354" y2="177" stroke="{MUTED}" stroke-width="1.5"{dashed}/>')
+    s.text(293, 143, "A₁", 30, MINT, "middle", 600)
+    s.text(293, 231, "A₂", 30, VIOLET, "middle", 600)
+    s.text(293, 64, "A · 1024 × 512", 19, MUTED, "middle")
+    s.text(220, 147, "GPU 1", 21, MINT, "end", 600)
+    s.text(220, 235, "GPU 2", 21, VIOLET, "end", 600)
+    # Operators.
+    s.text(400, 198, "×", 60, WHITE, "middle", 700)
+    s.text(624, 198, "=", 60, WHITE, "middle", 700)
+    # B: one matrix, replicated, read by both GPUs (ghost copy behind).
+    s.rect(459, 131, 116, 124, fill=PANEL, stroke=AMBER, radius=10)
+    s.parts[-1] = s.parts[-1].replace('stroke-width="1.5"', 'stroke-width="1.4" opacity="0.6"')
+    s.rect(447, 115, 116, 124, fill=PANEL, stroke=AMBER, radius=10)
+    s.text(505, 190, "B", 38, AMBER, "middle", 600)
+    s.text(505, 64, "B · 512 × 512", 19, MUTED, "middle")
+    s.text(587, 127, "× 2", 21, AMBER, "start", 600)
+    s.text(505, 278, "replicated · read by both GPUs", 18, MUTED, "middle")
+    # C: one output matrix assembling the two block rows.
+    s.parts.append(f'<rect x="686" y="87" width="122" height="180" rx="12" fill="none" stroke="{LINE}" stroke-width="1.5"/>')
+    s.rect(692, 93, 110, 80, fill=PANEL, stroke=MINT, radius=8)
+    s.rect(692, 181, 110, 80, fill=PANEL, stroke=VIOLET, radius=8)
+    s.parts.append(f'<line x1="686" y1="177" x2="808" y2="177" stroke="{MUTED}" stroke-width="1.5"{dashed}/>')
+    s.text(747, 143, "C₁", 30, MINT, "middle", 600)
+    s.text(747, 231, "C₂", 30, VIOLET, "middle", 600)
+    s.text(747, 64, "C · 1024 × 512", 19, MUTED, "middle")
+    s.text(824, 147, "GPU 1", 21, MINT, "start", 600)
+    s.text(824, 235, "GPU 2", 21, VIOLET, "start", 600)
+    # Assignment chips: which device computes which block row.
+    s.box(90, 320, 340, 85, "GPU 1", MINT, "C₁ = A₁ × B", 28)
+    s.box(610, 320, 340, 85, "GPU 2", VIOLET, "C₂ = A₂ × B", 28)
+    s.text(520, 444, "One Julia process · one scope · two GPUs · one product C = A × B",
+           21, MUTED, "middle")
+    s.save()
+
     s = SVG("multinode.svg", 1120, 260, "Two servers execute one Dagger program through MPI ranks on CPU threads")
     for x, host, rank in [(20, "SERVER A", 0), (670, "SERVER B", 1)]:
         s.rect(x, 15, 430, 200, fill=PANEL)
@@ -264,4 +326,4 @@ if __name__ == "__main__":
     diagrams()
     benchmarks()
     timeline()
-    print(f"Wrote 11 SVG figures to {OUT}")
+    print(f"Wrote 13 SVG figures to {OUT}")

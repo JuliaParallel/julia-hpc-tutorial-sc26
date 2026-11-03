@@ -1,5 +1,6 @@
 """Protocol, lifecycle and local HTTP boundary checks; no Odo required."""
 import argparse
+import contextlib
 import importlib.util
 import io
 import json
@@ -38,6 +39,118 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn("DEMO_USE_GPU = false", cpu)
         with self.assertRaises(ValueError):
             app.demo_sources("../../Project")
+
+    def test_every_panel_and_sidebar_group_is_collapsible(self):
+        page = (BASE / "host/index.html").read_text()
+        ids = set(app.re.findall(r'id="([^"]+)"', page))
+        sections = app.re.findall(r'<section class="[^"]*(?:panel|side-section)[^"]*" id="([^"]+)"', page)
+        controls = app.re.findall(r'aria-controls="([^"]+)"', page)
+        self.assertTrue(sections)
+        self.assertEqual(sorted(controls), sorted(section + "-body" for section in sections))
+        self.assertEqual(set(controls) - ids, set())
+        for target in controls:
+            self.assertIn(f'aria-expanded="true" aria-controls="{target}"', page)
+            self.assertIn(f'class="collapse"', page)
+            self.assertIn(f'id="{target}"', page)
+
+    def test_sections_cover_every_demo_once_in_sidebar_order(self):
+        layout = app.section_layout()
+        self.assertEqual([section["number"] for section in layout],
+                         [f"{n:02d}" for n in range(1, len(layout) + 1)])
+        demos = [demo for section in layout for demo in section["demos"]]
+        self.assertEqual(demos, [demo for demo, _, _ in app.DEMOS])
+        self.assertEqual(layout[0], dict(id="cpu", title="CPU", number="01",
+                                         demos=["01_tasks", "02_datadeps"]))
+        self.assertEqual(layout[1]["demos"], ["03_gpu"])
+        self.assertEqual(layout[1]["title"], "Single GPU")
+
+    def test_run_tags_events_with_demo_and_clears_after_done(self):
+        c = console()
+        c.process = Mock(stdin=io.StringIO())
+        c.process.poll.return_value = None
+        c.job = "123"
+        c.run(dict(op="demo", demo="01_tasks"))
+        started = [event for event in c.events if event["kind"] == "run"][-1]
+        self.assertEqual(started["demo"], "01_tasks")
+        run_id = started["run"]
+        p = Mock(stdout=io.StringIO("hello\n" + app.PREFIX
+                                    + json.dumps(dict(kind="done", ok=True)) + "\n"))
+        p.wait.return_value = 0
+        c._read(p)
+        output = [event for event in c.events if event["kind"] == "output"][-1]
+        self.assertEqual(output["run"], run_id)
+        self.assertIsNone(c.run_id)
+        c.busy = False
+        c.run(dict(op="eval", mode="single", code="1+1", demo="01_tasks"))
+        evaluation = [event for event in c.events if event["kind"] == "run"][-1]
+        self.assertEqual(evaluation["demo"], "01_tasks")
+        c.busy = False
+        with self.assertRaisesRegex(ValueError, "Unknown demo"):
+            c.run(dict(op="eval", mode="single", code="1", demo="nope"))
+
+    def test_ssh_config_username_replaces_the_local_user(self):
+        self.assertEqual(app.default_remote_root("trn047", "godoywf"),
+                         "/gpfs/wolf2/olcf/trn047/scratch/godoywf/sc26-dagger/portal")
+        self.assertTrue(app.is_odo_hostname("login1.odo.olcf.ornl.gov"))
+        self.assertTrue(app.is_odo_hostname("login2.odo.olcf.ornl.gov"))
+        self.assertFalse(app.is_odo_hostname("odo"))
+
+    def test_existing_working_alias_is_reused_without_rewriting_the_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / "config"
+            original = ("Host odo\n    HostName login1.odo.olcf.ornl.gov\n    User alice\n")
+            config.write_text(original)
+            args = argparse.Namespace(ssh_host=None, odo_user="alice",
+                                      ssh_config=config, control_path=Path(directory)/"socket")
+            with contextlib.redirect_stdout(io.StringIO()):
+                user, alias = app.bootstrap_ssh(args)
+            self.assertEqual((user, alias), ("alice", "odo"))
+            self.assertEqual(config.read_text(), original)
+
+    def test_managed_alias_is_added_first_and_leaves_other_hosts_alone(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / "config"
+            original = ("# hand-written entry\nHost odo\n    HostName login1.odo.olcf.ornl.gov\n"
+                        "    User bob\n\nHost *\n    User ghost\n")
+            config.write_text(original)
+            args = argparse.Namespace(ssh_host=None, odo_user="alice",
+                                      ssh_config=config, control_path=Path(directory)/"socket")
+            with contextlib.redirect_stdout(io.StringIO()):
+                user, alias = app.bootstrap_ssh(args)
+            self.assertEqual((user, alias), ("alice", "sc26-odo-alice"))
+            text = config.read_text()
+            self.assertIn(original.strip(), text)
+            # First value wins for User/HostName, so the block must come first.
+            self.assertLess(text.index(app.MANAGED_BEGIN), text.index("Host odo"))
+            resolved = app.ssh_config_values(alias, config)
+            self.assertEqual((resolved["user"], resolved["hostname"]), ("alice", app.ODO_HOSTNAME))
+            self.assertEqual(app.write_managed_host(config, alias, "alice", args.control_path),
+                             "unchanged")
+
+    def test_foreign_alias_collision_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / "config"
+            config.write_text("Host sc26-odo-alice\n    HostName example.org\n")
+            args = argparse.Namespace(ssh_host=None, odo_user="alice",
+                                      ssh_config=config, control_path=Path(directory)/"socket")
+            with self.assertRaisesRegex(ValueError, "already defined"):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    app.bootstrap_ssh(args)
+
+    def test_managed_block_follows_a_symlinked_config(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "dotfiles-ssh-config"
+            target.write_text("Host work\n    HostName example.org\n")
+            link = root / "config"
+            link.symlink_to(target)
+            args = argparse.Namespace(ssh_host=None, odo_user="alice", ssh_config=link,
+                                      control_path=root/"socket")
+            with contextlib.redirect_stdout(io.StringIO()):
+                app.bootstrap_ssh(args)
+            self.assertTrue(link.is_symlink())
+            self.assertIn("Host sc26-odo-alice", target.read_text())
+            self.assertIn("Host work", target.read_text())
 
     def test_command_layout_and_busy_guard(self):
         c = console()

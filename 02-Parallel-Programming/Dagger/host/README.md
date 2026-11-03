@@ -6,7 +6,13 @@ From `02-Parallel-Programming/Dagger` on your **own computer**:
 python3 host/app.py
 ```
 
-Open **http://127.0.0.1:8767**, then select **Connect & allocate**. Requires
+On first run it asks for your OLCF username, adds or confirms one marked SSH
+host entry, opens the SSH connection, and then serves the page. See
+[Credentials](#credentials) for what it writes and how an existing `odo` entry
+is treated.
+
+Open **http://127.0.0.1:8767**, then select **Connect & allocate**, then
+**Run demo** in any console. Requires
 Python 3.10+ and OpenSSH with connection multiplexing locally; no Python
 packages, local Julia, Node, or internet-hosted web assets are needed. Odo's
 Python 3.6 runs only the coordinator.
@@ -24,11 +30,88 @@ ssh -S ~/.ssh/control/sc26-portal -MNf odo
 Passwords never pass through the webpage. The dedicated connection avoids
 Odo's one-session-per-transport limit while another terminal is connected.
 
+## Credentials
+
+The console stores no credentials. Your Odo identity lives only in your SSH
+configuration, agent, and control socket — never in this repository, the
+webpage, or the uploaded workspace. Startup automates the setup:
+
+1. It resolves an identity from `--odo-user`, `SC26_ODO_USER`, or an existing
+   working `odo` alias. If none is available and a terminal is attached, it
+   asks: `OLCF/UCAMS username for Odo [...]`. The bracketed default is the
+   username already in your SSH config, otherwise your local user.
+
+2. If an alias already points at `login1.odo.olcf.ornl.gov`, the console uses
+   it unchanged. Otherwise it owns exactly one marked block in
+   `~/.ssh/config` and creates `Host sc26-odo-<user>`:
+
+   ```
+   # >>> sc26-dagger console: managed host block >>>
+   Host sc26-odo-YOUR_ODO_USERNAME
+       HostName login1.odo.olcf.ornl.gov
+       User YOUR_ODO_USERNAME
+       ServerAliveInterval 60
+       ControlMaster auto
+       ControlPath /home/you/.ssh/control/sc26-portal
+       ControlPersist 8h
+   # <<< sc26-dagger console: managed host block <<<
+   ```
+
+   The block goes at the **top** of the file because OpenSSH keeps the first
+   value it obtains for `User`, `HostName`, `Port` and `ControlPath`,
+   regardless of block specificity. After writing, the console verifies the
+   alias with `ssh -G` and refuses to continue if anything resolved
+   differently.
+
+3. It opens the multiplexed connection (`ssh -S … -MNf`) and lets SSH prompt
+   for your XCAMS/UCAMS password in that terminal. Odo needs no RSA token.
+   Later traffic runs in `BatchMode` over that socket.
+
+4. It derives the default workspace from the resolved username:
+   `/gpfs/wolf2/olcf/trn047/scratch/<odo-user>/sc26-dagger/portal`. This fixes
+   the old behaviour, which used your *local* username.
+
+Passwords never pass through the webpage. Keep the control socket private:
+`~/.ssh/control` is created with mode `0700`, and each launch prints a random
+`X-Console-Token` that the browser must send for every command; unrecognized
+host names are rejected too. Do not share the printed Tailscale URL with
+anyone else: whoever opens it can submit work as you.
+
+Skip the startup login with `--no-auth` (Connect then needs an existing
+connection). Use `--odo-user NAME` to avoid the prompt, `--ssh-config PATH` to
+manage a different file, and `--ssh-host NAME` to force an alias;
+`--remote-root` remains available.
+
+### If you already have an `odo` entry
+
+- **Reused, not rewritten:** a working `Host odo` (or `--ssh-host`) that
+  points at Odo and sets a `User` is used as-is when it matches the requested
+  identity.
+- **Never touched:** other `Host` blocks, `Include`d files, keys, and
+  `known_hosts`. Your `odo-connect` helper keeps working.
+- **Only one managed block:** it is replaced in place, left byte-for-byte
+  unchanged when nothing changed, and the file is written atomically with mode
+  `0600`.
+- **Refused:** a hand-written `Host sc26-odo-<user>` (or your `--ssh-host`)
+  outside the markers, a damaged marker pair, or a resolved mismatch after
+  writing. Rename the entry or pass `--ssh-host`.
+- **Shared, not duplicated:** the same hostname means the same `known_hosts`
+  entry, and the socket directory exists once. Two consoles share the master
+  socket; each still owns and cancels only its own Slurm job.
+- **Possible leftovers:** `ControlPersist 8h` keeps the master after the
+  console exits. Close it with `ssh -O exit sc26-odo-<user>`. An existing
+  master on the same socket is reused; a stale one fails with SSH's own
+  message.
+- **Global options:** a `Host *` `User` or `HostName` cannot override the
+  managed block because it comes first. A `Host * ControlPath` does not affect
+  console traffic either, since every command passes `-S` explicitly; it only
+  affects a manual `ssh sc26-odo-<user>`.
+
 On connection the console uploads the current tutorial code to its own marked
 scratch workspace, prepares packages on the **login node**, and submits a
 one-node holding job. It waits for that job to start before enabling Run.
 The default workspace is
-`/gpfs/wolf2/olcf/trn047/scratch/<local-user>/sc26-dagger/portal`.
+`/gpfs/wolf2/olcf/trn047/scratch/<odo-user>/sc26-dagger/portal`.
 Existing unmarked, nonempty directories are rejected. Reconnecting refreshes
 course code there; results and Julia preferences stay put. This is separate
 from your normal checkout and exercise edits.
@@ -46,8 +129,9 @@ when the Tailscale CLI is available. Tailscale IPs and the machine's MagicDNS
 name are accepted; `--allow-host NAME` adds another browser hostname.
 Use `--host 127.0.0.1` for a loopback-only server.
 
-Other options: `--ssh-host`, `--control-path`, `--reservation`, `--port`,
-and `--no-browser`. `python3 host/app.py --help` lists them.
+Other options: `--odo-user`, `--ssh-host`, `--ssh-config`, `--control-path`,
+`--account`, `--reservation`, `--time`, `--port`, `--no-auth`, and
+`--no-browser`. `python3 host/app.py --help` lists them.
 
 ## What stays alive
 
@@ -97,6 +181,17 @@ highlighted catalog is stale.
 
 The web console adds processor lanes with immediate task tooltips, a transfer toggle,
 zoom, a function-time summary, and the last 20 timelines for comparison.
+Every demo has its own console — Algorithm, Julia REPL, Task timeline and
+Session output — and runs are attributed to the console that started them.
+The sidebar groups **01 CPU** (Tasks & dependencies, Mutable data & tiles) and
+numbers the remaining demos 02–06. Choosing a sidebar entry shows that section
+alone in the main area: the CPU page holds both consoles, every other page is
+one console. The section-level block is titled **Demo**, since the page heading
+already carries the section name. The last viewed page and each panel's collapsed state are
+remembered per browser. Within a console the Algorithm and Julia REPL panes
+collapse independently, keeping their width and shrinking vertically to the
+title bar; on narrow screens they stack.
+
 **Save JSON** downloads the selected report. Reports also remain in the Odo
 workspace under `results/demo-timelines/` for ordinary terminal runs.
 

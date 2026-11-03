@@ -48,7 +48,8 @@ while true
             Base.invokelatest(entry)
         elseif command.op == "eval"
             code = String(command.code)
-            DemoPresentation.present(; title="REPL", source=code, mpi=USE_MPI ? MPI : nothing) do
+            demo = haskey(command, :demo) && command.demo !== nothing ? String(command.demo) : nothing
+            DemoPresentation.present(; title="REPL", demo=demo, source=code, mpi=USE_MPI ? MPI : nothing) do
                 result = Core.eval(WORKSPACE, Meta.parseall(code))
                 if RANK == 0 && result !== nothing
                     show(stdout, MIME"text/plain"(), result)

@@ -279,9 +279,12 @@ function buildConsoles() {
     group.id = gid;
     group.innerHTML = `
 <div class="panel-head">
-<h3 class="static-title" id="${gid}-title">Demo</h3>
+<h3 id="${gid}-title">Demo</h3>
 <div class="panel-tools">
 <span class="tag">${section.number} · ${demos.length} demos</span>
+<button class="collapse" type="button" aria-expanded="true" aria-controls="${gid}-body" aria-labelledby="${gid}-title" title="Collapse section">
+<span class="chevron" aria-hidden="true">▾</span>
+</button>
 </div>
 </div>
 <div class="panel-body" id="${gid}-body"></div>`;

@@ -45,29 +45,40 @@ EXERCISES = {
         prompt=textwrap.dedent("""\
             Exercise: parallel tiled Cholesky (CPU)
 
-            Turn the serial tile-by-tile Cholesky factorization in
-            exercise/my_cholesky.jl into a parallel Dagger program.
+            The editor starts from the serial, tile-by-tile Cholesky
+            factorization in exercise/my_cholesky.jl. Make it parallel
+            without changing the algorithm or the loop structure.
 
-            1. Wrap the loops in Dagger.spawn_datadeps() do ... end.
-            2. Put Dagger.@spawn before each of the four BLAS/LAPACK calls.
-            3. Wrap each tile argument in In(...) (read only) or InOut(...)
-               (read and written).
-            4. Keep the existing algorithm and loop structure, and return T.
-            5. Run the exercise below.
+            1. Wrap the whole loop nest in Dagger.spawn_datadeps() do ... end.
+            2. Put Dagger.@spawn in front of each of the four BLAS/LAPACK
+               calls: potrf!, trsm!, syrk!, and gemm!.
+            3. Annotate every tile argument:
+               In(tile)    -- the call only reads the tile.
+               InOut(tile) -- the call reads and writes the tile.
+            4. Return T.
 
-            Done when every line says PASS.
+            Rules:
+            - Spawn the BLAS/LAPACK call itself, not a helper that calls it.
+              Dagger replaces BLAS with rocBLAS/rocSOLVER on GPU tasks.
+            - Do not use fetch or wait inside the Datadeps region.
+            - Under MPI every rank must build the same graph; do not branch
+              on rank.
 
+            Run the exercise below. Done when every line says PASS.
             Full handout: exercise/README.md""")),
     "03_gpu": dict(
         target="gpu", strict=False, gpus="1",
         prompt=textwrap.dedent("""\
             Exercise: same code, on the GPU
 
-            No edits. The exercise/my_cholesky.jl function you parallelized
-            for the CPU must run unchanged on an AMD GPU.
+            No code changes. The exercise/my_cholesky.jl function you wrote
+            for the CPU must run unchanged on an AMD GPU. Dagger maps the
+            spawned BLAS/LAPACK calls to rocBLAS/rocSOLVER when a task lands on
+            the GPU.
 
-            If a GPU run fails inside your own helper, spawn the BLAS/LAPACK
-            call itself so Dagger can select its GPU equivalent.
+            Keep the shared editor content, set Target to GPU, and run.
+            If the GPU run fails inside your own helper, spawn the BLAS/LAPACK
+            call itself so Dagger can substitute the GPU implementation.
 
             Full handout: exercise/README.md""")),
     "04_mpi": dict(
@@ -75,12 +86,13 @@ EXERCISES = {
         prompt=textwrap.dedent("""\
             Exercise: same code, across MPI ranks
 
-            No edits. Run the same exercise/my_cholesky.jl function on two
-            ranks on one node.
+            No code changes. Run the same exercise/my_cholesky.jl function on
+            two MPI ranks on one node. This section uses the MPI worker layout;
+            keep Target on CPU and Strict checked.
 
             --strict places tasks away from their data, so a missing InOut
             loses its writes and fails the check. Every rank must run
-            identical Dagger code.
+            identical Dagger code; do not branch on the rank.
 
             Full handout: exercise/README.md""")),
     "05_multigpu": dict(
@@ -88,10 +100,12 @@ EXERCISES = {
         prompt=textwrap.dedent("""\
             Exercise: stretch goals
 
-            - Compare with Dagger's builtin Cholesky and a vendor call in
-              the REPL or terminal harness.
-            - Sweep tile sizes with the REPL or terminal harness.
-            - Try all visible GPUs here and a mixed CPU+GPU target.
+            The same code can use every visible GPU or a mix of CPU and GPU.
+            - Keep Target on GPU to use all visible GPUs in this section.
+            - Switch Target to Mixed to let Dagger place tasks on both CPU and
+              GPU. Is it faster? Why or why not?
+            - Use the REPL or the terminal harness to sweep tile sizes and
+              compare builtin and vendor implementations.
             - Look at solution/my_cholesky.jl only after you finish.
 
             Full handout: exercise/README.md""")),

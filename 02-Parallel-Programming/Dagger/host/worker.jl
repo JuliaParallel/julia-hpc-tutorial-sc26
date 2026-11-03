@@ -13,6 +13,25 @@ const DEMOS = Dict("01_tasks"=>false, "02_datadeps"=>false, "03_gpu"=>false,
                    "04_mpi"=>true, "05_multigpu"=>false, "06_multinode"=>true,
                    "07_multinode_multigpu"=>true)
 const LOADED = Dict{String,Module}()
+const HARNESS = Dict{Tuple{Bool,Bool},Module}()
+function harness_module(use_mpi, use_gpu)
+    key = (use_mpi, use_gpu)
+    get!(HARNESS, key) do
+        m = Module(Symbol("ExerciseHarness_", use_mpi ? "mpi" : "single", "_", use_gpu ? "gpu" : "cpu"))
+        Core.eval(m, :(include(path::AbstractString) = Base.include($m, path)))
+        saved = copy(ARGS)
+        try
+            empty!(ARGS)
+            use_mpi && push!(ARGS, "--mpi")
+            use_gpu && push!(ARGS, "--target=gpu")
+            Base.include(m, joinpath(@__DIR__, "..", "harness", "run.jl"))
+        finally
+            empty!(ARGS)
+            append!(ARGS, saved)
+        end
+        m
+    end
+end
 function workspace(name)
     mod = Module(name)
     Core.eval(mod, :(include(path::AbstractString) = Base.include($mod, path)))
@@ -46,6 +65,41 @@ while true
             end
             entry = Base.invokelatest(getglobal, mod, :run_demo)
             Base.invokelatest(entry)
+        elseif command.op == "exercise"
+            demo = String(command.demo)
+            haskey(DEMOS, demo) || error("Unknown demo: $demo")
+            DEMOS[demo] == USE_MPI || error("Switch the worker layout for this demo")
+            target = String(get(command, :target, "cpu"))
+            target in ("cpu", "gpu", "mixed") || error("Unknown exercise target: $target")
+            strict = Bool(get(command, :strict, false))
+            gpus = String(get(command, :gpus, "1"))
+            gpus in ("1", "all") || error("Unknown exercise GPU selection: $gpus")
+            code = String(command.code)
+            job = get(ENV, "SLURM_JOB_ID", "local")
+            path = joinpath(@__DIR__, "..", "results", "exercise-$job-$demo.jl")
+            if RANK == 0
+                mkpath(dirname(path))
+                write(path, code)
+            end
+            USE_MPI && MPI.Barrier(MPI.COMM_WORLD)
+            args = ["--impl=student", "--file=$path", "--target=$target",
+                    "--sizes=$(String(get(command, :sizes, "1024")))",
+                    "--bs=$(Int(get(command, :bs, 256)))",
+                    "--trials=$(Int(get(command, :trials, 1)))"]
+            USE_MPI && push!(args, "--mpi")
+            strict && push!(args, "--strict")
+            gpus == "all" && push!(args, "--gpus=all")
+            harness = harness_module(USE_MPI, target != "cpu")
+            old_threads = BLAS.get_num_threads()
+            try
+                DemoPresentation.present(; title="Exercise · $(uppercase(target))", demo=demo,
+                                         source=code, mpi=USE_MPI ? MPI : nothing) do
+                    result = Base.invokelatest(getglobal(harness, :main), args)
+                    result == 0 || error("Exercise run failed; see the output above")
+                end
+            finally
+                BLAS.set_num_threads(old_threads)
+            end
         elseif command.op == "eval"
             code = String(command.code)
             demo = haskey(command, :demo) && command.demo !== nothing ? String(command.demo) : nothing

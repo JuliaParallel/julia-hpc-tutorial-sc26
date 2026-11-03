@@ -285,26 +285,53 @@ button:focus-visible,select:focus-visible,textarea:focus-visible {
 .side-head .collapse {
   font-size:10px
 }
-.exercise .hint {
-  margin:10px 0 0;
-  padding:0
+.exercise-panel .panel-body {
+  padding:16px 20px
 }
-.exercise textarea {
+.exercise-prompt {
+  margin:0 0 14px;
+  white-space:pre-wrap;
+  color:var(--muted);
+  font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace
+}
+.exercise-panel textarea {
   width:100%;
-  min-height:240px;
-  margin:10px 0 0;
-  padding:10px;
+  min-height:280px;
+  margin:0;
+  padding:14px
+}
+.exercise-control {
+  display:flex;
+  align-items:center;
+  gap:6px;
   font-size:11px;
-  line-height:1.5
+  color:var(--muted)
+}
+.exercise-control select {
+  font-size:11px;
+  padding:5px 8px
+}
+.exercise-footer {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:12px;
+  padding:12px 0 16px
+}
+.exercise-footer > span {
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45
 }
 .exercise-actions {
   display:flex;
-  justify-content:flex-end;
-  margin-top:8px
+  align-items:center;
+  gap:8px;
+  flex:none
 }
 .exercise-actions button {
-  font-size:10px;
-  padding:5px 8px
+  font-size:11px
 }
 .tag {
   color:var(--muted);

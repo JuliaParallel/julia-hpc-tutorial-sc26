@@ -88,6 +88,7 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn('data-role="exercise-code"', page)
         self.assertIn('op: "exercise"', page)
         self.assertIn("exercise_template", page)
+        self.assertIn("withoutComments", page)
 
     def test_exercise_run_uses_demo_layout_and_harness_defaults(self):
         c = console()

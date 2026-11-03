@@ -238,10 +238,6 @@ button:focus-visible,select:focus-visible,textarea:focus-visible {
 .panel-head h3:hover,.side-head:hover .eyebrow {
   color:var(--teal)
 }
-.panel-head h3.static-title,.panel-head h3.static-title:hover {
-  cursor:default;
-  color:var(--text)
-}
 .collapse {
   display:inline-flex;
   align-items:center;

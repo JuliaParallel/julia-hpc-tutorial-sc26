@@ -88,9 +88,9 @@ EXERCISES = {
         prompt=textwrap.dedent("""\
             Exercise: stretch goals
 
-            - Sweep tile sizes and compare the exercise runs.
             - Compare with Dagger's builtin Cholesky and a vendor call in
-              the REPL or harness.
+              the REPL or terminal harness.
+            - Sweep tile sizes with the REPL or terminal harness.
             - Try all visible GPUs here and a mixed CPU+GPU target.
             - Look at solution/my_cholesky.jl only after you finish.
 

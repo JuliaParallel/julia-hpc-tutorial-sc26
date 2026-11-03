@@ -72,8 +72,9 @@ one marked `Host sc26-odo-<user>` entry in `~/.ssh/config`, and opens the SSH
 connection; a working `odo` alias is reused untouched. The console then
 connects to Odo, prepares packages on the login node, and manages your
 one-node allocation and persistent Julia workers.
-It offers all seven demos, a multiline Julia evaluator, highlighted source,
-interactive task timelines, function-time summaries, and run history.
+It offers all seven demos, a multiline Julia evaluator, an exercise editor that
+runs the harness on CPU, GPU, or MPI, highlighted source, interactive task
+timelines, function-time summaries, and run history.
 See [setup and session behavior](host/README.md).
 
 The terminal workflow below remains available. Every demo now prints its

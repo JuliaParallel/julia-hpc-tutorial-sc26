@@ -37,73 +37,84 @@ DEMOS = [
 SECTIONS = [
     ("cpu", "CPU", ["01_tasks", "02_datadeps"]),
 ]
-# Proposed hands-on exercise for the demos that use it. The console shows an
-# editable copy in the sidebar; edits stay in the browser.
+# Proposed hands-on exercise for the demos that use it. The console shows the
+# prompt and a shared code editor in each relevant demo section.
 EXERCISES = {
-    "02_datadeps": textwrap.dedent("""\
-        Exercise: parallel tiled Cholesky (CPU)
+    "02_datadeps": dict(
+        target="cpu", strict=False, gpus="1",
+        prompt=textwrap.dedent("""\
+            Exercise: parallel tiled Cholesky (CPU)
 
-        Turn the serial tile-by-tile Cholesky factorization in
-        exercise/my_cholesky.jl into a parallel Dagger program.
+            Turn the serial tile-by-tile Cholesky factorization in
+            exercise/my_cholesky.jl into a parallel Dagger program.
 
-        1. Wrap the loops in Dagger.spawn_datadeps() do ... end.
-        2. Put Dagger.@spawn before each of the four BLAS/LAPACK calls.
-        3. Wrap each tile argument in In(...) (read only) or InOut(...)
-           (read and written).
-        4. Keep the existing algorithm and loop structure, and return T.
-        5. Run:
-           julia --project -t 4 harness/run.jl --impl=student
+            1. Wrap the loops in Dagger.spawn_datadeps() do ... end.
+            2. Put Dagger.@spawn before each of the four BLAS/LAPACK calls.
+            3. Wrap each tile argument in In(...) (read only) or InOut(...)
+               (read and written).
+            4. Keep the existing algorithm and loop structure, and return T.
+            5. Run the exercise below.
 
-        Done when every line says PASS.
+            Done when every line says PASS.
 
-        Full handout: exercise/README.md"""),
-    "03_gpu": textwrap.dedent("""\
-        Exercise: same code, on the GPU
+            Full handout: exercise/README.md""")),
+    "03_gpu": dict(
+        target="gpu", strict=False, gpus="1",
+        prompt=textwrap.dedent("""\
+            Exercise: same code, on the GPU
 
-        No edits. The exercise/my_cholesky.jl function you parallelized
-        for the CPU must run unchanged on an AMD GPU.
+            No edits. The exercise/my_cholesky.jl function you parallelized
+            for the CPU must run unchanged on an AMD GPU.
 
-        Run:
-          julia --project -t 4 harness/run.jl --impl=student --target=gpu
+            If a GPU run fails inside your own helper, spawn the BLAS/LAPACK
+            call itself so Dagger can select its GPU equivalent.
 
-        If a GPU run fails inside your own helper, spawn the BLAS/LAPACK
-        call itself so Dagger can select its GPU equivalent.
+            Full handout: exercise/README.md""")),
+    "04_mpi": dict(
+        target="cpu", strict=True, gpus="1",
+        prompt=textwrap.dedent("""\
+            Exercise: same code, across MPI ranks
 
-        Full handout: exercise/README.md"""),
-    "04_mpi": textwrap.dedent("""\
-        Exercise: same code, across MPI ranks
+            No edits. Run the same exercise/my_cholesky.jl function on two
+            ranks on one node.
 
-        No edits. Run the same exercise/my_cholesky.jl function on two
-        ranks on one node.
+            --strict places tasks away from their data, so a missing InOut
+            loses its writes and fails the check. Every rank must run
+            identical Dagger code.
 
-          julia --project -e 'using MPI; run(`$(MPI.mpiexec()) -n 2 $(Base.julia_cmd()) --project -t 2 harness/run.jl --impl=student --mpi --strict`)'
+            Full handout: exercise/README.md""")),
+    "05_multigpu": dict(
+        target="gpu", strict=False, gpus="all",
+        prompt=textwrap.dedent("""\
+            Exercise: stretch goals
 
-        --strict places tasks away from their data, so a missing InOut
-        loses its writes and fails the check. Every rank must run
-        identical Dagger code.
+            - Sweep tile sizes and compare the exercise runs.
+            - Compare with Dagger's builtin Cholesky and a vendor call in
+              the REPL or harness.
+            - Try all visible GPUs here and a mixed CPU+GPU target.
+            - Look at solution/my_cholesky.jl only after you finish.
 
-        Full handout: exercise/README.md"""),
-    "05_multigpu": textwrap.dedent("""\
-        Exercise: stretch goals
-
-        - Sweep tile sizes: --bs=512, --bs=1024, --bs=4096 on the GPU.
-          Why is there a sweet spot?
-        - Compare --impl=builtin (Dagger's Cholesky) and --impl=vendor
-          (one LAPACK or rocSOLVER call).
-        - Try --target=gpu --gpus=all and --target=mixed.
-        - Look at solution/my_cholesky.jl only after you finish.
-
-        Full handout: exercise/README.md"""),
+            Full handout: exercise/README.md""")),
 }
 
 
 def exercises():
-    """Exercise text keyed by demo id; unknown ids are a layout bug."""
+    """Exercise configuration keyed by demo id; unknown ids are a layout bug."""
     known = {demo for demo, _, _ in DEMOS}
     unknown = set(EXERCISES) - known
     if unknown:
         raise ValueError(f"Unknown demos in EXERCISES: {sorted(unknown)}")
-    return dict(EXERCISES)
+    for demo, exercise in EXERCISES.items():
+        if exercise["target"] not in ("cpu", "gpu", "mixed"):
+            raise ValueError(f"Unknown exercise target for {demo}")
+        if exercise["gpus"] not in ("1", "all"):
+            raise ValueError(f"Unknown exercise GPU selection for {demo}")
+    return {demo: dict(exercise) for demo, exercise in EXERCISES.items()}
+
+
+def exercise_template():
+    """Starting code shown in the exercise editor."""
+    return (ROOT / "exercise" / "my_cholesky.jl").read_text()
 
 
 def section_layout():
@@ -525,6 +536,26 @@ class Console:
                 if gpus not in ("2", "4"):
                     raise ValueError("Choose two or four GPUs")
                 command["args"] = [f"--gpus={gpus}"] if demo[0] == "05_multigpu" else []
+            elif command.get("op") == "exercise":
+                demo = next((d for d in DEMOS if d[0] == command.get("demo")), None)
+                if demo is None:
+                    raise ValueError("Unknown demo")
+                exercise = EXERCISES.get(demo[0])
+                if exercise is None:
+                    raise ValueError("This demo has no exercise")
+                target = str(command.get("target") or exercise["target"])
+                if target not in ("cpu", "gpu", "mixed"):
+                    raise ValueError("Unknown exercise target")
+                if not isinstance(command.get("code"), str) or not command["code"].strip():
+                    raise ValueError("Write Julia code for the exercise first")
+                command["mode"] = demo[2]
+                command["target"] = target
+                command["strict"] = bool(command.get("strict", exercise["strict"]))
+                command["gpus"] = exercise["gpus"]
+                command["sizes"] = {"cpu": "1024", "gpu": "2048", "mixed": "2048"}[target]
+                command["bs"] = 256 if target == "cpu" else 512
+                command["trials"] = 1
+                command["label"] = f"Exercise · {target.upper()}"
             elif command.get("op") == "eval":
                 if command.get("mode") not in ("single", "mpi"):
                     raise ValueError("Unknown REPL layout")
@@ -540,7 +571,7 @@ class Console:
             self.status = "Running…"
             self.run_id = command["id"]
             self.emit("run", run=command["id"], demo=command.get("demo"),
-                      label=command.get("demo", "REPL"),
+                      label=command.get("label") or command.get("demo", "REPL"),
                       mode=command["mode"], args=command.get("args", []))
 
     def disconnect(self):
@@ -595,7 +626,8 @@ def handler_for(console):
                     self.reply(dict(error="Invalid cursor"), code=400)
             elif url.path == "/api/config":
                 self.reply(dict(token=console.token, demos=DEMOS, sections=section_layout(),
-                                exercises=exercises(), host=console.args.ssh_host,
+                                exercises=exercises(), exercise_template=exercise_template(),
+                                host=console.args.ssh_host,
                                 remote_root=console.args.remote_root, time=console.args.time))
             elif url.path == "/api/source":
                 try:

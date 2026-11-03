@@ -68,17 +68,54 @@ class ConsoleTests(unittest.TestCase):
         exercises = app.exercises()
         self.assertEqual(set(exercises),
                          {"02_datadeps", "03_gpu", "04_mpi", "05_multigpu"})
-        for demo, text in exercises.items():
+        for demo, exercise in exercises.items():
             self.assertIn(demo, {entry[0] for entry in app.DEMOS})
-            self.assertIn("Exercise:", text)
-            self.assertIn("my_cholesky.jl", text)
+            self.assertIn("Exercise:", exercise["prompt"])
+            self.assertIn("my_cholesky.jl", exercise["prompt"])
+            self.assertIn(exercise["target"], ("cpu", "gpu", "mixed"))
+            self.assertIn(exercise["gpus"], ("1", "all"))
 
-    def test_exercise_sidebar_section_has_an_editable_textarea(self):
-        page = (BASE / "host/index.html").read_text()
-        self.assertIn('id="side-exercise"', page)
-        self.assertIn('aria-controls="side-exercise-body"', page)
-        self.assertIn('id="exercise-text"', page)
-        self.assertIn('data-role="exercise-reset"', page)
+    def test_exercise_template_is_the_student_stub(self):
+        template = app.exercise_template()
+        self.assertIn("function my_cholesky!", template)
+        self.assertIn("Dagger.spawn_datadeps", template)
+        self.assertIn("TODO", template)
+
+    def test_console_generates_a_shared_exercise_editor(self):
+        page = (BASE / "host/app.js").read_text()
+        self.assertIn('data-role="exercise-code"', page)
+        self.assertIn('op: "exercise"', page)
+        self.assertIn("exercise_template", page)
+
+    def test_exercise_run_uses_demo_layout_and_harness_defaults(self):
+        c = console()
+        c.send = Mock()
+        c.run(dict(op="exercise", demo="02_datadeps", target="cpu",
+                   strict=False, code="x = 1"))
+        command = c.send.call_args[0][0]
+        self.assertEqual(command["mode"], "single")
+        self.assertEqual(command["target"], "cpu")
+        self.assertEqual(command["sizes"], "1024")
+        self.assertEqual(command["bs"], 256)
+        self.assertEqual(command["gpus"], "1")
+        self.assertEqual(command["label"], "Exercise · CPU")
+        c.busy = False
+        c.run(dict(op="exercise", demo="04_mpi", target="cpu",
+                   strict=True, code="x = 1"))
+        command = c.send.call_args[0][0]
+        self.assertEqual(command["mode"], "mpi")
+        self.assertTrue(command["strict"])
+        c.busy = False
+        c.run(dict(op="exercise", demo="05_multigpu", target="gpu",
+                   strict=False, code="x = 1"))
+        command = c.send.call_args[0][0]
+        self.assertEqual(command["gpus"], "all")
+        self.assertEqual(command["bs"], 512)
+        c.busy = False
+        with self.assertRaisesRegex(ValueError, "no exercise"):
+            c.run(dict(op="exercise", demo="01_tasks", code="x = 1"))
+        with self.assertRaisesRegex(ValueError, "Write Julia code"):
+            c.run(dict(op="exercise", demo="02_datadeps", code=" "))
 
     def test_config_exposes_exercises(self):
         c = console()
@@ -90,6 +127,8 @@ class ConsoleTests(unittest.TestCase):
                 config = json.load(response)
             self.assertEqual(set(config["exercises"]),
                              {"02_datadeps", "03_gpu", "04_mpi", "05_multigpu"})
+            self.assertEqual(config["exercises"]["02_datadeps"]["target"], "cpu")
+            self.assertIn("function my_cholesky!", config["exercise_template"])
         finally:
             server.shutdown()
             server.server_close()

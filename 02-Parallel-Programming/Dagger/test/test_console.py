@@ -75,11 +75,13 @@ class ConsoleTests(unittest.TestCase):
             self.assertIn(exercise["target"], ("cpu", "gpu", "mixed"))
             self.assertIn(exercise["gpus"], ("1", "all"))
 
-    def test_exercise_template_is_the_student_stub(self):
+    def test_exercise_template_is_the_clean_student_stub(self):
         template = app.exercise_template()
         self.assertIn("function my_cholesky!", template)
-        self.assertIn("Dagger.spawn_datadeps", template)
-        self.assertIn("TODO", template)
+        self.assertIn("LAPACK.potrf!", template)
+        self.assertIn("BLAS.gemm!", template)
+        self.assertFalse(any(line.strip().startswith("#")
+                             for line in template.splitlines()))
 
     def test_console_generates_a_shared_exercise_editor(self):
         page = (BASE / "host/app.js").read_text()

@@ -64,6 +64,36 @@ class ConsoleTests(unittest.TestCase):
         self.assertEqual(layout[1]["demos"], ["03_gpu"])
         self.assertEqual(layout[1]["title"], "Single GPU")
 
+    def test_exercises_cover_the_hands_on_demos(self):
+        exercises = app.exercises()
+        self.assertEqual(set(exercises),
+                         {"02_datadeps", "03_gpu", "04_mpi", "05_multigpu"})
+        for demo, text in exercises.items():
+            self.assertIn(demo, {entry[0] for entry in app.DEMOS})
+            self.assertIn("Exercise:", text)
+            self.assertIn("my_cholesky.jl", text)
+
+    def test_exercise_sidebar_section_has_an_editable_textarea(self):
+        page = (BASE / "host/index.html").read_text()
+        self.assertIn('id="side-exercise"', page)
+        self.assertIn('aria-controls="side-exercise-body"', page)
+        self.assertIn('id="exercise-text"', page)
+        self.assertIn('data-role="exercise-reset"', page)
+
+    def test_config_exposes_exercises(self):
+        c = console()
+        server = app.ThreadingHTTPServer(("127.0.0.1", 0), app.handler_for(c))
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            with urllib.request.urlopen(
+                    f"http://127.0.0.1:{server.server_port}/api/config") as response:
+                config = json.load(response)
+            self.assertEqual(set(config["exercises"]),
+                             {"02_datadeps", "03_gpu", "04_mpi", "05_multigpu"})
+        finally:
+            server.shutdown()
+            server.server_close()
+
     def test_run_tags_events_with_demo_and_clears_after_done(self):
         c = console()
         c.process = Mock(stdin=io.StringIO())

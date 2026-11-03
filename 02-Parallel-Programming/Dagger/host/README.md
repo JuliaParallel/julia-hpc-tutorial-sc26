@@ -192,6 +192,11 @@ remembered per browser. Within a console the Algorithm and Julia REPL panes
 collapse independently, keeping their width and shrinking vertically to the
 title bar; on narrow screens they stack.
 
+For the CPU, GPU, MPI, and multi-GPU demos, the sidebar also shows a collapsible
+**Exercise** section with the proposed Cholesky exercise. Its text is editable;
+each demo keeps its own copy in browser storage, and **Reset to proposed
+exercise** restores the original text.
+
 **Save JSON** downloads the selected report. Reports also remain in the Odo
 workspace under `results/demo-timelines/` for ordinary terminal runs.
 

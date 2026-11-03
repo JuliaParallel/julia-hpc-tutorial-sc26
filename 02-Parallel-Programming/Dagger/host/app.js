@@ -8,14 +8,23 @@ const runPanes = new Map();       // run id -> console pane
 const runSources = new Map();     // run id -> executed sources
 const COLLAPSE_KEY = "sc26-console-collapsed";
 const ACTIVE_KEY = "sc26-console-active";
+const EXERCISE_KEY = "sc26-exercise-text";
 let collapsedState = {};
+let exerciseTexts = {};
 try {
   const saved = JSON.parse(localStorage.getItem(COLLAPSE_KEY) || "{}");
   // Older consoles stored a plain list of collapsed ids.
   collapsedState = Array.isArray(saved) ? Object.fromEntries(saved.map(id => [id, true])) : saved;
 } catch (e) {}
+try {
+  const saved = JSON.parse(localStorage.getItem(EXERCISE_KEY) || "{}");
+  if (saved && typeof saved === "object" && !Array.isArray(saved)) exerciseTexts = saved;
+} catch (e) {}
 function saveCollapsed() {
   try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(collapsedState)); } catch (e) {}
+}
+function saveExerciseTexts() {
+  try { localStorage.setItem(EXERCISE_KEY, JSON.stringify(exerciseTexts)); } catch (e) {}
 }
 
 // Each pane is its own side-by-side Algorithm/REPL grid.
@@ -307,6 +316,28 @@ function showSection(sectionId) {
   activeSection = sectionId;
 }
 
+function showExercise(demoId) {
+  const section = $("side-exercise");
+  const text = config.exercises?.[demoId];
+  if (!text) {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+  $("exercise-demo").textContent = `Proposed exercise for ${panes.get(demoId)?.title || demoId}`;
+  const textarea = $("exercise-text");
+  textarea.value = exerciseTexts[demoId] ?? text;
+  textarea.oninput = () => {
+    exerciseTexts[demoId] = textarea.value;
+    saveExerciseTexts();
+  };
+  $("exercise-reset").onclick = () => {
+    delete exerciseTexts[demoId];
+    saveExerciseTexts();
+    textarea.value = text;
+  };
+}
+
 function activate(demoId, {scroll = true, expand = true} = {}) {
   const pane = panes.get(demoId);
   if (!pane) return;
@@ -314,6 +345,7 @@ function activate(demoId, {scroll = true, expand = true} = {}) {
   const changedPage = activeSection !== sectionId;
   showSection(sectionId);
   selectedDemo = demoId;
+  showExercise(demoId);
   try { localStorage.setItem(ACTIVE_KEY, demoId); } catch (e) {}
   if (expand) expandAncestors(pane.el);
   // A newly visible timeline had no measurable width while hidden.

@@ -37,6 +37,73 @@ DEMOS = [
 SECTIONS = [
     ("cpu", "CPU", ["01_tasks", "02_datadeps"]),
 ]
+# Proposed hands-on exercise for the demos that use it. The console shows an
+# editable copy in the sidebar; edits stay in the browser.
+EXERCISES = {
+    "02_datadeps": textwrap.dedent("""\
+        Exercise: parallel tiled Cholesky (CPU)
+
+        Turn the serial tile-by-tile Cholesky factorization in
+        exercise/my_cholesky.jl into a parallel Dagger program.
+
+        1. Wrap the loops in Dagger.spawn_datadeps() do ... end.
+        2. Put Dagger.@spawn before each of the four BLAS/LAPACK calls.
+        3. Wrap each tile argument in In(...) (read only) or InOut(...)
+           (read and written).
+        4. Keep the existing algorithm and loop structure, and return T.
+        5. Run:
+           julia --project -t 4 harness/run.jl --impl=student
+
+        Done when every line says PASS.
+
+        Full handout: exercise/README.md"""),
+    "03_gpu": textwrap.dedent("""\
+        Exercise: same code, on the GPU
+
+        No edits. The exercise/my_cholesky.jl function you parallelized
+        for the CPU must run unchanged on an AMD GPU.
+
+        Run:
+          julia --project -t 4 harness/run.jl --impl=student --target=gpu
+
+        If a GPU run fails inside your own helper, spawn the BLAS/LAPACK
+        call itself so Dagger can select its GPU equivalent.
+
+        Full handout: exercise/README.md"""),
+    "04_mpi": textwrap.dedent("""\
+        Exercise: same code, across MPI ranks
+
+        No edits. Run the same exercise/my_cholesky.jl function on two
+        ranks on one node.
+
+          julia --project -e 'using MPI; run(`$(MPI.mpiexec()) -n 2 $(Base.julia_cmd()) --project -t 2 harness/run.jl --impl=student --mpi --strict`)'
+
+        --strict places tasks away from their data, so a missing InOut
+        loses its writes and fails the check. Every rank must run
+        identical Dagger code.
+
+        Full handout: exercise/README.md"""),
+    "05_multigpu": textwrap.dedent("""\
+        Exercise: stretch goals
+
+        - Sweep tile sizes: --bs=512, --bs=1024, --bs=4096 on the GPU.
+          Why is there a sweet spot?
+        - Compare --impl=builtin (Dagger's Cholesky) and --impl=vendor
+          (one LAPACK or rocSOLVER call).
+        - Try --target=gpu --gpus=all and --target=mixed.
+        - Look at solution/my_cholesky.jl only after you finish.
+
+        Full handout: exercise/README.md"""),
+}
+
+
+def exercises():
+    """Exercise text keyed by demo id; unknown ids are a layout bug."""
+    known = {demo for demo, _, _ in DEMOS}
+    unknown = set(EXERCISES) - known
+    if unknown:
+        raise ValueError(f"Unknown demos in EXERCISES: {sorted(unknown)}")
+    return dict(EXERCISES)
 
 
 def section_layout():
@@ -528,8 +595,8 @@ def handler_for(console):
                     self.reply(dict(error="Invalid cursor"), code=400)
             elif url.path == "/api/config":
                 self.reply(dict(token=console.token, demos=DEMOS, sections=section_layout(),
-                                host=console.args.ssh_host, remote_root=console.args.remote_root,
-                                time=console.args.time))
+                                exercises=exercises(), host=console.args.ssh_host,
+                                remote_root=console.args.remote_root, time=console.args.time))
             elif url.path == "/api/source":
                 try:
                     self.reply(demo_sources(parse_qs(url.query).get("demo", [""])[0]))

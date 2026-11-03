@@ -414,9 +414,38 @@ arbitrary CPU-only code is not automatically a GPU kernel. For the Cholesky
 exercise, spawn BLAS/LAPACK calls directly so Dagger can select replacements.
 :::
 
+## Motivating Problem: a matrix product, two GPUs
+
+![](assets/two-gpus.svg){.diagram .full-diagram fig-alt="One product, A times B equals C. One Julia process on one server has two GPU devices available."}
+
+::: {.notes}
+Hold the setup one beat: A(1024, 512), B(512, 512), output C(1024, 512), and a
+two-GPU scope in one Julia process. The products are the actors; the next slide
+shows how this product splits into block rows. Run demos/05_multigpu.jl after.
+:::
+
+## The naive way: Split A, Split C
+
+![](assets/product-tiles.svg){.diagram .full-diagram fig-alt="One matrix product split into two block rows. A reads as two tiles, its upper block row A one in mint and lower block row A two in violet. Matrix B is one shared amber tile. GPU one computes C one equals A one times B, and GPU two computes C two equals A two times the same B. The two block rows stack into the one output matrix C = A times B."}
+
+::: {.notes}
+Transition from one GPU to two devices on one server. The picture shows the
+product slide's demo, A(1024, 512) times B(512, 512): A carries two 512×512
+block rows, B is shared and read by both tasks, and each output block row
+lands on a distinct GPU. Nothing MPI-shaped yet, this is still one Julia
+process. Run demos/05_multigpu.jl on the next slides.
+:::
+
 ## One server. Multiple GPUs. One algorithm.
 
-![](assets/topology.svg){.diagram fig-alt="One Julia process on one server splits A into two block rows. GPU 1 computes C1 = A1 times B, and GPU 2 computes C2 = A2 times B. The two block rows form one output matrix C = A times B."}
+```julia
+Dagger.spawn_datadeps() do
+    for (i, placement) in enumerate(scopes)
+        Dagger.@spawn scope=placement multiply_and_report!(
+            Out(DC.chunks[i, 1]), In(DA.chunks[i, 1]), In(DB.chunks[1, 1]))
+    end
+end
+```
 
 ```julia
 gpus = Dagger.scope(rocm_gpus=1:2)
@@ -436,7 +465,7 @@ participation is visible. Dagger moves inputs and tracks the output writes.
 On Odo the GPU device IDs refer to MI250X GCDs; two IDs need not mean two packages.
 :::
 
-## One product. Two GPUs. {.demo}
+## Run this yourself {.demo}
 
 ::: {.small}
 In the allocation shell, after leaving the Julia REPL with <code>exit()</code>:

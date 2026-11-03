@@ -51,7 +51,7 @@ h3 {
 .dot {
   color:var(--teal)
 }
-.connection,.run-controls,.plot-controls {
+.connection,.plot-controls {
   display:flex;
   gap:12px;
   align-items:center
@@ -93,6 +93,25 @@ nav button .num {
   display:inline-block;
   width:25px;
   opacity:.6
+}
+nav .nav-group {
+  display:grid;
+  gap:5px
+}
+nav .nav-group-head {
+  color:var(--text);
+  font-weight:600
+}
+nav .nav-children {
+  display:grid;
+  gap:5px;
+  margin-left:18px;
+  padding-left:10px;
+  border-left:1px solid var(--border)
+}
+nav .nav-children button {
+  padding:9px 12px;
+  font-size:12px
 }
 .allocation {
   border-top:1px solid var(--border);
@@ -159,6 +178,29 @@ button:focus-visible,select:focus-visible,textarea:focus-visible {
   grid-template-columns:1.1fr 1fr;
   gap:18px
 }
+/* A collapsed pane keeps its width; only its height shrinks to the title bar. */
+.panel.collapsed .panel-tools > :not(.collapse) {
+  display:none
+}
+/* Each demo is its own console: a CPU group holds two, the rest hold one. */
+.console-group > .panel-body {
+  padding:16px 16px 0
+}
+.pane {
+  background:#101f28
+}
+.pane > .panel-body {
+  padding:12px 12px 0
+}
+.pane .panel {
+  background:#0d1a22;
+  margin-bottom:12px
+}
+@media(min-width:1101px) {
+  .workspace[data-collapsed="10"],.workspace[data-collapsed="01"] {
+  align-items:start
+}
+}
 .panel {
   background:var(--panel);
   border:1px solid var(--border);
@@ -178,6 +220,75 @@ button:focus-visible,select:focus-visible,textarea:focus-visible {
   font-size:11px;
   padding:5px 8px
 }
+.panel-tools {
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  gap:12px;
+  min-width:0
+}
+.panel-tools label {
+  font-size:11px;
+  color:var(--muted)
+}
+.panel-head h3,.side-head .eyebrow {
+  cursor:pointer
+}
+.panel-head h3:hover,.side-head:hover .eyebrow {
+  color:var(--teal)
+}
+.panel-head h3.static-title,.panel-head h3.static-title:hover {
+  cursor:default;
+  color:var(--text)
+}
+.collapse {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:none;
+  background:transparent;
+  border:1px solid transparent;
+  border-radius:6px;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1
+}
+.panel-head .collapse {
+  padding:5px 7px
+}
+.collapse:hover {
+  border-color:var(--border);
+  color:var(--teal)
+}
+.chevron {
+  display:block;
+  transition:transform .15s ease
+}
+.collapse[aria-expanded="false"] .chevron {
+  transform:rotate(-90deg)
+}
+.panel.collapsed .panel-body,.side-section.collapsed .section-body {
+  display:none
+}
+.panel.collapsed .panel-head,.side-section.collapsed .side-head {
+  border-bottom:0
+}
+.panel.collapsed,.side-section.collapsed {
+  padding-bottom:0
+}
+.side-section {
+  margin-top:18px
+}
+.side-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px
+}
+.side-head .collapse {
+  font-size:10px
+}
 .tag {
   color:var(--muted);
   font-size:10px
@@ -190,16 +301,16 @@ pre,textarea {
   font:12px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace;
   tab-size:4
 }
-#source {
+.source {
   max-height:410px;
   overflow:auto;
   padding:0 20px 12px
 }
-#source pre {
+.source pre {
   white-space:pre;
   overflow:visible
 }
-#source h4 {
+.source h4 {
   font-size:11px;
   font-weight:400;
   color:var(--muted);
@@ -286,10 +397,10 @@ svg text {
 .amber {
   color:var(--amber)
 }
-#summary {
+.summary {
   padding:8px 20px 20px
 }
-#summary h4 {
+.summary h4 {
   font-size:12px;
   color:var(--muted);
   font-weight:500
@@ -317,22 +428,22 @@ svg text {
   background:var(--cyan);
   border-radius:3px
 }
-#history {
+.history {
   display:flex;
   gap:6px;
   padding:0 20px 14px;
   overflow:auto
 }
-#history button {
+.history button {
   font-size:10px;
   white-space:nowrap;
   background:transparent
 }
-#history button.active {
+.history button.active {
   border-color:var(--teal);
   color:var(--teal)
 }
-#output {
+.output {
   padding:18px 20px;
   margin:0;
   max-height:360px;
@@ -417,6 +528,12 @@ nav button {
 }
 main {
   padding:0 15px
+}
+.console-group > .panel-body {
+  padding:12px 12px 0
+}
+.pane > .panel-body {
+  padding:8px 8px 0
 }
 .panel-head {
   flex-wrap:wrap

@@ -14,6 +14,7 @@ import shlex
 import shutil
 import socket
 import subprocess
+import sys
 import tarfile
 import textwrap
 import threading
@@ -32,6 +33,30 @@ DEMOS = [
     ("07_multinode_multigpu", "Multi-node + multi-GPU", "mpi"),
     ("04_mpi", "MPI tile processing", "mpi"),
 ]
+# Demos that share one page section. Everything else gets its own section.
+SECTIONS = [
+    ("cpu", "CPU", ["01_tasks", "02_datadeps"]),
+]
+
+
+def section_layout():
+    """Numbered page sections, each holding one or more demo consoles."""
+    titles = {demo: title for demo, title, _ in DEMOS}
+    grouped = {demo for _, _, demos in SECTIONS for demo in demos}
+    missing = grouped - set(titles)
+    if missing:
+        raise ValueError(f"Unknown demos in SECTIONS: {sorted(missing)}")
+    if len(grouped) != sum(len(demos) for _, _, demos in SECTIONS):
+        raise ValueError("A demo appears in more than one section")
+    layout = []
+    for section_id, title, demos in SECTIONS:
+        layout.append(dict(id=section_id, title=title, demos=list(demos)))
+    for demo, title, _ in DEMOS:
+        if demo not in grouped:
+            layout.append(dict(id=f"demo-{demo}", title=title, demos=[demo]))
+    for number, section in enumerate(layout, 1):
+        section["number"] = f"{number:02d}"
+    return layout
 
 
 def source_excerpt(path):
@@ -74,6 +99,203 @@ def snapshot():
     return stream.getvalue()
 
 
+ODO_HOSTNAME = "login1.odo.olcf.ornl.gov"
+MANAGED_BEGIN = "# >>> sc26-dagger console: managed host block >>>"
+MANAGED_END = "# <<< sc26-dagger console: managed host block <<<"
+
+
+def is_odo_hostname(hostname):
+    name = (hostname or "").lower().rstrip(".")
+    return name == ODO_HOSTNAME or name.endswith(".odo.olcf.ornl.gov")
+
+
+def default_remote_root(account, user):
+    return f"/gpfs/wolf2/olcf/{account}/scratch/{user}/sc26-dagger/portal"
+
+
+def managed_alias(user):
+    """A per-user alias that will not collide with a hand-written `Host odo`."""
+    return "sc26-odo-" + re.sub(r"[^A-Za-z0-9_.-]", "-", user)
+
+
+def ssh_config_option(config_path):
+    """Pass -F only when the file exists; OpenSSH treats an explicit missing one as fatal."""
+    path = Path(config_path).expanduser()
+    return ["-F", str(path)] if path.is_file() else []
+
+
+def ssh_config_values(alias, config_path=None):
+    """Ask OpenSSH how it would resolve an alias: User, HostName, port, ..."""
+    command = ["ssh", "-G"]
+    if config_path is not None:
+        path = Path(config_path).expanduser()
+        command += ["-F", str(path if path.is_file() else os.devnull)]
+    command.append(alias)
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return {}
+    if result.returncode:
+        return {}
+    values = {}
+    for line in result.stdout.splitlines():
+        key, _, value = line.partition(" ")
+        if key and value:
+            values[key] = value.strip()
+    return values
+
+
+def extract_managed_block(text):
+    """Return (block, remaining lines); refuse to guess at a damaged block."""
+    lines = text.splitlines()
+    starts = [index for index, line in enumerate(lines) if line.strip() == MANAGED_BEGIN]
+    ends = [index for index, line in enumerate(lines) if line.strip() == MANAGED_END]
+    if not starts and not ends:
+        return None, lines
+    if len(starts) != 1 or len(ends) != 1 or ends[0] < starts[0]:
+        raise ValueError("The SSH config has a damaged sc26-dagger managed block; "
+                         f"remove or fix the lines between {MANAGED_BEGIN!r} and {MANAGED_END!r}")
+    return lines[starts[0]:ends[0] + 1], lines[:starts[0]] + lines[ends[0] + 1:]
+
+
+def ssh_aliases(lines):
+    for line in lines:
+        match = re.match(r"\s*host\s+(.+)$", line, re.IGNORECASE)
+        if match:
+            yield from match.group(1).split()
+
+
+def write_managed_host(config_path, alias, user, control_path, server=ODO_HOSTNAME, alternative=None):
+    """Insert or update our own block; never touch hand-written Host sections.
+
+    The block goes first because OpenSSH keeps the first value it obtains for
+    User, HostName, Port and ControlPath, regardless of block specificity.
+    """
+    config_path = Path(config_path).expanduser()
+    # Follow a dotfile-manager symlink instead of replacing it with a plain file.
+    if config_path.is_symlink():
+        config_path = config_path.resolve()
+    text = config_path.read_text() if config_path.exists() else ""
+    _, remainder = extract_managed_block(text)
+    for pattern in ssh_aliases(remainder):
+        if pattern.lower() == alias.lower():
+            hint = "Remove or rename that entry"
+            if alternative and alternative.lower() != alias.lower():
+                hint += f", or let the console manage {alternative!r} instead"
+            raise ValueError(f"SSH alias {alias!r} is already defined outside the console's "
+                             f"managed block. {hint}.")
+    socket = str(control_path)
+    if any(character.isspace() for character in socket):
+        socket = '"' + socket.replace('"', '\\"') + '"'
+    block = [MANAGED_BEGIN,
+             f"Host {alias}",
+             f"    HostName {server}",
+             f"    User {user}",
+             "    ServerAliveInterval 60",
+             "    ControlMaster auto",
+             f"    ControlPath {socket}",
+             "    ControlPersist 8h",
+             MANAGED_END]
+    rest = "\n".join(remainder).strip("\n")
+    updated = "\n".join(block) + "\n" + ("\n" + rest + "\n" if rest else "")
+    if updated == text:
+        return "unchanged"
+    config_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    existed = config_path.exists()
+    # Write through a sibling temporary file so a crash cannot truncate the config.
+    temporary = config_path.with_name(config_path.name + ".sc26-tmp")
+    temporary.write_text(updated)
+    temporary.chmod(config_path.stat().st_mode & 0o777 if existed else 0o600)
+    os.replace(temporary, config_path)
+    return "updated" if existed else "created"
+
+
+def verify_managed_host(alias, user, config_path=None):
+    values = ssh_config_values(alias, config_path)
+    hostname = values.get("hostname", "").lower().rstrip(".")
+    resolved = values.get("user", "")
+    if hostname != ODO_HOSTNAME or resolved != user:
+        raise RuntimeError(
+            f"SSH alias {alias!r} resolves to {resolved or '?'}@{hostname or '?'}, not "
+            f"{user}@{ODO_HOSTNAME}. An earlier User/HostName entry or an Include is overriding it")
+
+
+def prompt_odo_user(default):
+    if not sys.stdin.isatty():
+        raise ValueError("No Odo username: pass --odo-user, set SC26_ODO_USER, "
+                         "or run the console from an interactive terminal")
+    while True:
+        try:
+            answer = input(f"OLCF/UCAMS username for Odo [{default}]: ").strip()
+        except EOFError:
+            raise ValueError("No Odo username provided")
+        user = answer or default
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", user):
+            return user
+        print("Use letters, digits, dots, dashes or underscores.", flush=True)
+
+
+def bootstrap_ssh(args):
+    """Resolve the Odo identity, create a managed alias when needed, return (user, alias).
+
+    A usable hand-written alias is never modified. Otherwise the console owns one
+    explicitly marked block, so an attendee's `Host odo` keeps working unchanged.
+    """
+    local = getpass.getuser()
+    config_path = Path(args.ssh_config).expanduser()
+    explicit = (args.odo_user or os.environ.get("SC26_ODO_USER", "")).strip()
+    if explicit and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", explicit):
+        raise ValueError(f"Invalid Odo username: {explicit!r}")
+    preferred = args.ssh_host or "odo"
+    resolved = ssh_config_values(preferred, config_path)
+    hostname_ready = is_odo_hostname(resolved.get("hostname", ""))
+    resolved_user = resolved.get("user", "")
+    if explicit:
+        user = explicit
+    elif hostname_ready and resolved_user and resolved_user != local:
+        # An existing, working alias wins; do not rewrite the file.
+        print(f"Using existing SSH alias {preferred!r} as {resolved_user}@{ODO_HOSTNAME}", flush=True)
+        return resolved_user, preferred
+    else:
+        user = prompt_odo_user(resolved_user or local)
+    if hostname_ready and resolved_user == user:
+        print(f"Using existing SSH alias {preferred!r} as {user}@{ODO_HOSTNAME}", flush=True)
+        return user, preferred
+    alias = args.ssh_host or managed_alias(user)
+    action = write_managed_host(config_path, alias, user, args.control_path,
+                                alternative=None if args.ssh_host else managed_alias(user))
+    verify_managed_host(alias, user, config_path)
+    print(f"SSH alias {alias!r} {action} in {config_path}", flush=True)
+    return user, alias
+
+
+def ensure_master(args):
+    """Open the multiplexed connection once, interactively if a password is needed."""
+    socket_path = args.control_path
+    socket_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    option = ssh_config_option(args.ssh_config)
+    check = subprocess.run(["ssh"] + option + ["-S", str(socket_path), "-O", "check", args.ssh_host],
+                           capture_output=True)
+    if check.returncode == 0:
+        print(f"Reusing the open SSH connection to {args.ssh_host}", flush=True)
+        return True
+    command = ["ssh"] + option + ["-S", str(socket_path),
+               "-o", "ControlMaster=auto", "-o", "ControlPersist=8h",
+               "-o", "ConnectTimeout=20", "-o", "RemoteCommand=none"]
+    if sys.stdin.isatty():
+        command += ["-o", "BatchMode=no"]
+    else:
+        command += ["-o", "BatchMode=yes"]
+    command += ["-MNf", args.ssh_host]
+    print(f"Opening SSH connection to {args.ssh_host} (enter your OLCF password if asked)…",
+          flush=True)
+    if subprocess.run(command).returncode == 0:
+        return True
+    print("Could not open the SSH connection. Authenticate once, then reconnect the page:\n"
+          + shlex.join(command), flush=True)
+    return False
+
+
 class Console:
     def __init__(self, args):
         self.args = args
@@ -105,7 +327,8 @@ class Console:
                         events=[event for event in self.events if event["seq"] > after], seq=self.seq)
 
     def ssh(self):
-        return ["ssh", "-T", "-o", "BatchMode=yes", "-o", "ConnectTimeout=20",
+        return ["ssh"] + ssh_config_option(getattr(self.args, "ssh_config", Path.home()/".ssh/config")) + [
+                "-T", "-o", "BatchMode=yes", "-o", "ConnectTimeout=20", "-o", "RemoteCommand=none",
                 "-S", str(self.args.control_path), self.args.ssh_host]
 
     def connect(self):
@@ -121,13 +344,15 @@ class Console:
         try:
             socket = self.args.control_path
             socket.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-            check = subprocess.run(["ssh", "-S", str(socket), "-O", "check", self.args.ssh_host],
+            check = subprocess.run(["ssh"] + ssh_config_option(getattr(self.args, "ssh_config", Path.home()/".ssh/config"))
+                                   + ["-S", str(socket), "-O", "check", self.args.ssh_host],
                                    capture_output=True)
             if check.returncode:
                 helper = shutil.which("odo-connect") if self.args.ssh_host == "odo" else None
-                cmd = [helper, str(socket)] if helper else ["ssh", "-o", "BatchMode=yes",
-                       "-o", "ConnectTimeout=20", "-o", "ControlMaster=auto", "-o", "ControlPersist=8h",
-                       "-S", str(socket), "-MNf", self.args.ssh_host]
+                cmd = ([helper, str(socket)] if helper else
+                       ["ssh"] + ssh_config_option(getattr(self.args, "ssh_config", Path.home()/".ssh/config"))
+                       + ["-o", "BatchMode=yes", "-o", "ConnectTimeout=20", "-o", "ControlMaster=auto",
+                          "-o", "ControlPersist=8h", "-S", str(socket), "-MNf", self.args.ssh_host])
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
                 if result.returncode:
                     raise RuntimeError("SSH authentication failed. In a local terminal run: " +
@@ -178,7 +403,7 @@ class Console:
                 try:
                     event = json.loads(line[len(PREFIX):])
                 except ValueError:
-                    self.emit("output", text=line)
+                    self.emit("output", text=line, run=self.run_id)
                     continue
                 with self.lock:
                     kind = event["kind"]
@@ -203,8 +428,11 @@ class Console:
                             self.busy = False
                             self.status = "Worker stopped · next run starts a new process"
                     self.emit(**event)
+                    if kind in ("done", "cancelled"):
+                        # Later coordinator chatter belongs to the next run.
+                        self.run_id = None
             else:
-                self.emit("output", text=line)
+                self.emit("output", text=line, run=self.run_id)
         rc = proc.wait()
         if rc:
             self.emit("error", error=f"Remote session exited with status {rc}")
@@ -235,6 +463,8 @@ class Console:
                     raise ValueError("Unknown REPL layout")
                 if not isinstance(command.get("code"), str) or not command["code"].strip():
                     raise ValueError("Enter Julia code")
+                if command.get("demo") is not None and command["demo"] not in {d[0] for d in DEMOS}:
+                    raise ValueError("Unknown demo")
             else:
                 raise ValueError("Unknown operation")
             command["id"] = secrets.token_hex(8)
@@ -242,7 +472,8 @@ class Console:
             self.busy = True
             self.status = "Running…"
             self.run_id = command["id"]
-            self.emit("run", run=command["id"], label=command.get("demo", "REPL"),
+            self.emit("run", run=command["id"], demo=command.get("demo"),
+                      label=command.get("demo", "REPL"),
                       mode=command["mode"], args=command.get("args", []))
 
     def disconnect(self):
@@ -296,8 +527,9 @@ def handler_for(console):
                 except ValueError:
                     self.reply(dict(error="Invalid cursor"), code=400)
             elif url.path == "/api/config":
-                self.reply(dict(token=console.token, demos=DEMOS, host=console.args.ssh_host,
-                                remote_root=console.args.remote_root, time=console.args.time))
+                self.reply(dict(token=console.token, demos=DEMOS, sections=section_layout(),
+                                host=console.args.ssh_host, remote_root=console.args.remote_root,
+                                time=console.args.time))
             elif url.path == "/api/source":
                 try:
                     self.reply(demo_sources(parse_qs(url.query).get("demo", [""])[0]))
@@ -363,20 +595,32 @@ def main():
     parser.add_argument("--host", default="0.0.0.0", help="Listen address (default: all IPv4 interfaces)")
     parser.add_argument("--allow-host", action="append", default=[], help="Additional allowed browser hostname")
     parser.add_argument("--port", type=int, default=8767)
-    parser.add_argument("--ssh-host", default="odo")
+    parser.add_argument("--ssh-host", help="SSH alias; reuse `odo` when it already points at Odo, "
+                                           "otherwise the console manages `sc26-odo-<user>`")
+    parser.add_argument("--odo-user", help="OLCF/UCAMS username (skips the prompt; also SC26_ODO_USER)")
+    parser.add_argument("--ssh-config", type=Path, default=Path.home() / ".ssh/config",
+                        help="SSH config to read and update (default: ~/.ssh/config)")
     parser.add_argument("--account", default=os.environ.get("SC26_ACCOUNT", "trn047"))
     parser.add_argument("--remote-root", help="Dedicated portal directory, not an existing checkout")
     parser.add_argument("--control-path", type=Path, default=Path.home() / ".ssh/control/sc26-portal")
     parser.add_argument("--time", default="02:00:00")
     parser.add_argument("--reservation", default="")
+    parser.add_argument("--no-auth", action="store_true",
+                        help="Skip the startup SSH login; Connect then needs an existing connection")
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
-    if not re.fullmatch(r"[\w@.-]+", args.ssh_host) or args.ssh_host.startswith("-"):
+    if args.ssh_host and (not re.fullmatch(r"[\w@.-]+", args.ssh_host) or args.ssh_host.startswith("-")):
         parser.error("Invalid SSH host alias")
     args.control_path = args.control_path.expanduser().resolve()
-    args.remote_root = args.remote_root or f"/gpfs/wolf2/olcf/{args.account}/scratch/{getpass.getuser()}/sc26-dagger/portal"
+    args.ssh_config = args.ssh_config.expanduser()
+    try:
+        args.odo_user, args.ssh_host = bootstrap_ssh(args)
+    except (ValueError, RuntimeError, OSError) as exc:
+        parser.error(str(exc))
+    args.remote_root = args.remote_root or default_remote_root(args.account, args.odo_user)
     if not args.remote_root.startswith("/"):
         parser.error("--remote-root must be an absolute path")
+    authenticated = False if args.no_auth else ensure_master(args)
     console = Console(args)
     server = ThreadingHTTPServer((args.host, args.port), handler_for(console))
     server.allowed_hosts = {"127.0.0.1", "localhost", socket.gethostname().lower(), socket.getfqdn().lower(),
@@ -393,7 +637,15 @@ def main():
             pass
     atexit.register(console.disconnect)
     url = f"http://127.0.0.1:{args.port}"
-    print(f"Tutorial console: {url}\nOdo workspace: {args.remote_root}\nCtrl-C releases the console's allocation.", flush=True)
+    if authenticated:
+        connection_note = ""
+    elif args.no_auth:
+        connection_note = "\nSSH login skipped (--no-auth); Connect needs an existing connection"
+    else:
+        connection_note = "\nSSH login failed; use Connect & allocate after fixing SSH"
+    print(f"Tutorial console: {url}\nOdo user: {args.odo_user} via {args.ssh_host}"
+          f"\nOdo workspace: {args.remote_root}{connection_note}"
+          + "\nCtrl-C releases the console's allocation.", flush=True)
     if args.host == "0.0.0.0":
         for ip in tailscale_ips:
             print(f"Tailscale: http://{ip}:{args.port}", flush=True)

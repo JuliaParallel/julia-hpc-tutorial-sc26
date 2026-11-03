@@ -6,6 +6,7 @@ const sectionPages = new Map();   // section id -> {el} shown in the main area
 const paneSections = new Map();   // demo id -> section id
 const runPanes = new Map();       // run id -> console pane
 const runSources = new Map();     // run id -> executed sources
+const exercisePanels = [];        // section-level Exercise panels
 const COLLAPSE_KEY = "sc26-console-collapsed";
 const ACTIVE_KEY = "sc26-console-active";
 const EXERCISE_CODE_KEY = "sc26-exercise-code";
@@ -87,14 +88,14 @@ function collapseButton(target, label) {
 </button>`;
 }
 
-function exerciseMarkup(demo) {
+function exercisePanelMarkup(demo) {
   const exercise = config.exercises?.[demo[0]];
   if (!exercise) return "";
-  const pid = `pane-${demo[0]}`;
+  const pid = `exercise-${demo[0]}`;
   return `
-<section class="panel exercise-panel" id="${pid}-exercise">
+<section class="panel exercise-panel" id="${pid}">
 <div class="panel-head">
-<h3 id="${pid}-exercise-title">Exercise</h3>
+<h3 id="${pid}-title">Exercise</h3>
 <div class="panel-tools">
 <label class="exercise-control">Target
 <select data-role="exercise-target" aria-label="Exercise target">
@@ -104,15 +105,15 @@ function exerciseMarkup(demo) {
 </select>
 </label>
 <label class="exercise-control"><input data-role="exercise-strict" type="checkbox"> Strict</label>
-${collapseButton(pid + "-exercise-body", pid + "-exercise-title")}
+${collapseButton(pid + "-body", pid + "-title")}
 </div>
 </div>
-<div class="panel-body" id="${pid}-exercise-body">
+<div class="panel-body" id="${pid}-body">
 <pre class="exercise-prompt" data-role="exercise-prompt"></pre>
-<label class="sr-only" for="${pid}-exercise-code">Exercise code</label>
-<textarea id="${pid}-exercise-code" data-role="exercise-code" spellcheck="false"></textarea>
+<label class="sr-only" for="${pid}-code">Exercise code</label>
+<textarea id="${pid}-code" data-role="exercise-code" spellcheck="false"></textarea>
 <div class="exercise-footer">
-<span>Runs <code>harness/run.jl</code> with this code. The same code is shared by the CPU, GPU, and MPI exercise sections.</span>
+<span>Runs <code>harness/run.jl</code> with this code. Shared by the CPU, GPU, and MPI exercises; output and timeline appear in the Demo panel.</span>
 <div class="exercise-actions">
 <button type="button" data-role="exercise-reset">Reset code</button>
 <button class="primary" type="button" data-role="exercise-run" disabled>Run exercise <span>↗</span></button>
@@ -181,7 +182,6 @@ fetch(a)</textarea>
 </div>
 </section>
 </div>
-${exerciseMarkup(demo)}
 <section class="panel timeline-panel" id="${pid}-timeline" data-pane="${id}">
 <div class="panel-head">
 <h3 id="${pid}-timeline-title">Task timeline</h3>
@@ -246,9 +246,6 @@ function createPane(demo, heading) {
     metrics: role("metrics"), history: role("history"), timeline: role("timeline"),
     summary: role("summary"), moves: role("moves"), zoom: role("zoom"),
     download: role("download"), traces: [], activeTrace: null, version: 0,
-    exercise: role("exercise-code"), exerciseRun: role("exercise-run"),
-    exerciseReset: role("exercise-reset"), exerciseTarget: role("exercise-target"),
-    exerciseStrict: role("exercise-strict"), exercisePrompt: role("exercise-prompt"),
   };
   pane.mode.value = demo[2];
   pane.run.onclick = () => post("/api/run", {op: "demo", demo: pane.id, gpus: pane.gpus?.value});
@@ -259,33 +256,6 @@ function createPane(demo, heading) {
       if (!pane.eval.disabled) pane.eval.click();
     }
   };
-  if (pane.exercise) {
-    const exercise = config.exercises[pane.id];
-    pane.exercisePrompt.textContent = exercise.prompt;
-    pane.exerciseTarget.value = exercise.target;
-    pane.exerciseStrict.checked = exercise.strict;
-    pane.exercise.value = exerciseCode ?? config.exercise_template ?? "";
-    pane.exercise.oninput = () => {
-      exerciseCode = pane.exercise.value;
-      saveExerciseCode();
-      syncExerciseEditors(pane.exercise);
-    };
-    pane.exercise.onkeydown = event => {
-      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
-        event.preventDefault();
-        if (!pane.exerciseRun.disabled) pane.exerciseRun.click();
-      }
-    };
-    pane.exerciseReset.onclick = () => {
-      exerciseCode = config.exercise_template ?? "";
-      saveExerciseCode();
-      syncExerciseEditors();
-    };
-    pane.exerciseRun.onclick = () => post("/api/run", {
-      op: "exercise", demo: pane.id, target: pane.exerciseTarget.value,
-      strict: pane.exerciseStrict.checked, code: pane.exercise.value,
-    });
-  }
   pane.clear.onclick = () => pane.output.replaceChildren();
   pane.moves.onchange = pane.zoom.oninput = () => draw(pane);
   pane.download.onclick = () => {
@@ -298,6 +268,45 @@ function createPane(demo, heading) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   return pane;
+}
+
+function createExercisePanel(demo) {
+  const holder = document.createElement("div");
+  holder.innerHTML = exercisePanelMarkup(demo).trim();
+  const el = holder.firstElementChild;
+  const role = name => el.querySelector(`[data-role="${name}"]`);
+  const exercise = config.exercises[demo[0]];
+  const panel = {
+    demo: demo[0], el,
+    code: role("exercise-code"), run: role("exercise-run"),
+    reset: role("exercise-reset"), target: role("exercise-target"),
+    strict: role("exercise-strict"), prompt: role("exercise-prompt"),
+  };
+  panel.prompt.textContent = exercise.prompt;
+  panel.target.value = exercise.target;
+  panel.strict.checked = exercise.strict;
+  panel.code.value = exerciseCode ?? config.exercise_template ?? "";
+  panel.code.oninput = () => {
+    exerciseCode = panel.code.value;
+    saveExerciseCode();
+    syncExerciseEditors(panel.code);
+  };
+  panel.code.onkeydown = event => {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      event.preventDefault();
+      if (!panel.run.disabled) panel.run.click();
+    }
+  };
+  panel.reset.onclick = () => {
+    exerciseCode = config.exercise_template ?? "";
+    saveExerciseCode();
+    syncExerciseEditors();
+  };
+  panel.run.onclick = () => post("/api/run", {
+    op: "exercise", demo: panel.demo, target: panel.target.value,
+    strict: panel.strict.checked, code: panel.code.value,
+  });
+  return panel;
 }
 
 function buildSidebar() {
@@ -344,20 +353,21 @@ function navButton(number, demo) {
 function buildConsoles() {
   for (const section of config.sections) {
     const demos = section.demos.map(demoById).filter(Boolean);
+    const page = document.createElement("div");
+    page.className = "section-page";
+    page.id = `page-${section.id}`;
     if (demos.length === 1) {
       // The page heading already names the section; the console block just says Demo.
       const pane = createPane(demos[0], "Demo");
       panes.set(pane.id, pane);
       paneSections.set(pane.id, section.id);
-      sectionPages.set(section.id, {el: pane.el});
-      $("consoles").append(pane.el);
-      continue;
-    }
-    const group = document.createElement("section");
-    const gid = `section-${section.id}`;
-    group.className = "panel console-group";
-    group.id = gid;
-    group.innerHTML = `
+      page.append(pane.el);
+    } else {
+      const group = document.createElement("section");
+      const gid = `section-${section.id}`;
+      group.className = "panel console-group";
+      group.id = gid;
+      group.innerHTML = `
 <div class="panel-head">
 <h3 id="${gid}-title">Demo</h3>
 <div class="panel-tools">
@@ -368,15 +378,23 @@ function buildConsoles() {
 </div>
 </div>
 <div class="panel-body" id="${gid}-body"></div>`;
-    const body = group.querySelector(".panel-body");
-    for (const demo of demos) {
-      const pane = createPane(demo);
-      panes.set(pane.id, pane);
-      paneSections.set(pane.id, section.id);
-      body.append(pane.el);
+      const body = group.querySelector(".panel-body");
+      for (const demo of demos) {
+        const pane = createPane(demo);
+        panes.set(pane.id, pane);
+        paneSections.set(pane.id, section.id);
+        body.append(pane.el);
+      }
+      page.append(group);
     }
-    sectionPages.set(section.id, {el: group});
-    $("consoles").append(group);
+    const exerciseDemo = demos.find(demo => config.exercises?.[demo[0]]);
+    if (exerciseDemo) {
+      const exercise = createExercisePanel(exerciseDemo);
+      exercisePanels.push(exercise);
+      page.append(exercise.el);
+    }
+    sectionPages.set(section.id, {el: page});
+    $("consoles").append(page);
   }
 }
 
@@ -394,7 +412,7 @@ function activate(demoId, {scroll = true, expand = true} = {}) {
   const changedPage = activeSection !== sectionId;
   showSection(sectionId);
   selectedDemo = demoId;
-  if (pane.exercise) pane.exercise.value = exerciseCode ?? "";
+  syncExerciseEditors();
   try { localStorage.setItem(ACTIVE_KEY, demoId); } catch (e) {}
   if (expand) expandAncestors(pane.el);
   // A newly visible timeline had no measurable width while hidden.
@@ -468,10 +486,8 @@ function controls() {
   $("disconnect").disabled = !state.connected && !state.connecting;
   $("cancel").disabled = !state.busy;
   const ready = Boolean(state.job) && !state.busy;
-  for (const pane of panes.values()) {
-    pane.run.disabled = pane.eval.disabled = !ready;
-    if (pane.exerciseRun) pane.exerciseRun.disabled = !ready;
-  }
+  for (const pane of panes.values()) pane.run.disabled = pane.eval.disabled = !ready;
+  for (const exercise of exercisePanels) exercise.run.disabled = !ready;
 }
 // Route an event to the console that produced it; system chatter follows the selection.
 function paneFor(item) {

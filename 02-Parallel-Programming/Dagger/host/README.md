@@ -192,14 +192,15 @@ remembered per browser. Within a console the Algorithm and Julia REPL panes
 collapse independently, keeping their width and shrinking vertically to the
 title bar; on narrow screens they stack.
 
-For the CPU Datadeps, GPU, MPI, and multi-GPU demos, the console also shows a
-collapsible **Exercise** panel below the algorithm. It proposes the step for
-that target and contains an editor for `my_cholesky!`. The editor is shared by
-all four exercise sections, so code written for the CPU run is reused unchanged
-on the GPU and MPI runs. **Run exercise** writes the editor contents to the
-remote workspace and runs `harness/run.jl` with the selected target and worker
-layout; **Reset code** restores the student stub. Results and timelines appear
-in the demo's output and timeline panels.
+For the CPU Datadeps, GPU, MPI, and multi-GPU demos, the section page shows two
+sibling panels: **Demo** and a collapsible **Exercise** panel. The Exercise
+panel proposes the step for that target and contains an editor for
+`my_cholesky!`. The editor is shared by all four exercise sections, so code
+written for the CPU run is reused unchanged on the GPU and MPI runs.
+**Run exercise** writes the editor contents to the remote workspace and runs
+`harness/run.jl` with the selected target and worker layout; **Reset code**
+restores the student stub. Results and timelines appear in the Demo panel's
+output and timeline panels.
 
 **Save JSON** downloads the selected report. Reports also remain in the Odo
 workspace under `results/demo-timelines/` for ordinary terminal runs.

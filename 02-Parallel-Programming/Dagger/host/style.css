@@ -285,6 +285,27 @@ button:focus-visible,select:focus-visible,textarea:focus-visible {
 .side-head .collapse {
   font-size:10px
 }
+.exercise .hint {
+  margin:10px 0 0;
+  padding:0
+}
+.exercise textarea {
+  width:100%;
+  min-height:240px;
+  margin:10px 0 0;
+  padding:10px;
+  font-size:11px;
+  line-height:1.5
+}
+.exercise-actions {
+  display:flex;
+  justify-content:flex-end;
+  margin-top:8px
+}
+.exercise-actions button {
+  font-size:10px;
+  padding:5px 8px
+}
 .tag {
   color:var(--muted);
   font-size:10px

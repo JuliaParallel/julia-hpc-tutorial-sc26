@@ -28,6 +28,10 @@ function syncExerciseEditors(except) {
     if (editor !== except) editor.value = exerciseCode ?? "";
   }
 }
+function withoutComments(code) {
+  return code.split("\n").map(line => line.replace(/#.*$/, "").trimEnd())
+    .filter(line => line.trim()).join("\n");
+}
 
 // Each pane is its own side-by-side Algorithm/REPL grid.
 function syncWorkspaces() {
@@ -635,10 +639,16 @@ async function poll() {
 }
 async function init() {
   config = await(await fetch("/api/config")).json();
-  exerciseCode = config.exercise_template ?? "";
+  const template = config.exercise_template ?? "";
+  exerciseCode = template;
   try {
     const saved = localStorage.getItem(EXERCISE_CODE_KEY);
-    if (saved !== null) exerciseCode = saved;
+    if (saved !== null && withoutComments(saved) !== withoutComments(template)) {
+      exerciseCode = saved;
+    } else if (saved !== null) {
+      // The saved copy was only an older template, possibly with comments.
+      saveExerciseCode();
+    }
   } catch (e) {}
   $("remote").textContent = `${config.host}:${config.remote_root}`;
   buildSidebar();

@@ -11,18 +11,7 @@ cd julia-hpc-tutorial-sc26
 source setenv-odo.sh
 ```
 
-export PATH=/shared/software/julia/current/bin:$PATH
-
 Log in to [Jupyter at OLCF](https://jupyter-open.olcf.ornl.gov/) and select the **`julia-hpc-sc26`** kernel.
-
-For KernelAbstractions, activate the section project before running notebooks (from the repo root):
-
-```bash
-cd 02-Parallel-Programming/KernelAbstractions
-julia --project=. -e 'using Pkg; Pkg.instantiate()'
-```
-
-Then run notebooks from Jupyter with the same project, or use `open_notebook.jl` on a login node if your site allows it. Set `DEV = :AMD` on MI250X systems unless an instructor specifies otherwise.
 
 
 # HPC fundamentals — environment setup for 02 Parallel Programming

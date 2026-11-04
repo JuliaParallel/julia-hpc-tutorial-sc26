@@ -199,8 +199,8 @@ panel proposes the step for that target and contains an editor for
 written for the CPU run is reused unchanged on the GPU and MPI runs.
 **Run exercise** writes the editor contents to the remote workspace and runs
 `harness/run.jl` with the selected target and worker layout; **Reset code**
-restores the student stub. Results and timelines appear in the Demo panel's
-output and timeline panels.
+restores the student stub. Results and timelines appear in the Exercise panel's
+own output and timeline panels.
 
 **Save JSON** downloads the selected report. Reports also remain in the Odo
 workspace under `results/demo-timelines/` for ordinary terminal runs.

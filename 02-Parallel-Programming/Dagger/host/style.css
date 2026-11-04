@@ -285,7 +285,7 @@ button:focus-visible,select:focus-visible,textarea:focus-visible {
 .side-head .collapse {
   font-size:10px
 }
-.exercise-panel .panel-body {
+.exercise-panel > .panel-body {
   padding:16px 20px
 }
 .exercise-prompt {

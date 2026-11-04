@@ -586,7 +586,8 @@ class Console:
             self.run_id = command["id"]
             self.emit("run", run=command["id"], demo=command.get("demo"),
                       label=command.get("label") or command.get("demo", "REPL"),
-                      mode=command["mode"], args=command.get("args", []))
+                      mode=command["mode"], args=command.get("args", []),
+                      exercise=command.get("op") == "exercise")
 
     def disconnect(self):
         self.stop_event.set()

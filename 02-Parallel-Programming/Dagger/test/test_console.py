@@ -89,12 +89,16 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn('op: "exercise"', page)
         self.assertIn("exercise_template", page)
         self.assertIn("withoutComments", page)
+        self.assertGreaterEqual(page.count("Task timeline"), 2)
+        self.assertGreaterEqual(page.count("Session output"), 2)
 
     def test_exercise_run_uses_demo_layout_and_harness_defaults(self):
         c = console()
         c.send = Mock()
         c.run(dict(op="exercise", demo="02_datadeps", target="cpu",
                    strict=False, code="x = 1"))
+        started = [event for event in c.events if event["kind"] == "run"][-1]
+        self.assertTrue(started["exercise"])
         command = c.send.call_args[0][0]
         self.assertEqual(command["mode"], "single")
         self.assertEqual(command["target"], "cpu")

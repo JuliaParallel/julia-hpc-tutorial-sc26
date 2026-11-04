@@ -7,6 +7,7 @@ const paneSections = new Map();   // demo id -> section id
 const runPanes = new Map();       // run id -> console pane
 const runSources = new Map();     // run id -> executed sources
 const exercisePanels = [];        // section-level Exercise panels
+const exerciseByDemo = new Map(); // demo id -> Exercise panel
 const COLLAPSE_KEY = "sc26-console-collapsed";
 const ACTIVE_KEY = "sc26-console-active";
 const EXERCISE_CODE_KEY = "sc26-exercise-code";
@@ -52,7 +53,7 @@ function setCollapsed(section, value, save=true) {
   syncWorkspaces();
   // A hidden timeline has no measurable width, so redraw once it is visible.
   if (!value && section.classList.contains("timeline-panel")) {
-    const pane = panes.get(section.dataset.pane);
+    const pane = section.owner || panes.get(section.dataset.pane);
     if (pane && pane.activeTrace) draw(pane);
   }
 }
@@ -117,12 +118,59 @@ ${collapseButton(pid + "-body", pid + "-title")}
 <label class="sr-only" for="${pid}-code">Exercise code</label>
 <textarea id="${pid}-code" data-role="exercise-code" spellcheck="false"></textarea>
 <div class="exercise-footer">
-<span>Runs <code>harness/run.jl</code> with this code. Shared by the CPU, GPU, and MPI exercises; output and timeline appear in the Demo panel.</span>
+<span>Runs <code>harness/run.jl</code> with this code. Shared by the CPU, GPU, and MPI exercises; output and timeline appear below.</span>
 <div class="exercise-actions">
 <button type="button" data-role="exercise-reset">Reset code</button>
 <button class="primary" type="button" data-role="exercise-run" disabled>Run exercise <span>↗</span></button>
 </div>
 </div>
+<section class="panel timeline-panel" id="${pid}-timeline">
+<div class="panel-head">
+<h3 id="${pid}-timeline-title">Task timeline</h3>
+<div class="panel-tools">
+<div class="plot-controls">
+<label>
+<input data-role="moves" type="checkbox" checked> Transfers</label>
+<label>Zoom <input data-role="zoom" type="range" min="1" max="12" value="1" step="0.5">
+</label>
+<button data-role="download" disabled>Save JSON ↓</button>
+</div>
+${collapseButton(pid + "-timeline-body", pid + "-timeline-title")}
+</div>
+</div>
+<div class="panel-body" id="${pid}-timeline-body">
+<div class="metrics" data-role="metrics">
+<span>Waiting for a logged run</span>
+</div>
+<div class="history" data-role="history" aria-label="Run history">
+</div>
+<div class="scroll-plot timeline" data-role="timeline">
+<p class="placeholder">Compute tasks and data movement will appear on processor lanes.</p>
+</div>
+<div class="plot-key">
+<span class="cyan">━ Compute</span>
+<span class="amber">━ Data movement</span>
+<span>Transfer arrows: source → destination rank</span>
+<span>Hover a task for details · seconds from logging start</span>
+</div>
+<p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Run again to see a warm session.</p>
+<div class="summary" data-role="summary">
+</div>
+</div>
+</section>
+<section class="panel" id="${pid}-output">
+<div class="panel-head">
+<h3 id="${pid}-output-title">Session output</h3>
+<div class="panel-tools">
+<button data-role="clear">Clear display</button>
+${collapseButton(pid + "-output-body", pid + "-output-title")}
+</div>
+</div>
+<div class="panel-body" id="${pid}-output-body">
+<pre class="output" data-role="output" aria-live="polite">Waiting for a run.
+</pre>
+</div>
+</section>
 </div>
 </section>`;
 }
@@ -252,6 +300,7 @@ function createPane(demo, heading) {
     download: role("download"), traces: [], activeTrace: null, version: 0,
   };
   pane.mode.value = demo[2];
+  pane.timeline.owner = pane;
   pane.run.onclick = () => post("/api/run", {op: "demo", demo: pane.id, gpus: pane.gpus?.value});
   pane.eval.onclick = () => post("/api/run", {op: "eval", code: pane.code.value, mode: pane.mode.value, demo: pane.id});
   pane.code.onkeydown = event => {
@@ -285,7 +334,12 @@ function createExercisePanel(demo) {
     code: role("exercise-code"), run: role("exercise-run"),
     reset: role("exercise-reset"), target: role("exercise-target"),
     strict: role("exercise-strict"), prompt: role("exercise-prompt"),
+    output: role("output"), clear: role("clear"),
+    metrics: role("metrics"), history: role("history"), timeline: role("timeline"),
+    summary: role("summary"), moves: role("moves"), zoom: role("zoom"),
+    download: role("download"), traces: [], activeTrace: null,
   };
+  panel.timeline.owner = panel;
   panel.prompt.textContent = exercise.prompt;
   panel.target.value = exercise.target;
   panel.strict.checked = exercise.strict;
@@ -310,6 +364,18 @@ function createExercisePanel(demo) {
     op: "exercise", demo: panel.demo, target: panel.target.value,
     strict: panel.strict.checked, code: panel.code.value,
   });
+  panel.clear.onclick = () => panel.output.replaceChildren();
+  panel.moves.onchange = panel.zoom.oninput = () => draw(panel);
+  panel.download.onclick = () => {
+    if (!panel.activeTrace) return;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(panel.activeTrace, null, 2)], {type: "application/json"}));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `dagger-${panel.activeTrace.run || "timeline"}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  exerciseByDemo.set(panel.demo, panel);
   return panel;
 }
 
@@ -495,8 +561,9 @@ function controls() {
 }
 // Route an event to the console that produced it; system chatter follows the selection.
 function paneFor(item) {
-  if (item.demo && panes.has(item.demo)) return panes.get(item.demo);
+  if (item.exercise && exerciseByDemo.has(item.demo)) return exerciseByDemo.get(item.demo);
   if (item.run && runPanes.has(item.run)) return runPanes.get(item.run);
+  if (item.demo && panes.has(item.demo)) return panes.get(item.demo);
   return panes.get(selectedDemo) || panes.values().next().value;
 }
 function event(item) {
@@ -511,7 +578,7 @@ function event(item) {
     appendOutput(pane, `\n━━ ${item.label} ━━\n`);
   } else if (item.kind === "source") {
     const pane = paneFor(item);
-    if (!pane) return;
+    if (!pane || !pane.source) return;
     const sources = runSources.get(item.run) || [];
     sources.push(item);
     runSources.set(item.run, sources);

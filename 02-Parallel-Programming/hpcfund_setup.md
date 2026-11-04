@@ -1,6 +1,5 @@
 # HPC fundamentals — environment setup for GPU computing
 
-
 Steps for the parallel-programming notebooks with GPU setup: there are two options.
 
 ## Local machine: if you have macbook or nvidia GPU

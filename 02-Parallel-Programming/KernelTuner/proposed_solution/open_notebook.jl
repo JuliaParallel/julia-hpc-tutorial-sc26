@@ -1,8 +1,7 @@
 using Pkg
 
-Pkg.instantiate()
-Pkg.update()
-Pkg.build("IJulia")
+
+Pkg.add("IJulia")
 
 using IJulia
 

@@ -8,9 +8,15 @@ if [[ "$(hostname -s)" != login* ]]; then
 fi
 source "$(dirname "$0")/env.sh"
 mkdir -p "$SC26_DEPOT"
+export JULIA_PKG_OFFLINE=false
 export JULIA_PKG_PRECOMPILE_AUTO=0
 julia --project="$SC26_ROOT" -e '
     using Pkg
+    # A fresh depot has no registry; Pkg.resolve cannot resolve packages without
+    # one. Install General on the login node, where the package server is reachable.
+    if isempty(Pkg.Registry.reachable_registries())
+        Pkg.Registry.add("General")
+    end
     # Add newly introduced project dependencies and refresh copied stdlib entries
     # before instantiating an existing manifest.
     Pkg.resolve()

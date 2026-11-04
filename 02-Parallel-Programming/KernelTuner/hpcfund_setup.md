@@ -1,35 +1,8 @@
-# HPC fundamentals — environment setup for 01 Intro to Julia
-
-## OLCF Odo (SC26 tutorial)
-
-Follow the [root README](README.md) for Odo account registration, then:
-
-```bash
-cd /gpfs/wolf2/olcf/trn047/scratch/$USER
-git clone https://github.com/JuliaParallel/julia-hpc-tutorial-sc26.git
-cd julia-hpc-tutorial-sc26
-source setenv-odo.sh
-```
-
-export PATH=/shared/software/julia/current/bin:$PATH
-
-Log in to [Jupyter at OLCF](https://jupyter-open.olcf.ornl.gov/) and select the **`julia-hpc-sc26`** kernel.
-
-For KernelAbstractions, activate the section project before running notebooks (from the repo root):
-
-```bash
-cd 02-Parallel-Programming/KernelAbstractions
-julia --project=. -e 'using Pkg; Pkg.instantiate()'
-```
-
-Then run notebooks from Jupyter with the same project, or use `open_notebook.jl` on a login node if your site allows it. Set `DEV = :AMD` on MI250X systems unless an instructor specifies otherwise.
-
-
-# HPC fundamentals — environment setup for 02 Parallel Programming
+# HPC fundamentals — environment setup for GPU computing
 
 Steps for the parallel-programming notebooks with GPU setup: there are two options.
 
-## Local machine: if you have macbook or nvidia GPU
+## Local machine: if you have macbook
 
 1. Install [Julia](https://julialang.org/downloads/).
 2. Clone the repo and enter the KernelAbstractions project:
@@ -45,7 +18,7 @@ Steps for the parallel-programming notebooks with GPU setup: there are two optio
    julia --project=. open_notebook.jl
    ```
 
-4. In Jupyter, pick kernel **GPU Julia** and open a notebook. In each notebook, set `DEV` (`:NVIDIA`, `:AMD`, `:Metal`, or `:CPU`) to match your hardware.
+4. In Jupyter, pick kernel **GPU Julia** and open a notebook. In each notebook, set `DEV` in the **second cell** (`:CUDA` (NVIDIA), `:AMDGPU`, `:Metal`, or `:CPU`) before running `Pkg.add`, to match your hardware.
 
 
 
@@ -79,7 +52,7 @@ cat job.<job-id>.out
 
 4. Finally, follow the instructions in the job file and open the jupyter terminal from your terminal:
 
-5. In Jupyter, pick kernel **GPU Julia** and open a notebook. In each notebook, set `DEV` (`:NVIDIA`, `:AMD`, `:Metal`, or `:CPU`) to match your hardware.
+5. In Jupyter, pick kernel **GPU Julia** and open a notebook. In each notebook, set `DEV` in the **second cell** (`:CUDA` (NVIDIA), `:AMDGPU`, `:Metal`, or `:CPU`) before running `Pkg.add`, to match your hardware.
 
 6. When do done, do not forget to close your allocation!
 

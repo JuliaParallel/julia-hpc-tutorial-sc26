@@ -10,4 +10,4 @@ IJulia.installkernel(
     "--project=@.",
     "--threads=auto",
 )
-notebook()
+notebook(dir=@__DIR__)

@@ -200,11 +200,12 @@ written for the CPU run is reused unchanged on the GPU and MPI runs.
 **Run exercise** writes the editor contents to the remote workspace and runs
 `harness/run.jl` with the selected target and worker layout; **Reset code**
 restores the student stub. Results and timelines appear in the Exercise panel's
-own output and timeline panels. A collapsible **How it works** primer contains
+own output and timeline panels. A collapsible **Setup and Use** primer contains
 an editable, incomplete setup template: create the matrix, tile it with
 `DArray(A, ...)`, place it with the target scope, and call
 `my_cholesky!(...)`. Fill in the blanks or use it as a reference; **Run
-exercise** performs the same setup in the harness.
+exercise** performs the same setup in the harness. The **Function** panel holds
+the `my_cholesky!` editor and the Reset/Run buttons.
 
 **Save JSON** downloads the selected report. Reports also remain in the Odo
 workspace under `results/demo-timelines/` for ordinary terminal runs.

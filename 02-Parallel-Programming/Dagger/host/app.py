@@ -112,6 +112,46 @@ EXERCISES = {
 }
 
 
+EXERCISE_PRIMER = textwrap.dedent("""\
+    How the exercise runs
+
+    The editor contains only the imports and my_cholesky!. Each press of
+    Run exercise builds the problem around it:
+
+    1. Create a symmetric positive-definite matrix.
+         n, bs = 1024, 256
+         A = rand(n, n); A = A + A'; A[diagind(A)] .+= 2n
+
+    2. Tile it into a Dagger DArray. Blocks(bs, bs) makes each tile
+       bs x bs; DA holds Dagger handles, not a second copy of A.
+         DA = DArray(A, Blocks(bs, bs))
+         size(DA.chunks)          # (n ÷ bs, n ÷ bs)
+
+    3. Place the tiles for the selected target. The harness uses
+       Dagger.with_options(scope=...) so the same code runs on CPU
+       workers, a ROCm GPU, or MPI ranks.
+         CPU:   Dagger.scope(worker=1)
+         GPU:   Dagger.scope(rocm_gpu=1)
+         MPI:   Dagger.scope(mpi_ranks=:)
+         Mixed: Dagger.UnionScope(cpu, gpu)
+
+    4. Call your function with the grid of tiles.
+         my_cholesky!(DA.chunks)
+
+    5. Collect and check the factor.
+         L = collect(DA)
+         # the harness checks the scaled residual is below 16
+
+    Inside Dagger.spawn_datadeps, a tile is a matrix. Outside a task,
+    DA.chunks[i, j] is a Dagger handle; use fetch or collect to get its
+    data.
+
+    The Run exercise button runs harness/run.jl with this editor code, the
+    selected Target, and the section's worker layout. It performs the steps
+    above, then prints PASS/FAIL and a Dagger timeline.
+""")
+
+
 def exercises():
     """Exercise configuration keyed by demo id; unknown ids are a layout bug."""
     known = {demo for demo, _, _ in DEMOS}
@@ -642,6 +682,7 @@ def handler_for(console):
             elif url.path == "/api/config":
                 self.reply(dict(token=console.token, demos=DEMOS, sections=section_layout(),
                                 exercises=exercises(), exercise_template=exercise_template(),
+                                exercise_primer=EXERCISE_PRIMER,
                                 host=console.args.ssh_host,
                                 remote_root=console.args.remote_root, time=console.args.time))
             elif url.path == "/api/source":

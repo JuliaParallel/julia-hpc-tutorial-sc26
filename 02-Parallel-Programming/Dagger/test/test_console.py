@@ -103,8 +103,26 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn("exercise_primer", page)
         self.assertIn("EXERCISE_PRIMER_KEY", page)
         self.assertIn("withoutComments", page)
+        self.assertIn("finalExerciseMarkup", page)
+        self.assertIn("showFinal", page)
+        self.assertIn("Final Exercise", page)
+        self.assertIn('dataset.final = "1"', page)
         self.assertGreaterEqual(page.count("Task timeline"), 2)
         self.assertGreaterEqual(page.count("Session output"), 2)
+
+    def test_final_exercise_is_configured(self):
+        final = app.FINAL_EXERCISE
+        self.assertEqual(final["title"], "Final Exercise")
+        self.assertIn("streamfunction-vorticity", final["prompt"])
+        self.assertIn("A = ???", final["template"])
+        self.assertIn("F = ???", final["template"])
+
+    def test_final_exercise_eval_is_allowed(self):
+        c = console()
+        c.send = Mock()
+        c.run(dict(op="eval", mode="single", demo="final", code="x = 1"))
+        command = c.send.call_args[0][0]
+        self.assertEqual(command["label"], "Final Exercise")
 
     def test_exercise_run_uses_demo_layout_and_harness_defaults(self):
         c = console()
@@ -151,6 +169,8 @@ class ConsoleTests(unittest.TestCase):
             self.assertEqual(config["exercises"]["02_datadeps"]["target"], "cpu")
             self.assertIn("function my_cholesky!", config["exercise_template"])
             self.assertIn("DArray(A, ???)", config["exercise_primer"])
+            self.assertEqual(config["final_exercise"]["title"], "Final Exercise")
+            self.assertIn("A = ???", config["final_exercise"]["template"])
         finally:
             server.shutdown()
             server.server_close()

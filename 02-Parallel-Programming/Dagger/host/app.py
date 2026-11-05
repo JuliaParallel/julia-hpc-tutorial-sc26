@@ -146,6 +146,70 @@ EXERCISE_PRIMER = textwrap.dedent("""\
 
 
 
+FINAL_EXERCISE = dict(
+    title="Final Exercise",
+    prompt=textwrap.dedent("""\
+        Final exercise: 2D lid-driven cavity
+
+        Solve the incompressible Navier-Stokes equations in
+        streamfunction-vorticity form on a small 2D grid.
+
+        Each time step:
+        1. Advect and diffuse the vorticity omega explicitly.
+        2. Solve the Poisson equation
+               laplacian(psi) = -omega
+           with psi = 0 on all walls.
+        3. Compute u = d psi / d y and v = -d psi / d x.
+        4. Update the wall vorticity from the lid velocity.
+        5. Repeat to steady state.
+
+        The 5-point Laplacian for psi is symmetric positive definite, so
+        Cholesky applies. The matrix is constant: factor it once and reuse
+        the factor for every time step. For a small dense grid, use
+        cholesky(Symmetric(A)); for the Dagger exercise, use your
+        my_cholesky! implementation.
+
+        Fill in the template below and run it. Print or plot the final
+        streamfunction and vorticity.
+    """),
+    template=textwrap.dedent("""\
+        # Final exercise: 2D lid-driven cavity in streamfunction-vorticity form.
+        # Fill in the missing steps, then run.
+
+        using Dagger, LinearAlgebra, Random
+
+        nx, ny = 32, 32
+        h = 1.0 / (nx - 1)
+        dt = 0.001
+        nu = 0.01
+        nsteps = 500
+
+        omega = zeros(nx, ny)
+        psi = zeros(nx, ny)
+
+        # 1. Build the 5-point Laplacian A for psi with psi = 0 on the walls.
+        A = ???
+
+        # 2. Factor A once with Cholesky.
+        F = ???
+
+        # 3. Time loop.
+        for step in 1:nsteps
+            # Advect and diffuse omega (explicit).
+            # TODO
+
+            # Solve A psi = -omega.
+            # TODO
+
+            # Update wall vorticity and compute u, v.
+            # TODO
+        end
+
+        println("final vorticity range: ", extrema(omega))
+    """),
+)
+
+
 def exercises():
     """Exercise configuration keyed by demo id; unknown ids are a layout bug."""
     known = {demo for demo, _, _ in DEMOS}
@@ -609,8 +673,11 @@ class Console:
                     raise ValueError("Unknown REPL layout")
                 if not isinstance(command.get("code"), str) or not command["code"].strip():
                     raise ValueError("Enter Julia code")
-                if command.get("demo") is not None and command["demo"] not in {d[0] for d in DEMOS}:
+                if command.get("demo") is not None and command["demo"] not in {d[0] for d in DEMOS} \
+                        and command["demo"] != "final":
                     raise ValueError("Unknown demo")
+                if command.get("demo") == "final":
+                    command["label"] = "Final Exercise"
             else:
                 raise ValueError("Unknown operation")
             command["id"] = secrets.token_hex(8)
@@ -677,6 +744,7 @@ def handler_for(console):
                 self.reply(dict(token=console.token, demos=DEMOS, sections=section_layout(),
                                 exercises=exercises(), exercise_template=exercise_template(),
                                 exercise_primer=EXERCISE_PRIMER,
+                                final_exercise=FINAL_EXERCISE,
                                 host=console.args.ssh_host,
                                 remote_root=console.args.remote_root, time=console.args.time))
             elif url.path == "/api/source":

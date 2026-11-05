@@ -207,6 +207,12 @@ an editable, incomplete setup template: create the matrix, tile it with
 exercise** performs the same setup in the harness. The **Function** panel holds
 the `my_cholesky!` editor and the Reset/Run buttons.
 
+A seventh sidebar entry, **Final Exercise**, opens a 2D lid-driven cavity in
+streamfunction-vorticity form. It explains the Poisson solve, provides an
+incomplete editable template, and runs it in the single-process worker; the
+factorization can be `cholesky(Symmetric(A))` or the tiled Cholesky from the
+earlier exercise.
+
 **Save JSON** downloads the selected report. Reports also remain in the Odo
 workspace under `results/demo-timelines/` for ordinary terminal runs.
 

@@ -12,9 +12,12 @@ const COLLAPSE_KEY = "sc26-console-collapsed";
 const ACTIVE_KEY = "sc26-console-active";
 const EXERCISE_CODE_KEY = "sc26-exercise-code";
 const EXERCISE_PRIMER_KEY = "sc26-exercise-primer";
+const FINAL_CODE_KEY = "sc26-final-code";
 let collapsedState = {};
 let exerciseCode = null;
 let exercisePrimer = null;
+let finalCode = null;
+let finalPanel = null;
 try {
   const saved = JSON.parse(localStorage.getItem(COLLAPSE_KEY) || "{}");
   // Older consoles stored a plain list of collapsed ids.
@@ -38,6 +41,9 @@ function syncExercisePrimerEditors(except) {
   for (const editor of document.querySelectorAll('[data-role="exercise-primer"]')) {
     if (editor !== except) editor.value = exercisePrimer ?? "";
   }
+}
+function saveFinalCode() {
+  try { localStorage.setItem(FINAL_CODE_KEY, finalCode ?? ""); } catch (e) {}
 }
 function withoutComments(code) {
   return code.split("\n").map(line => line.replace(/#.*$/, "").trimEnd())
@@ -103,6 +109,57 @@ function collapseButton(target, label) {
 </button>`;
 }
 
+function analysisMarkup(pid) {
+  return `
+<section class="panel timeline-panel" id="${pid}-timeline">
+<div class="panel-head">
+<h3 id="${pid}-timeline-title">Task timeline</h3>
+<div class="panel-tools">
+<div class="plot-controls">
+<label>
+<input data-role="moves" type="checkbox" checked> Transfers</label>
+<label>Zoom <input data-role="zoom" type="range" min="1" max="12" value="1" step="0.5">
+</label>
+<button data-role="download" disabled>Save JSON ↓</button>
+</div>
+${collapseButton(pid + "-timeline-body", pid + "-timeline-title")}
+</div>
+</div>
+<div class="panel-body" id="${pid}-timeline-body">
+<div class="metrics" data-role="metrics">
+<span>Waiting for a logged run</span>
+</div>
+<div class="history" data-role="history" aria-label="Run history">
+</div>
+<div class="scroll-plot timeline" data-role="timeline">
+<p class="placeholder">Compute tasks and data movement will appear on processor lanes.</p>
+</div>
+<div class="plot-key">
+<span class="cyan">━ Compute</span>
+<span class="amber">━ Data movement</span>
+<span>Transfer arrows: source → destination rank</span>
+<span>Hover a task for details · seconds from logging start</span>
+</div>
+<p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Run again to see a warm session.</p>
+<div class="summary" data-role="summary">
+</div>
+</div>
+</section>
+<section class="panel" id="${pid}-output">
+<div class="panel-head">
+<h3 id="${pid}-output-title">Session output</h3>
+<div class="panel-tools">
+<button data-role="clear">Clear display</button>
+${collapseButton(pid + "-output-body", pid + "-output-title")}
+</div>
+</div>
+<div class="panel-body" id="${pid}-output-body">
+<pre class="output" data-role="output" aria-live="polite">Waiting for a run.
+</pre>
+</div>
+</section>`;
+}
+
 function exercisePanelMarkup(demo) {
   const exercise = config.exercises?.[demo[0]];
   if (!exercise) return "";
@@ -156,53 +213,44 @@ ${collapseButton(pid + "-function-body", pid + "-function-title")}
 </div>
 </div>
 </section>
-<section class="panel timeline-panel" id="${pid}-timeline">
+${analysisMarkup(pid)}
+</div>
+</section>`;
+}
+
+function finalExerciseMarkup() {
+  const pid = "final";
+  return `
+<section class="panel exercise-panel" id="${pid}">
 <div class="panel-head">
-<h3 id="${pid}-timeline-title">Task timeline</h3>
+<h3 id="${pid}-title">Final Exercise</h3>
 <div class="panel-tools">
-<div class="plot-controls">
-<label>
-<input data-role="moves" type="checkbox" checked> Transfers</label>
-<label>Zoom <input data-role="zoom" type="range" min="1" max="12" value="1" step="0.5">
-</label>
-<button data-role="download" disabled>Save JSON ↓</button>
-</div>
-${collapseButton(pid + "-timeline-body", pid + "-timeline-title")}
+<span class="tag">2D incompressible flow</span>
+${collapseButton(pid + "-body", pid + "-title")}
 </div>
 </div>
-<div class="panel-body" id="${pid}-timeline-body">
-<div class="metrics" data-role="metrics">
-<span>Waiting for a logged run</span>
+<div class="panel-body" id="${pid}-body">
+<pre class="exercise-prompt" data-role="final-prompt"></pre>
+<section class="panel" id="${pid}-function">
+<div class="panel-head">
+<h3 id="${pid}-function-title">Simulation</h3>
+<div class="panel-tools">
+${collapseButton(pid + "-function-body", pid + "-function-title")}
 </div>
-<div class="history" data-role="history" aria-label="Run history">
 </div>
-<div class="scroll-plot timeline" data-role="timeline">
-<p class="placeholder">Compute tasks and data movement will appear on processor lanes.</p>
+<div class="panel-body" id="${pid}-function-body">
+<label class="sr-only" for="${pid}-code">Final exercise code</label>
+<textarea id="${pid}-code" data-role="final-code" spellcheck="false"></textarea>
+<div class="exercise-footer">
+<span>Run the 2D cavity simulation. Use <code>cholesky(Symmetric(A))</code> or your tiled Cholesky.</span>
+<div class="exercise-actions">
+<button type="button" data-role="final-reset">Reset code</button>
+<button class="primary" type="button" data-role="final-run" disabled>Run final exercise <span>↗</span></button>
 </div>
-<div class="plot-key">
-<span class="cyan">━ Compute</span>
-<span class="amber">━ Data movement</span>
-<span>Transfer arrows: source → destination rank</span>
-<span>Hover a task for details · seconds from logging start</span>
-</div>
-<p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Run again to see a warm session.</p>
-<div class="summary" data-role="summary">
 </div>
 </div>
 </section>
-<section class="panel" id="${pid}-output">
-<div class="panel-head">
-<h3 id="${pid}-output-title">Session output</h3>
-<div class="panel-tools">
-<button data-role="clear">Clear display</button>
-${collapseButton(pid + "-output-body", pid + "-output-title")}
-</div>
-</div>
-<div class="panel-body" id="${pid}-output-body">
-<pre class="output" data-role="output" aria-live="polite">Waiting for a run.
-</pre>
-</div>
-</section>
+${analysisMarkup(pid)}
 </div>
 </section>`;
 }
@@ -423,6 +471,51 @@ function createExercisePanel(demo) {
   return panel;
 }
 
+function createFinalExercisePanel() {
+  const holder = document.createElement("div");
+  holder.innerHTML = finalExerciseMarkup().trim();
+  const el = holder.firstElementChild;
+  const role = name => el.querySelector(`[data-role="${name}"]`);
+  const exercise = config.final_exercise;
+  const panel = {
+    demo: "final", el,
+    code: role("final-code"), run: role("final-run"), reset: role("final-reset"),
+    prompt: role("final-prompt"),
+    output: role("output"), clear: role("clear"),
+    metrics: role("metrics"), history: role("history"), timeline: role("timeline"),
+    summary: role("summary"), moves: role("moves"), zoom: role("zoom"),
+    download: role("download"), traces: [], activeTrace: null,
+  };
+  panel.timeline.owner = panel;
+  panel.prompt.textContent = exercise.prompt;
+  panel.code.value = finalCode ?? exercise.template ?? "";
+  panel.code.oninput = () => {
+    finalCode = panel.code.value;
+    saveFinalCode();
+  };
+  panel.reset.onclick = () => {
+    finalCode = exercise.template ?? "";
+    saveFinalCode();
+    panel.code.value = finalCode;
+  };
+  panel.run.onclick = () => post("/api/run", {
+    op: "eval", mode: "single", demo: "final", code: panel.code.value,
+  });
+  panel.clear.onclick = () => panel.output.replaceChildren();
+  panel.moves.onchange = panel.zoom.oninput = () => draw(panel);
+  panel.download.onclick = () => {
+    if (!panel.activeTrace) return;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(panel.activeTrace, null, 2)], {type: "application/json"}));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `dagger-${panel.activeTrace.run || "final"}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  finalPanel = panel;
+  return panel;
+}
+
 function buildSidebar() {
   const nav = $("demos");
   for (const section of config.sections) {
@@ -448,6 +541,15 @@ function buildSidebar() {
     group.append(head, children);
     nav.append(group);
   }
+  const finalButton = document.createElement("button");
+  finalButton.type = "button";
+  finalButton.dataset.final = "1";
+  const finalNumber = document.createElement("span");
+  finalNumber.className = "num";
+  finalNumber.textContent = "07";
+  finalButton.append(finalNumber, document.createTextNode("Final Exercise"));
+  finalButton.onclick = () => showFinal();
+  nav.append(finalButton);
 }
 function navButton(number, demo) {
   const button = document.createElement("button");
@@ -510,6 +612,13 @@ function buildConsoles() {
     sectionPages.set(section.id, {el: page});
     $("consoles").append(page);
   }
+  const finalPage = document.createElement("div");
+  finalPage.className = "section-page";
+  finalPage.id = "page-final";
+  const final = createFinalExercisePanel();
+  finalPage.append(final.el);
+  sectionPages.set("final", {el: finalPage});
+  $("consoles").append(finalPage);
 }
 
 // One section owns the main area, like a page; the sidebar chooses it.
@@ -517,6 +626,20 @@ let activeSection = null;
 function showSection(sectionId) {
   for (const [id, page] of sectionPages) page.el.hidden = id !== sectionId;
   activeSection = sectionId;
+}
+
+function showFinal() {
+  showSection("final");
+  selectedDemo = null;
+  $("demo-title").textContent = config.final_exercise?.title || "Final Exercise";
+  $("layout-label").textContent = "2D INCOMPRESSIBLE FLOW";
+  for (const button of document.querySelectorAll("#demos button")) {
+    button.classList.toggle("active", button.dataset.final === "1");
+  }
+  if (finalPanel) {
+    finalPanel.el.scrollIntoView({behavior: "smooth", block: "start"});
+    if (finalPanel.activeTrace) draw(finalPanel);
+  }
 }
 
 function activate(demoId, {scroll = true, expand = true} = {}) {
@@ -603,9 +726,11 @@ function controls() {
   const ready = Boolean(state.job) && !state.busy;
   for (const pane of panes.values()) pane.run.disabled = pane.eval.disabled = !ready;
   for (const exercise of exercisePanels) exercise.run.disabled = !ready;
+  if (finalPanel) finalPanel.run.disabled = !ready;
 }
 // Route an event to the console that produced it; system chatter follows the selection.
 function paneFor(item) {
+  if (item.demo === "final" && finalPanel) return finalPanel;
   if (item.exercise && exerciseByDemo.has(item.demo)) return exerciseByDemo.get(item.demo);
   if (item.run && runPanes.has(item.run)) return runPanes.get(item.run);
   if (item.demo && panes.has(item.demo)) return panes.get(item.demo);
@@ -659,7 +784,7 @@ function draw(pane) {
     button.classList.toggle("active", t === trace);
     button.onclick = () => {
       pane.activeTrace = t;
-      if (t.sources?.length) showSources(pane, t.sources, "Executed source");
+      if (t.sources?.length && pane.source) showSources(pane, t.sources, "Executed source");
       draw(pane);
     };
     pane.history.append(button);
@@ -766,6 +891,11 @@ async function init() {
   try {
     const saved = localStorage.getItem(EXERCISE_PRIMER_KEY);
     if (saved !== null) exercisePrimer = saved;
+  } catch (e) {}
+  finalCode = config.final_exercise?.template ?? "";
+  try {
+    const saved = localStorage.getItem(FINAL_CODE_KEY);
+    if (saved !== null) finalCode = saved;
   } catch (e) {}
   $("remote").textContent = `${config.host}:${config.remote_root}`;
   buildSidebar();

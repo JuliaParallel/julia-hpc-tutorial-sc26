@@ -45,6 +45,16 @@ function syncExercisePrimerEditors(except) {
 function saveFinalCode() {
   try { localStorage.setItem(FINAL_CODE_KEY, finalCode ?? ""); } catch (e) {}
 }
+async function postJson(path, body) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: {"Content-Type": "application/json", "X-Console-Token": config.token},
+    body: JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok) throw Error(data.error);
+  return data;
+}
 function withoutComments(code) {
   return code.split("\n").map(line => line.replace(/#.*$/, "").trimEnd())
     .filter(line => line.trim()).join("\n");
@@ -527,7 +537,7 @@ ${collapseButton(pid + "-body", pid + "-title")}
 </div>
 </div>
 <div class="panel-body" id="${pid}-body">
-<p class="hint">Run a course agent in an embedded terminal on the machine running this console.</p>
+<p class="hint">Run a course agent in an embedded terminal on the machine running this console. If one is missing, the console asks before installing it.</p>
 <div class="agent-options">
 <button type="button" data-agent="opencode">OpenCode</button>
 <button type="button" data-agent="claude">Claude</button>
@@ -556,6 +566,42 @@ function createAgentsPanel() {
   const closeButton = el.querySelector('[data-role="agent-terminal-close"]');
   const labels = {opencode: "OpenCode", claude: "Claude", codex: "Codex"};
   let term = null, fit = null, session = null, poll = null, after = 0;
+
+  async function ensureAgent(agent, label) {
+    status.textContent = `Checking ${label}…`;
+    let check;
+    try {
+      check = await postJson("/api/terminal/check", {agent});
+    } catch (error) {
+      status.textContent = error.message;
+      return false;
+    }
+    if (check.installed) return true;
+    if (!window.confirm(`${label} is not installed. Install it now?`)) {
+      status.textContent = `${label} is not installed.`;
+      return false;
+    }
+    status.textContent = `Installing ${label}… this may take a few minutes.`;
+    try {
+      const result = await postJson("/api/terminal/install", {agent});
+      const lines = (result.output || "").split("\n").map(line => line.trim()).filter(Boolean);
+      status.textContent = lines.length ? lines[lines.length - 1] : `Installed ${label}.`;
+    } catch (error) {
+      status.textContent = `Install failed: ${error.message}`;
+      return false;
+    }
+    try {
+      check = await postJson("/api/terminal/check", {agent});
+    } catch (error) {
+      status.textContent = error.message;
+      return false;
+    }
+    if (!check.installed) {
+      status.textContent = `${label} was installed but is not on PATH. Restart the console or add it to PATH.`;
+      return false;
+    }
+    return true;
+  }
 
   async function closeTerminal() {
     if (poll !== null) { clearTimeout(poll); poll = null; }
@@ -664,7 +710,16 @@ function createAgentsPanel() {
 
   for (const button of el.querySelectorAll("[data-agent]")) {
     const agent = button.dataset.agent;
-    button.onclick = () => openTerminal(agent, labels[agent] || agent);
+    button.onclick = async () => {
+      button.disabled = true;
+      try {
+        if (await ensureAgent(agent, labels[agent] || agent)) {
+          await openTerminal(agent, labels[agent] || agent);
+        }
+      } finally {
+        button.disabled = false;
+      }
+    };
   }
   closeButton.onclick = () => closeTerminal();
   window.addEventListener("resize", () => { if (term && fit) fit.fit(); });

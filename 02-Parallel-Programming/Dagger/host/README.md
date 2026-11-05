@@ -215,7 +215,9 @@ earlier exercise. The same page has a collapsible **Use your agents** panel with
 OpenCode, Claude, and Codex buttons. Each opens an embedded terminal in the page
 and runs the agent in a local PTY on the machine running the console (not on
 Odo). The agent must be on `PATH`; the terminal endpoints accept requests only
-from localhost. The embedded terminal uses vendored xterm.js and the fit addon
+from localhost. If an agent is missing, the panel asks for permission and runs
+its installer: OpenCode and Claude use their install scripts, and Codex uses npm
+or Homebrew. The embedded terminal uses vendored xterm.js and the fit addon
 (MIT); see `xterm-LICENSE` and `addon-fit-LICENSE`.
 
 **Save JSON** downloads the selected report. Reports also remain in the Odo

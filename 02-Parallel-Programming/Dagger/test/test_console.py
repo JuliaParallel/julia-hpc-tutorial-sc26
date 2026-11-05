@@ -117,6 +117,10 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn("Codex", page)
         self.assertIn('data-role="agent-terminal"', page)
         self.assertIn('data-role="agent-terminal-body"', page)
+        self.assertIn("/api/terminal/check", page)
+        self.assertIn("/api/terminal/install", page)
+        self.assertIn("window.confirm", page)
+        self.assertIn("ensureAgent", page)
         self.assertGreaterEqual(page.count("Task timeline"), 2)
         self.assertGreaterEqual(page.count("Session output"), 2)
 
@@ -133,6 +137,22 @@ class ConsoleTests(unittest.TestCase):
         c.run(dict(op="eval", mode="single", demo="final", code="x = 1"))
         command = c.send.call_args[0][0]
         self.assertEqual(command["label"], "Final Exercise")
+
+    def test_agent_status_and_install_are_whitelisted(self):
+        with patch.object(app.shutil, "which", return_value="/usr/bin/opencode"):
+            self.assertTrue(app.agent_status("opencode")["installed"])
+        with patch.object(app.shutil, "which", return_value=None):
+            self.assertFalse(app.agent_status("opencode")["installed"])
+        with self.assertRaisesRegex(ValueError, "Unknown agent"):
+            app.install_agent("nope")
+        def which(name, path=None):
+            return {"npm": "/usr/bin/npm"}.get(name)
+        with patch.object(app.shutil, "which", side_effect=which), \
+                patch.object(app.subprocess, "run") as run:
+            run.return_value = Mock(returncode=0, stdout="ok\n", stderr="")
+            result = app.install_agent("codex")
+            self.assertTrue(result["ok"])
+            self.assertEqual(run.call_args[0][0][0], "/usr/bin/npm")
 
     def test_embedded_terminal_whitelists_and_streams(self):
         with self.assertRaisesRegex(ValueError, "Unknown agent"):

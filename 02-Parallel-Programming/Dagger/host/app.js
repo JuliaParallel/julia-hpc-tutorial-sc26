@@ -574,12 +574,12 @@ function createAgentsPanel() {
       check = await postJson("/api/terminal/check", {agent});
     } catch (error) {
       status.textContent = error.message;
-      return false;
+      return null;
     }
-    if (check.installed) return true;
+    if (check.installed) return check;
     if (!window.confirm(`${label} is not installed. Install it now?`)) {
       status.textContent = `${label} is not installed.`;
-      return false;
+      return null;
     }
     status.textContent = `Installing ${label}… this may take a few minutes.`;
     try {
@@ -588,19 +588,19 @@ function createAgentsPanel() {
       status.textContent = lines.length ? lines[lines.length - 1] : `Installed ${label}.`;
     } catch (error) {
       status.textContent = `Install failed: ${error.message}`;
-      return false;
+      return null;
     }
     try {
       check = await postJson("/api/terminal/check", {agent});
     } catch (error) {
       status.textContent = error.message;
-      return false;
+      return null;
     }
     if (!check.installed) {
       status.textContent = `${label} was installed but is not on PATH. Restart the console or add it to PATH.`;
-      return false;
+      return null;
     }
-    return true;
+    return check;
   }
 
   async function closeTerminal() {
@@ -620,7 +620,7 @@ function createAgentsPanel() {
     terminal.hidden = true;
   }
 
-  async function openTerminal(agent, label) {
+  async function openTerminal(agent, label, executable) {
     await closeTerminal();
     terminal.hidden = false;
     terminalTitle.textContent = label;
@@ -659,7 +659,8 @@ function createAgentsPanel() {
     }
     session = data.session;
     after = 0;
-    status.textContent = `${label} is running in the console.`;
+    status.textContent = executable ? `${label} is running from ${executable}.`
+                                    : `${label} is running in the console.`;
     term.onData(input => {
       if (!session) return;
       fetch("/api/terminal/input", {
@@ -713,9 +714,8 @@ function createAgentsPanel() {
     button.onclick = async () => {
       button.disabled = true;
       try {
-        if (await ensureAgent(agent, labels[agent] || agent)) {
-          await openTerminal(agent, labels[agent] || agent);
-        }
+        const check = await ensureAgent(agent, labels[agent] || agent);
+        if (check) await openTerminal(agent, labels[agent] || agent, check.path);
       } finally {
         button.disabled = false;
       }

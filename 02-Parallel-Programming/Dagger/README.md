@@ -74,8 +74,9 @@ connects to Odo, prepares packages on the login node, and manages your
 one-node allocation and persistent Julia workers.
 It offers all seven demos, a multiline Julia evaluator, an exercise editor that
 runs the harness on CPU, GPU, or MPI, a final CFD exercise, an embedded local
-agent terminal for OpenCode, Claude, and Codex, highlighted source, interactive
-task timelines, function-time summaries, and run history.
+agent terminal for OpenCode, Claude, and Codex with a permission-gated installer
+when one is missing, highlighted source, interactive task timelines,
+function-time summaries, and run history.
 See [setup and session behavior](host/README.md).
 
 The terminal workflow below remains available. Every demo now prints its

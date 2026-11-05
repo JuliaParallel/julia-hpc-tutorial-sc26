@@ -316,13 +316,73 @@ def _terminal_size(cols, rows):
     return max(20, min(cols, 300)), max(5, min(rows, 120))
 
 
+def _agent_path():
+    """PATH plus the usual per-user install locations."""
+    home = Path.home()
+    parts = [part for part in os.environ.get("PATH", "").split(os.pathsep) if part]
+    for extra in (home / ".opencode/bin", home / ".local/bin",
+                  home / ".local/share/npm/bin", home / ".npm-global/bin",
+                  home / ".npm-packages/bin", home / ".bun/bin", home / ".volta/bin",
+                  home / ".yarn/bin", home / ".local/share/pnpm",
+                  home / ".codex/packages/standalone/current/bin",
+                  Path("/opt/homebrew/bin"), Path("/home/linuxbrew/.linuxbrew/bin"),
+                  Path("/usr/local/bin")):
+        if str(extra) not in parts:
+            parts.append(str(extra))
+    return os.pathsep.join(parts)
+
+
+def _agent_executable(agent):
+    return shutil.which(agent, path=_agent_path())
+
+
+def agent_status(agent):
+    if agent not in ("opencode", "claude", "codex"):
+        raise ValueError("Unknown agent")
+    executable = _agent_executable(agent)
+    return dict(installed=executable is not None, path=executable)
+
+
+def install_agent(agent):
+    if agent not in ("opencode", "claude", "codex"):
+        raise ValueError("Unknown agent")
+    env = dict(os.environ, PATH=_agent_path())
+    if agent in ("opencode", "claude"):
+        curl = shutil.which("curl", path=env["PATH"])
+        bash = shutil.which("bash", path=env["PATH"])
+        if curl is None or bash is None:
+            raise ValueError(f"{agent} needs curl and bash to install")
+        url = ("https://opencode.ai/install" if agent == "opencode"
+               else "https://claude.ai/install.sh")
+        command = [bash, "-lc", f"{shlex.quote(curl)} -fsSL {url} | {shlex.quote(bash)}"]
+    else:
+        npm = shutil.which("npm", path=env["PATH"])
+        brew = shutil.which("brew", path=env["PATH"])
+        if npm is not None:
+            command = [npm, "install", "-g", "@openai/codex"]
+        elif brew is not None:
+            command = [brew, "install", "codex"]
+        else:
+            raise ValueError("Codex needs npm or Homebrew; install it manually")
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=600,
+                                stdin=subprocess.DEVNULL, env=env)
+    except subprocess.TimeoutExpired as exc:
+        raise ValueError("Installation timed out") from exc
+    output = re.sub(r"\x1b\[[0-9;]*m", "",
+                    (result.stdout or "") + (result.stderr or ""))
+    if result.returncode != 0:
+        raise ValueError(output[-2000:] or f"Installer exited with {result.returncode}")
+    return dict(ok=True, output=output[-2000:])
+
+
 def open_agent_terminal(agent, cols=100, rows=30):
     """Start an agent in a local PTY and return its session id."""
     if agent not in ("opencode", "claude", "codex"):
         raise ValueError("Unknown agent")
     if pty is None:
         raise ValueError("Embedded terminal requires a Unix-like system")
-    executable = shutil.which(agent)
+    executable = _agent_executable(agent)
     if executable is None:
         raise ValueError(f"{agent} is not installed or not on PATH")
     cols, rows = _terminal_size(cols, rows)
@@ -986,6 +1046,16 @@ def handler_for(console):
                     console.send(dict(op="cancel"))
                 elif self.path == "/api/disconnect":
                     threading.Thread(target=console.disconnect, daemon=True).start()
+                elif self.path == "/api/terminal/check":
+                    if self.client_address[0] not in ("127.0.0.1", "::1"):
+                        raise ValueError("Terminal is only available from localhost")
+                    self.reply(agent_status(command.get("agent")))
+                    return
+                elif self.path == "/api/terminal/install":
+                    if self.client_address[0] not in ("127.0.0.1", "::1"):
+                        raise ValueError("Terminal is only available from localhost")
+                    self.reply(install_agent(command.get("agent")))
+                    return
                 elif self.path == "/api/terminal/open":
                     if self.client_address[0] not in ("127.0.0.1", "::1"):
                         raise ValueError("Terminal is only available from localhost")

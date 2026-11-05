@@ -83,20 +83,22 @@ class ConsoleTests(unittest.TestCase):
         self.assertFalse(any(line.strip().startswith("#")
                              for line in template.splitlines()))
 
-    def test_exercise_primer_teaches_the_setup(self):
+    def test_exercise_primer_is_an_incomplete_editable_template(self):
         primer = app.EXERCISE_PRIMER
-        self.assertIn("DArray(A, Blocks(bs, bs))", primer)
-        self.assertIn("my_cholesky!(DA.chunks)", primer)
-        self.assertIn("Dagger.spawn_datadeps", primer)
+        self.assertIn("DArray(A, Blocks(???, ???))", primer)
+        self.assertIn("my_cholesky!(???)", primer)
+        self.assertIn("Dagger.with_options", primer)
         self.assertIn("Run exercise", primer)
 
     def test_console_generates_a_shared_exercise_editor(self):
         page = (BASE / "host/app.js").read_text()
         self.assertIn('data-role="exercise-code"', page)
         self.assertIn('data-role="exercise-primer"', page)
+        self.assertIn('data-role="exercise-primer-reset"', page)
         self.assertIn('op: "exercise"', page)
         self.assertIn("exercise_template", page)
         self.assertIn("exercise_primer", page)
+        self.assertIn("EXERCISE_PRIMER_KEY", page)
         self.assertIn("withoutComments", page)
         self.assertGreaterEqual(page.count("Task timeline"), 2)
         self.assertGreaterEqual(page.count("Session output"), 2)
@@ -145,7 +147,7 @@ class ConsoleTests(unittest.TestCase):
                              {"02_datadeps", "03_gpu", "04_mpi", "05_multigpu"})
             self.assertEqual(config["exercises"]["02_datadeps"]["target"], "cpu")
             self.assertIn("function my_cholesky!", config["exercise_template"])
-            self.assertIn("DArray(A, Blocks(bs, bs))", config["exercise_primer"])
+            self.assertIn("DArray(A, Blocks(???, ???))", config["exercise_primer"])
         finally:
             server.shutdown()
             server.server_close()

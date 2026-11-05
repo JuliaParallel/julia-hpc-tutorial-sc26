@@ -516,6 +516,55 @@ function createFinalExercisePanel() {
   return panel;
 }
 
+function agentsPanelMarkup() {
+  const pid = "agents";
+  return `
+<section class="panel agent-panel" id="${pid}">
+<div class="panel-head">
+<h3 id="${pid}-title">Use your agents</h3>
+<div class="panel-tools">
+${collapseButton(pid + "-body", pid + "-title")}
+</div>
+</div>
+<div class="panel-body" id="${pid}-body">
+<p class="hint">Open a local terminal with one of the course agents. The terminal opens on the machine running this console.</p>
+<div class="agent-options">
+<button type="button" data-agent="opencode">opencode</button>
+<button type="button" data-agent="claude">claude</button>
+<button type="button" data-agent="codex">codex</button>
+</div>
+<p class="hint" data-role="agent-status"></p>
+</div>
+</section>`;
+}
+
+function createAgentsPanel() {
+  const holder = document.createElement("div");
+  holder.innerHTML = agentsPanelMarkup().trim();
+  const el = holder.firstElementChild;
+  const status = el.querySelector('[data-role="agent-status"]');
+  for (const button of el.querySelectorAll("[data-agent]")) {
+    button.onclick = () => launchAgent(button.dataset.agent, status);
+  }
+  return {el};
+}
+
+async function launchAgent(agent, status) {
+  status.textContent = `Opening ${agent}…`;
+  try {
+    const response = await fetch("/api/agent", {
+      method: "POST",
+      headers: {"Content-Type": "application/json", "X-Console-Token": config.token},
+      body: JSON.stringify({agent}),
+    });
+    const data = await response.json();
+    if (!response.ok) throw Error(data.error);
+    status.textContent = `Opened ${agent} in a local terminal.`;
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
+
 function buildSidebar() {
   const nav = $("demos");
   for (const section of config.sections) {
@@ -617,6 +666,8 @@ function buildConsoles() {
   finalPage.id = "page-final";
   const final = createFinalExercisePanel();
   finalPage.append(final.el);
+  const agents = createAgentsPanel();
+  finalPage.append(agents.el);
   sectionPages.set("final", {el: finalPage});
   $("consoles").append(finalPage);
 }

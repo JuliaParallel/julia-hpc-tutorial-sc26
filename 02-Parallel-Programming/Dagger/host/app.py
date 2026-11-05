@@ -294,6 +294,37 @@ MANAGED_BEGIN = "# >>> sc26-dagger console: managed host block >>>"
 MANAGED_END = "# <<< sc26-dagger console: managed host block <<<"
 
 
+def launch_local_agent(agent):
+    """Open a local terminal running one of the course agents."""
+    if agent not in ("opencode", "claude", "codex"):
+        raise ValueError("Unknown agent")
+    executable = shutil.which(agent)
+    if executable is None:
+        raise ValueError(f"{agent} is not installed or not on PATH")
+    if sys.platform == "darwin":
+        command = executable.replace("\\", "\\\\").replace('"', '\\"')
+        subprocess.Popen(["osascript", "-e",
+                          f'tell application "Terminal" to do script "{command}"'])
+        return
+    if sys.platform.startswith("win"):
+        subprocess.Popen(["cmd", "/c", "start", "", "cmd", "/k", executable])
+        return
+    if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+        raise ValueError("No graphical display; start the agent from a terminal")
+    command = shlex.quote(executable)
+    candidates = [
+        ("x-terminal-emulator", ["x-terminal-emulator", "-e", "bash", "-lc", command]),
+        ("gnome-terminal", ["gnome-terminal", "--", "bash", "-lc", command]),
+        ("konsole", ["konsole", "-e", "bash", "-lc", command]),
+        ("xterm", ["xterm", "-e", "bash", "-lc", command]),
+    ]
+    for name, argv in candidates:
+        if shutil.which(name):
+            subprocess.Popen(argv)
+            return
+    raise ValueError("No terminal emulator found; start the agent from a terminal")
+
+
 def is_odo_hostname(hostname):
     name = (hostname or "").lower().rstrip(".")
     return name == ODO_HOSTNAME or name.endswith(".odo.olcf.ornl.gov")
@@ -798,6 +829,10 @@ def handler_for(console):
                     console.send(dict(op="cancel"))
                 elif self.path == "/api/disconnect":
                     threading.Thread(target=console.disconnect, daemon=True).start()
+                elif self.path == "/api/agent":
+                    if self.client_address[0] not in ("127.0.0.1", "::1"):
+                        raise ValueError("Agent launch is only available from localhost")
+                    launch_local_agent(command.get("agent"))
                 else:
                     self.reply(dict(error="Not found"), code=404)
                     return

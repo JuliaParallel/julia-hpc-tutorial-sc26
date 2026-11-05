@@ -17,6 +17,7 @@ let collapsedState = {};
 let exerciseCode = null;
 let exercisePrimer = null;
 let finalCode = null;
+let finalMtime = 0;
 let finalPanel = null;
 try {
   const saved = JSON.parse(localStorage.getItem(COLLAPSE_KEY) || "{}");
@@ -499,15 +500,43 @@ function createFinalExercisePanel() {
   panel.timeline.owner = panel;
   panel.prompt.textContent = exercise.prompt;
   panel.code.value = finalCode ?? exercise.template ?? "";
+  let saveTimer = null;
+  const pushFinalFile = () => {
+    postJson("/api/final/file", {code: finalCode})
+      .then(data => { finalMtime = data.mtime ?? finalMtime; })
+      .catch(() => {});
+  };
   panel.code.oninput = () => {
     finalCode = panel.code.value;
     saveFinalCode();
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(pushFinalFile, 500);
   };
   panel.reset.onclick = () => {
     finalCode = exercise.template ?? "";
     saveFinalCode();
     panel.code.value = finalCode;
+    clearTimeout(saveTimer);
+    pushFinalFile();
   };
+  const syncFinalFile = async () => {
+    try {
+      const response = await fetch("/api/final/file", {
+        headers: {"X-Console-Token": config.token},
+      });
+      const data = await response.json();
+      if (!response.ok) return;
+      if (data.mtime === finalMtime) return;
+      if (document.activeElement === panel.code) return;
+      if (data.code !== finalCode) {
+        finalCode = data.code;
+        finalMtime = data.mtime ?? finalMtime;
+        panel.code.value = finalCode;
+        saveFinalCode();
+      }
+    } catch (e) {}
+  };
+  setInterval(syncFinalFile, 1000);
   panel.run.onclick = () => post("/api/run", {
     op: "eval", mode: "single", demo: "final", code: panel.code.value,
   });
@@ -648,7 +677,8 @@ function createAgentsPanel() {
       response = await fetch("/api/terminal/open", {
         method: "POST",
         headers: {"Content-Type": "application/json", "X-Console-Token": config.token},
-        body: JSON.stringify({agent, cols: term.cols, rows: term.rows}),
+        body: JSON.stringify({agent, cols: term.cols, rows: term.rows,
+                              cwd: config.final_workspace}),
       });
       data = await response.json();
       if (!response.ok) throw Error(data.error);
@@ -659,8 +689,9 @@ function createAgentsPanel() {
     }
     session = data.session;
     after = 0;
-    status.textContent = executable ? `${label} is running from ${executable}.`
-                                    : `${label} is running in the console.`;
+    status.textContent = executable
+      ? `${label} is running from ${executable} in ${config.final_workspace}.`
+      : `${label} is running in the console.`;
     term.onData(input => {
       if (!session) return;
       fetch("/api/terminal/input", {
@@ -1113,6 +1144,25 @@ async function init() {
   try {
     const saved = localStorage.getItem(FINAL_CODE_KEY);
     if (saved !== null) finalCode = saved;
+  } catch (e) {}
+  try {
+    const response = await fetch("/api/final/file", {
+      headers: {"X-Console-Token": config.token},
+    });
+    const data = await response.json();
+    if (response.ok && typeof data.code === "string") {
+      const saved = localStorage.getItem(FINAL_CODE_KEY);
+      const template = config.final_exercise?.template ?? "";
+      finalMtime = data.mtime ?? 0;
+      if (data.code === template && saved !== null && saved !== data.code) {
+        finalCode = saved;
+        const result = await postJson("/api/final/file", {code: finalCode});
+        finalMtime = result.mtime ?? finalMtime;
+      } else {
+        finalCode = data.code;
+      }
+      saveFinalCode();
+    }
   } catch (e) {}
   $("remote").textContent = `${config.host}:${config.remote_root}`;
   buildSidebar();

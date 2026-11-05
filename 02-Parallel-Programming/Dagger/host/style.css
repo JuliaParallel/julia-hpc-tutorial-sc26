@@ -322,7 +322,7 @@ button:focus-visible,select:focus-visible,textarea:focus-visible {
   justify-content:space-between;
   flex-wrap:wrap;
   gap:12px;
-  padding:12px 0 16px
+  padding:12px 14px 16px
 }
 .exercise-footer > span {
   color:var(--muted);

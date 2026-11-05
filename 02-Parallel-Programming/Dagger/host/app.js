@@ -127,7 +127,7 @@ ${collapseButton(pid + "-body", pid + "-title")}
 <pre class="exercise-prompt" data-role="exercise-prompt"></pre>
 <section class="panel" id="${pid}-primer">
 <div class="panel-head">
-<h3 id="${pid}-primer-title">How it works</h3>
+<h3 id="${pid}-primer-title">Setup and Use</h3>
 <div class="panel-tools">
 <button type="button" data-role="exercise-primer-reset">Reset walkthrough</button>
 ${collapseButton(pid + "-primer-body", pid + "-primer-title")}
@@ -137,6 +137,14 @@ ${collapseButton(pid + "-primer-body", pid + "-primer-title")}
 <textarea class="exercise-primer" data-role="exercise-primer" spellcheck="false"></textarea>
 </div>
 </section>
+<section class="panel" id="${pid}-function">
+<div class="panel-head">
+<h3 id="${pid}-function-title">Function</h3>
+<div class="panel-tools">
+${collapseButton(pid + "-function-body", pid + "-function-title")}
+</div>
+</div>
+<div class="panel-body" id="${pid}-function-body">
 <label class="sr-only" for="${pid}-code">Exercise code</label>
 <textarea id="${pid}-code" data-role="exercise-code" spellcheck="false"></textarea>
 <div class="exercise-footer">
@@ -146,6 +154,8 @@ ${collapseButton(pid + "-primer-body", pid + "-primer-title")}
 <button class="primary" type="button" data-role="exercise-run" disabled>Run exercise <span>↗</span></button>
 </div>
 </div>
+</div>
+</section>
 <section class="panel timeline-panel" id="${pid}-timeline">
 <div class="panel-head">
 <h3 id="${pid}-timeline-title">Task timeline</h3>

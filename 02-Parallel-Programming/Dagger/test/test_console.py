@@ -96,6 +96,8 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn('data-role="exercise-code"', page)
         self.assertIn('data-role="exercise-primer"', page)
         self.assertIn('data-role="exercise-primer-reset"', page)
+        self.assertIn("Setup and Use", page)
+        self.assertIn(">Function<", page)
         self.assertIn('op: "exercise"', page)
         self.assertIn("exercise_template", page)
         self.assertIn("exercise_primer", page)

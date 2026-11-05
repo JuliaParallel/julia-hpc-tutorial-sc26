@@ -85,8 +85,9 @@ class ConsoleTests(unittest.TestCase):
 
     def test_exercise_primer_is_an_incomplete_editable_template(self):
         primer = app.EXERCISE_PRIMER
-        self.assertIn("DArray(A, Blocks(???, ???))", primer)
+        self.assertIn("DArray(A, ???)", primer)
         self.assertIn("my_cholesky!(???)", primer)
+        self.assertIn("collect(???)", primer)
         self.assertIn("Dagger.with_options", primer)
         self.assertIn("Run exercise", primer)
 
@@ -147,7 +148,7 @@ class ConsoleTests(unittest.TestCase):
                              {"02_datadeps", "03_gpu", "04_mpi", "05_multigpu"})
             self.assertEqual(config["exercises"]["02_datadeps"]["target"], "cpu")
             self.assertIn("function my_cholesky!", config["exercise_template"])
-            self.assertIn("DArray(A, Blocks(???, ???))", config["exercise_primer"])
+            self.assertIn("DArray(A, ???)", config["exercise_primer"])
         finally:
             server.shutdown()
             server.server_close()

@@ -131,13 +131,13 @@ EXERCISE_PRIMER = textwrap.dedent("""\
 
     Dagger.with_options(scope=scope) do
         # 2. Tile A into a DArray with bs x bs blocks.
-        DA = DArray(A, Blocks(???, ???))
+        DA = DArray(A, ???)
 
         # 3. Call my_cholesky! on the grid of tiles.
         my_cholesky!(???)
 
         # 4. Collect and check the factor.
-        L = collect(DA)
+        L = collect(???)
         println("collected ", size(L))
     end
 

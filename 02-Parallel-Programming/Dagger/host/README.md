@@ -202,7 +202,7 @@ written for the CPU run is reused unchanged on the GPU and MPI runs.
 restores the student stub. Results and timelines appear in the Exercise panel's
 own output and timeline panels. A collapsible **How it works** primer contains
 an editable, incomplete setup template: create the matrix, tile it with
-`DArray(A, Blocks(...))`, place it with the target scope, and call
+`DArray(A, ...)`, place it with the target scope, and call
 `my_cholesky!(...)`. Fill in the blanks or use it as a reference; **Run
 exercise** performs the same setup in the harness.
 

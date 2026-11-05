@@ -2,6 +2,7 @@
 """Local tutorial console. Python 3.10+, OpenSSH; no Python packages required."""
 import argparse
 import atexit
+import codecs
 import getpass
 import io
 import ipaddress
@@ -12,12 +13,21 @@ import re
 import secrets
 import shlex
 import shutil
+import signal
 import socket
+import struct
 import subprocess
 import sys
 import tarfile
 import textwrap
 import threading
+import time
+try:
+    import fcntl
+    import pty
+    import termios
+except ImportError:  # Windows has no Unix PTYs.
+    fcntl = pty = termios = None
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 import webbrowser
@@ -294,35 +304,167 @@ MANAGED_BEGIN = "# >>> sc26-dagger console: managed host block >>>"
 MANAGED_END = "# <<< sc26-dagger console: managed host block <<<"
 
 
-def launch_local_agent(agent):
-    """Open a local terminal running one of the course agents."""
+TERMINALS = {}
+TERMINALS_LOCK = threading.Lock()
+
+
+def _terminal_size(cols, rows):
+    try:
+        cols, rows = int(cols), int(rows)
+    except (TypeError, ValueError):
+        raise ValueError("Invalid terminal size")
+    return max(20, min(cols, 300)), max(5, min(rows, 120))
+
+
+def open_agent_terminal(agent, cols=100, rows=30):
+    """Start an agent in a local PTY and return its session id."""
     if agent not in ("opencode", "claude", "codex"):
         raise ValueError("Unknown agent")
+    if pty is None:
+        raise ValueError("Embedded terminal requires a Unix-like system")
     executable = shutil.which(agent)
     if executable is None:
         raise ValueError(f"{agent} is not installed or not on PATH")
-    if sys.platform == "darwin":
-        command = executable.replace("\\", "\\\\").replace('"', '\\"')
-        subprocess.Popen(["osascript", "-e",
-                          f'tell application "Terminal" to do script "{command}"'])
-        return
-    if sys.platform.startswith("win"):
-        subprocess.Popen(["cmd", "/c", "start", "", "cmd", "/k", executable])
-        return
-    if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
-        raise ValueError("No graphical display; start the agent from a terminal")
-    command = shlex.quote(executable)
-    candidates = [
-        ("x-terminal-emulator", ["x-terminal-emulator", "-e", "bash", "-lc", command]),
-        ("gnome-terminal", ["gnome-terminal", "--", "bash", "-lc", command]),
-        ("konsole", ["konsole", "-e", "bash", "-lc", command]),
-        ("xterm", ["xterm", "-e", "bash", "-lc", command]),
-    ]
-    for name, argv in candidates:
-        if shutil.which(name):
-            subprocess.Popen(argv)
+    cols, rows = _terminal_size(cols, rows)
+    env = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor")
+    pid, master = pty.fork()
+    if pid == 0:
+        try:
+            fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+            os.execvpe(executable, [executable], env)
+        except OSError as exc:
+            os.write(2, f"{agent}: {exc}\n".encode())
+        finally:
+            os._exit(127)
+    try:
+        fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+        os.set_blocking(master, False)
+    except OSError:
+        os.close(master)
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        try:
+            os.waitpid(pid, 0)
+        except ChildProcessError:
+            pass
+        raise
+    session = secrets.token_hex(16)
+    with TERMINALS_LOCK:
+        TERMINALS[session] = dict(
+            pid=pid, fd=master, buffer="", base=0, total=0, alive=True,
+            flushed=False, agent=agent, cols=cols, rows=rows,
+            decoder=codecs.getincrementaldecoder("utf-8")("replace"))
+    return session
+
+
+def terminal_output(session, after=0):
+    """Return output after a character offset and whether the agent is alive."""
+    with TERMINALS_LOCK:
+        term = TERMINALS.get(session)
+        if term is None:
+            raise ValueError("Unknown terminal session")
+        read_total = 0
+        while term["alive"] and read_total < (1 << 18):
+            try:
+                chunk = os.read(term["fd"], 65536)
+            except BlockingIOError:
+                break
+            except OSError:
+                term["alive"] = False
+                break
+            if not chunk:
+                term["alive"] = False
+                break
+            read_total += len(chunk)
+            text = term["decoder"].decode(chunk)
+            term["buffer"] += text
+            term["total"] += len(text)
+        if not term["alive"] and not term["flushed"]:
+            term["flushed"] = True
+            tail = term["decoder"].decode(b"", final=True)
+            if tail:
+                term["buffer"] += tail
+                term["total"] += len(tail)
+        if len(term["buffer"]) > (1 << 20):
+            drop = len(term["buffer"]) - (1 << 20)
+            term["buffer"] = term["buffer"][drop:]
+            term["base"] += drop
+        start = max(int(after), term["base"])
+        return dict(data=term["buffer"][start - term["base"]:],
+                    next=term["total"], alive=term["alive"])
+
+
+def terminal_input(session, data):
+    if not isinstance(data, str) or len(data) > 65536:
+        raise ValueError("Invalid terminal input")
+    with TERMINALS_LOCK:
+        term = TERMINALS.get(session)
+        if term is None:
+            raise ValueError("Unknown terminal session")
+        try:
+            os.write(term["fd"], data.encode("utf-8"))
+        except OSError as exc:
+            raise ValueError(f"Terminal is closed: {exc}") from exc
+
+
+def terminal_resize(session, cols, rows):
+    with TERMINALS_LOCK:
+        term = TERMINALS.get(session)
+        if term is None:
+            raise ValueError("Unknown terminal session")
+        cols, rows = _terminal_size(cols, rows)
+        try:
+            fcntl.ioctl(term["fd"], termios.TIOCSWINSZ,
+                        struct.pack("HHHH", rows, cols, 0, 0))
+        except OSError:
             return
-    raise ValueError("No terminal emulator found; start the agent from a terminal")
+        term["cols"], term["rows"] = cols, rows
+
+
+def close_terminal_session(session):
+    with TERMINALS_LOCK:
+        term = TERMINALS.pop(session, None)
+    if term is None:
+        return
+    pid, fd = term["pid"], term["fd"]
+    try:
+        os.killpg(pid, signal.SIGTERM)
+    except (ProcessLookupError, PermissionError):
+        pass
+    deadline = time.monotonic() + 2
+    while time.monotonic() < deadline:
+        try:
+            done, _ = os.waitpid(pid, os.WNOHANG)
+        except ChildProcessError:
+            break
+        if done:
+            break
+        time.sleep(0.05)
+    else:
+        try:
+            os.killpg(pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+        try:
+            os.waitpid(pid, 0)
+        except ChildProcessError:
+            pass
+    try:
+        os.close(fd)
+    except OSError:
+        pass
+
+
+def close_all_terminals():
+    with TERMINALS_LOCK:
+        sessions = list(TERMINALS)
+    for session in sessions:
+        close_terminal_session(session)
+
+
+atexit.register(close_all_terminals)
 
 
 def is_odo_hostname(hostname):
@@ -783,10 +925,25 @@ def handler_for(console):
                     self.reply(demo_sources(parse_qs(url.query).get("demo", [""])[0]))
                 except ValueError as exc:
                     self.reply(dict(error=str(exc)), code=400)
-            elif url.path in ("/", "/app.js", "/ansi.js", "/timeline.js", "/style.css"):
-                file = {"/":"index.html", "/app.js":"app.js", "/ansi.js":"ansi.js", "/timeline.js":"timeline.js", "/style.css":"style.css"}[url.path]
+            elif url.path == "/api/terminal/output":
+                if self.headers.get("X-Console-Token") != console.token:
+                    self.reply(dict(error="Invalid console token"), code=403)
+                    return
+                query = parse_qs(url.query)
+                try:
+                    self.reply(terminal_output(query.get("session", [""])[0],
+                                               int(query.get("after", ["0"])[0])))
+                except (ValueError, TypeError) as exc:
+                    self.reply(dict(error=str(exc)), code=400)
+            elif url.path in ("/", "/app.js", "/ansi.js", "/timeline.js", "/style.css",
+                              "/xterm.js", "/xterm.css", "/addon-fit.js"):
+                file = {"/":"index.html", "/app.js":"app.js", "/ansi.js":"ansi.js", "/timeline.js":"timeline.js",
+                        "/style.css":"style.css", "/xterm.js":"xterm.js", "/xterm.css":"xterm.css",
+                        "/addon-fit.js":"addon-fit.js"}[url.path]
                 content_type = {"/":"text/html; charset=utf-8", "/app.js":"text/javascript; charset=utf-8",
-                                "/ansi.js":"text/javascript; charset=utf-8", "/timeline.js":"text/javascript; charset=utf-8", "/style.css":"text/css; charset=utf-8"}[url.path]
+                                "/ansi.js":"text/javascript; charset=utf-8", "/timeline.js":"text/javascript; charset=utf-8",
+                                "/style.css":"text/css; charset=utf-8", "/xterm.js":"text/javascript; charset=utf-8",
+                                "/xterm.css":"text/css; charset=utf-8", "/addon-fit.js":"text/javascript; charset=utf-8"}[url.path]
                 self.reply((ROOT / "host" / file).read_bytes(), content_type)
             else:
                 self.reply(dict(error="Not found"), code=404)
@@ -829,10 +986,27 @@ def handler_for(console):
                     console.send(dict(op="cancel"))
                 elif self.path == "/api/disconnect":
                     threading.Thread(target=console.disconnect, daemon=True).start()
-                elif self.path == "/api/agent":
+                elif self.path == "/api/terminal/open":
                     if self.client_address[0] not in ("127.0.0.1", "::1"):
-                        raise ValueError("Agent launch is only available from localhost")
-                    launch_local_agent(command.get("agent"))
+                        raise ValueError("Terminal is only available from localhost")
+                    session = open_agent_terminal(command.get("agent"),
+                                                  command.get("cols", 100),
+                                                  command.get("rows", 30))
+                    self.reply(dict(session=session))
+                    return
+                elif self.path == "/api/terminal/input":
+                    if self.client_address[0] not in ("127.0.0.1", "::1"):
+                        raise ValueError("Terminal is only available from localhost")
+                    terminal_input(command.get("session"), command.get("data"))
+                elif self.path == "/api/terminal/resize":
+                    if self.client_address[0] not in ("127.0.0.1", "::1"):
+                        raise ValueError("Terminal is only available from localhost")
+                    terminal_resize(command.get("session"), command.get("cols", 100),
+                                    command.get("rows", 30))
+                elif self.path == "/api/terminal/close":
+                    if self.client_address[0] not in ("127.0.0.1", "::1"):
+                        raise ValueError("Terminal is only available from localhost")
+                    close_terminal_session(command.get("session"))
                 else:
                     self.reply(dict(error="Not found"), code=404)
                     return

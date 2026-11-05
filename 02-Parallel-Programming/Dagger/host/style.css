@@ -353,6 +353,29 @@ button:focus-visible,select:focus-visible,textarea:focus-visible {
 .agent-options button {
   min-width:110px
 }
+.agent-terminal {
+  margin-top:14px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  overflow:hidden;
+  background:#0e1b24
+}
+.agent-terminal-bar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 12px;
+  border-bottom:1px solid var(--border);
+  font-size:11px;
+  color:var(--muted)
+}
+.agent-terminal-body {
+  height:420px;
+  padding:8px
+}
+.agent-terminal-body .xterm {
+  height:100%
+}
 .tag {
   color:var(--muted);
   font-size:10px

@@ -212,9 +212,11 @@ streamfunction-vorticity form. It explains the Poisson solve, provides an
 incomplete editable template, and runs it in the single-process worker; the
 factorization can be `cholesky(Symmetric(A))` or the tiled Cholesky from the
 earlier exercise. The same page has a collapsible **Use your agents** panel with
-opencode, claude, and codex buttons. Each opens a terminal on the machine
-running the console (not on Odo); the agent must be on `PATH` and a terminal
-emulator must be available. The endpoint accepts requests only from localhost.
+OpenCode, Claude, and Codex buttons. Each opens an embedded terminal in the page
+and runs the agent in a local PTY on the machine running the console (not on
+Odo). The agent must be on `PATH`; the terminal endpoints accept requests only
+from localhost. The embedded terminal uses vendored xterm.js and the fit addon
+(MIT); see `xterm-LICENSE` and `addon-fit-LICENSE`.
 
 **Save JSON** downloads the selected report. Reports also remain in the Odo
 workspace under `results/demo-timelines/` for ordinary terminal runs.

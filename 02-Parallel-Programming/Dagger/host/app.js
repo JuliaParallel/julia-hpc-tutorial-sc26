@@ -115,6 +115,17 @@ ${collapseButton(pid + "-body", pid + "-title")}
 </div>
 <div class="panel-body" id="${pid}-body">
 <pre class="exercise-prompt" data-role="exercise-prompt"></pre>
+<section class="panel" id="${pid}-primer">
+<div class="panel-head">
+<h3 id="${pid}-primer-title">How it works</h3>
+<div class="panel-tools">
+${collapseButton(pid + "-primer-body", pid + "-primer-title")}
+</div>
+</div>
+<div class="panel-body" id="${pid}-primer-body">
+<pre class="exercise-primer" data-role="exercise-primer"></pre>
+</div>
+</section>
 <label class="sr-only" for="${pid}-code">Exercise code</label>
 <textarea id="${pid}-code" data-role="exercise-code" spellcheck="false"></textarea>
 <div class="exercise-footer">
@@ -334,13 +345,14 @@ function createExercisePanel(demo) {
     code: role("exercise-code"), run: role("exercise-run"),
     reset: role("exercise-reset"), target: role("exercise-target"),
     strict: role("exercise-strict"), prompt: role("exercise-prompt"),
-    output: role("output"), clear: role("clear"),
+    primer: role("exercise-primer"), output: role("output"), clear: role("clear"),
     metrics: role("metrics"), history: role("history"), timeline: role("timeline"),
     summary: role("summary"), moves: role("moves"), zoom: role("zoom"),
     download: role("download"), traces: [], activeTrace: null,
   };
   panel.timeline.owner = panel;
   panel.prompt.textContent = exercise.prompt;
+  panel.primer.textContent = config.exercise_primer ?? "";
   panel.target.value = exercise.target;
   panel.strict.checked = exercise.strict;
   panel.code.value = exerciseCode ?? config.exercise_template ?? "";

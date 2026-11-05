@@ -220,6 +220,34 @@ FINAL_EXERCISE = dict(
 )
 
 
+FINAL_WORKSPACE = ROOT / "results" / "final-exercise"
+FINAL_FILE = FINAL_WORKSPACE / "final_exercise.jl"
+FINAL_README = FINAL_WORKSPACE / "README.md"
+
+
+def ensure_final_workspace():
+    FINAL_WORKSPACE.mkdir(parents=True, exist_ok=True)
+    if not FINAL_FILE.exists():
+        FINAL_FILE.write_text(FINAL_EXERCISE["template"])
+    if not FINAL_README.exists():
+        FINAL_README.write_text(FINAL_EXERCISE["prompt"].rstrip()
+                                + "\n\nEdit only final_exercise.jl.\n")
+
+
+def final_file_state():
+    ensure_final_workspace()
+    return dict(code=FINAL_FILE.read_text(),
+                mtime=FINAL_FILE.stat().st_mtime_ns)
+
+
+def write_final_file(code):
+    if not isinstance(code, str) or len(code) > 262144:
+        raise ValueError("Invalid final exercise code")
+    ensure_final_workspace()
+    FINAL_FILE.write_text(code)
+    return dict(ok=True, mtime=FINAL_FILE.stat().st_mtime_ns)
+
+
 def exercises():
     """Exercise configuration keyed by demo id; unknown ids are a layout bug."""
     known = {demo for demo, _, _ in DEMOS}
@@ -376,7 +404,7 @@ def install_agent(agent):
     return dict(ok=True, output=output[-2000:])
 
 
-def open_agent_terminal(agent, cols=100, rows=30):
+def open_agent_terminal(agent, cols=100, rows=30, cwd=None):
     """Start an agent in a local PTY and return its session id."""
     if agent not in ("opencode", "claude", "codex"):
         raise ValueError("Unknown agent")
@@ -385,11 +413,15 @@ def open_agent_terminal(agent, cols=100, rows=30):
     executable = _agent_executable(agent)
     if executable is None:
         raise ValueError(f"{agent} is not installed or not on PATH")
+    cwd = os.path.abspath(os.path.expanduser(str(cwd or os.getcwd())))
+    if not os.path.isdir(cwd):
+        raise ValueError(f"Working directory does not exist: {cwd}")
     cols, rows = _terminal_size(cols, rows)
     env = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor")
     pid, master = pty.fork()
     if pid == 0:
         try:
+            os.chdir(cwd)
             fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
             os.execvpe(executable, [executable], env)
         except OSError as exc:
@@ -978,12 +1010,21 @@ def handler_for(console):
                                 exercises=exercises(), exercise_template=exercise_template(),
                                 exercise_primer=EXERCISE_PRIMER,
                                 final_exercise=FINAL_EXERCISE,
+                                final_workspace=str(FINAL_WORKSPACE),
                                 host=console.args.ssh_host,
                                 remote_root=console.args.remote_root, time=console.args.time))
             elif url.path == "/api/source":
                 try:
                     self.reply(demo_sources(parse_qs(url.query).get("demo", [""])[0]))
                 except ValueError as exc:
+                    self.reply(dict(error=str(exc)), code=400)
+            elif url.path == "/api/final/file":
+                if self.headers.get("X-Console-Token") != console.token:
+                    self.reply(dict(error="Invalid console token"), code=403)
+                    return
+                try:
+                    self.reply(final_file_state())
+                except (OSError, ValueError) as exc:
                     self.reply(dict(error=str(exc)), code=400)
             elif url.path == "/api/terminal/output":
                 if self.headers.get("X-Console-Token") != console.token:
@@ -1046,6 +1087,9 @@ def handler_for(console):
                     console.send(dict(op="cancel"))
                 elif self.path == "/api/disconnect":
                     threading.Thread(target=console.disconnect, daemon=True).start()
+                elif self.path == "/api/final/file":
+                    self.reply(write_final_file(command.get("code")))
+                    return
                 elif self.path == "/api/terminal/check":
                     if self.client_address[0] not in ("127.0.0.1", "::1"):
                         raise ValueError("Terminal is only available from localhost")
@@ -1061,7 +1105,8 @@ def handler_for(console):
                         raise ValueError("Terminal is only available from localhost")
                     session = open_agent_terminal(command.get("agent"),
                                                   command.get("cols", 100),
-                                                  command.get("rows", 30))
+                                                  command.get("rows", 30),
+                                                  command.get("cwd"))
                     self.reply(dict(session=session))
                     return
                 elif self.path == "/api/terminal/input":
@@ -1087,6 +1132,7 @@ def handler_for(console):
 
 
 def main():
+    ensure_final_workspace()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="0.0.0.0", help="Listen address (default: all IPv4 interfaces)")
     parser.add_argument("--allow-host", action="append", default=[], help="Additional allowed browser hostname")

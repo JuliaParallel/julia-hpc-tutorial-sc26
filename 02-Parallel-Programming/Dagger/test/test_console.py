@@ -121,6 +121,9 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn("/api/terminal/install", page)
         self.assertIn("window.confirm", page)
         self.assertIn("ensureAgent", page)
+        self.assertIn("/api/final/file", page)
+        self.assertIn("final_workspace", page)
+        self.assertIn("syncFinalFile", page)
         self.assertGreaterEqual(page.count("Task timeline"), 2)
         self.assertGreaterEqual(page.count("Session output"), 2)
 
@@ -154,10 +157,25 @@ class ConsoleTests(unittest.TestCase):
             self.assertTrue(result["ok"])
             self.assertEqual(run.call_args[0][0][0], "/usr/bin/npm")
 
+    def test_final_file_round_trip(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch.object(app, "FINAL_WORKSPACE", root), \
+                    patch.object(app, "FINAL_FILE", root / "final_exercise.jl"), \
+                    patch.object(app, "FINAL_README", root / "README.md"):
+                app.ensure_final_workspace()
+                self.assertTrue(app.FINAL_FILE.exists())
+                app.write_final_file("x = 1\n")
+                state = app.final_file_state()
+                self.assertEqual(state["code"], "x = 1\n")
+                self.assertGreater(state["mtime"], 0)
+
     def test_embedded_terminal_whitelists_and_streams(self):
         with self.assertRaisesRegex(ValueError, "Unknown agent"):
             app.open_agent_terminal("nope", 80, 24)
         with patch.object(app.shutil, "which", return_value="/bin/cat"):
+            with self.assertRaisesRegex(ValueError, "Working directory"):
+                app.open_agent_terminal("opencode", 80, 24, cwd="/no/such/path")
             session = app.open_agent_terminal("opencode", 80, 24)
         try:
             app.terminal_input(session, "hello\n")
@@ -218,6 +236,7 @@ class ConsoleTests(unittest.TestCase):
             self.assertIn("DArray(A, ???)", config["exercise_primer"])
             self.assertEqual(config["final_exercise"]["title"], "Final Exercise")
             self.assertIn("A = ???", config["final_exercise"]["template"])
+            self.assertTrue(config["final_workspace"].endswith("final-exercise"))
         finally:
             server.shutdown()
             server.server_close()

@@ -527,13 +527,20 @@ ${collapseButton(pid + "-body", pid + "-title")}
 </div>
 </div>
 <div class="panel-body" id="${pid}-body">
-<p class="hint">Open a local terminal with one of the course agents. The terminal opens on the machine running this console.</p>
+<p class="hint">Run a course agent in an embedded terminal on the machine running this console.</p>
 <div class="agent-options">
-<button type="button" data-agent="opencode">opencode</button>
-<button type="button" data-agent="claude">claude</button>
-<button type="button" data-agent="codex">codex</button>
+<button type="button" data-agent="opencode">OpenCode</button>
+<button type="button" data-agent="claude">Claude</button>
+<button type="button" data-agent="codex">Codex</button>
 </div>
 <p class="hint" data-role="agent-status"></p>
+<div class="agent-terminal" data-role="agent-terminal" hidden>
+<div class="agent-terminal-bar">
+<span data-role="agent-terminal-title"></span>
+<button type="button" data-role="agent-terminal-close">Close</button>
+</div>
+<div class="agent-terminal-body" data-role="agent-terminal-body"></div>
+</div>
 </div>
 </section>`;
 }
@@ -543,26 +550,130 @@ function createAgentsPanel() {
   holder.innerHTML = agentsPanelMarkup().trim();
   const el = holder.firstElementChild;
   const status = el.querySelector('[data-role="agent-status"]');
+  const terminal = el.querySelector('[data-role="agent-terminal"]');
+  const terminalBody = el.querySelector('[data-role="agent-terminal-body"]');
+  const terminalTitle = el.querySelector('[data-role="agent-terminal-title"]');
+  const closeButton = el.querySelector('[data-role="agent-terminal-close"]');
+  const labels = {opencode: "OpenCode", claude: "Claude", codex: "Codex"};
+  let term = null, fit = null, session = null, poll = null, after = 0;
+
+  async function closeTerminal() {
+    if (poll !== null) { clearTimeout(poll); poll = null; }
+    if (session) {
+      const current = session;
+      session = null;
+      fetch("/api/terminal/close", {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "X-Console-Token": config.token},
+        body: JSON.stringify({session: current}),
+      }).catch(() => {});
+    }
+    if (term) { term.dispose(); term = null; }
+    fit = null;
+    terminalBody.replaceChildren();
+    terminal.hidden = true;
+  }
+
+  async function openTerminal(agent, label) {
+    await closeTerminal();
+    terminal.hidden = false;
+    terminalTitle.textContent = label;
+    status.textContent = `Starting ${label}…`;
+    try {
+      fit = new FitAddon.FitAddon();
+      term = new Terminal({
+        cursorBlink: true,
+        fontSize: 13,
+        fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
+        scrollback: 2000,
+        theme: {background: "#0e1b24", foreground: "#d8e2e8", cursor: "#73e4c3",
+                selectionBackground: "#2d4350"},
+      });
+      term.loadAddon(fit);
+      term.open(terminalBody);
+      fit.fit();
+    } catch (error) {
+      status.textContent = error.message;
+      await closeTerminal();
+      return;
+    }
+    let response, data;
+    try {
+      response = await fetch("/api/terminal/open", {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "X-Console-Token": config.token},
+        body: JSON.stringify({agent, cols: term.cols, rows: term.rows}),
+      });
+      data = await response.json();
+      if (!response.ok) throw Error(data.error);
+    } catch (error) {
+      status.textContent = error.message;
+      await closeTerminal();
+      return;
+    }
+    session = data.session;
+    after = 0;
+    status.textContent = `${label} is running in the console.`;
+    term.onData(input => {
+      if (!session) return;
+      fetch("/api/terminal/input", {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "X-Console-Token": config.token},
+        body: JSON.stringify({session, data: input}),
+      }).catch(() => {});
+    });
+    term.onResize(({cols, rows}) => {
+      if (!session) return;
+      fetch("/api/terminal/resize", {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "X-Console-Token": config.token},
+        body: JSON.stringify({session, cols, rows}),
+      }).catch(() => {});
+    });
+    const pump = async () => {
+      if (!session) return;
+      try {
+        const response = await fetch(`/api/terminal/output?session=${encodeURIComponent(session)}&after=${after}`, {
+          headers: {"X-Console-Token": config.token},
+        });
+        const out = await response.json();
+        if (!response.ok) throw Error(out.error);
+        if (!session || !term) return;
+        if (out.data) term.write(out.data);
+        after = out.next;
+        if (!out.alive) {
+          status.textContent = `${label} exited.`;
+          const current = session;
+          session = null;
+          fetch("/api/terminal/close", {
+            method: "POST",
+            headers: {"Content-Type": "application/json", "X-Console-Token": config.token},
+            body: JSON.stringify({session: current}),
+          }).catch(() => {});
+          return;
+        }
+      } catch (error) {
+        status.textContent = error.message;
+        session = null;
+        return;
+      }
+      poll = setTimeout(pump, 100);
+    };
+    pump();
+  }
+
   for (const button of el.querySelectorAll("[data-agent]")) {
-    button.onclick = () => launchAgent(button.dataset.agent, status);
+    const agent = button.dataset.agent;
+    button.onclick = () => openTerminal(agent, labels[agent] || agent);
+  }
+  closeButton.onclick = () => closeTerminal();
+  window.addEventListener("resize", () => { if (term && fit) fit.fit(); });
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => {
+      if (!terminal.hidden && term && fit) fit.fit();
+    }).observe(terminalBody);
   }
   return {el};
-}
-
-async function launchAgent(agent, status) {
-  status.textContent = `Opening ${agent}…`;
-  try {
-    const response = await fetch("/api/agent", {
-      method: "POST",
-      headers: {"Content-Type": "application/json", "X-Console-Token": config.token},
-      body: JSON.stringify({agent}),
-    });
-    const data = await response.json();
-    if (!response.ok) throw Error(data.error);
-    status.textContent = `Opened ${agent} in a local terminal.`;
-  } catch (error) {
-    status.textContent = error.message;
-  }
 }
 
 function buildSidebar() {

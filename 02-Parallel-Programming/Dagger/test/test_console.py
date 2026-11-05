@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import subprocess
 import tempfile
+import time
 import threading
 import unittest
 import urllib.error
@@ -111,6 +112,11 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn('data-agent="opencode"', page)
         self.assertIn('data-agent="claude"', page)
         self.assertIn('data-agent="codex"', page)
+        self.assertIn("OpenCode", page)
+        self.assertIn("Claude", page)
+        self.assertIn("Codex", page)
+        self.assertIn('data-role="agent-terminal"', page)
+        self.assertIn('data-role="agent-terminal-body"', page)
         self.assertGreaterEqual(page.count("Task timeline"), 2)
         self.assertGreaterEqual(page.count("Session output"), 2)
 
@@ -128,21 +134,22 @@ class ConsoleTests(unittest.TestCase):
         command = c.send.call_args[0][0]
         self.assertEqual(command["label"], "Final Exercise")
 
-    def test_agent_launch_uses_a_terminal_and_whitelists(self):
+    def test_embedded_terminal_whitelists_and_streams(self):
         with self.assertRaisesRegex(ValueError, "Unknown agent"):
-            app.launch_local_agent("nope")
-        def which(name):
-            return {"opencode": "/usr/bin/opencode",
-                    "x-terminal-emulator": "/usr/bin/x-terminal-emulator"}.get(name)
-        with patch.object(app.sys, "platform", "linux"), \
-                patch.dict(app.os.environ, {"DISPLAY": ":0"}), \
-                patch.object(app.shutil, "which", side_effect=which), \
-                patch.object(app.subprocess, "Popen") as popen:
-            app.launch_local_agent("opencode")
-            self.assertEqual(popen.call_args[0][0][0], "x-terminal-emulator")
-        with patch.object(app.shutil, "which", return_value=None):
-            with self.assertRaisesRegex(ValueError, "not installed"):
-                app.launch_local_agent("opencode")
+            app.open_agent_terminal("nope", 80, 24)
+        with patch.object(app.shutil, "which", return_value="/bin/cat"):
+            session = app.open_agent_terminal("opencode", 80, 24)
+        try:
+            app.terminal_input(session, "hello\n")
+            out = {"data": ""}
+            for _ in range(40):
+                out = app.terminal_output(session, 0)
+                if "hello" in out["data"]:
+                    break
+                time.sleep(0.05)
+            self.assertIn("hello", out["data"])
+        finally:
+            app.close_terminal_session(session)
 
     def test_exercise_run_uses_demo_layout_and_harness_defaults(self):
         c = console()

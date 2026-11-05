@@ -338,6 +338,21 @@ button:focus-visible,select:focus-visible,textarea:focus-visible {
 .exercise-actions button {
   font-size:11px
 }
+.agent-panel .panel-body {
+  padding:16px 20px
+}
+.agent-panel .hint {
+  padding:0
+}
+.agent-options {
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin:12px 0
+}
+.agent-options button {
+  min-width:110px
+}
 .tag {
   color:var(--muted);
   font-size:10px

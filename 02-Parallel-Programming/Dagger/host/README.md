@@ -211,7 +211,10 @@ A seventh sidebar entry, **Final Exercise**, opens a 2D lid-driven cavity in
 streamfunction-vorticity form. It explains the Poisson solve, provides an
 incomplete editable template, and runs it in the single-process worker; the
 factorization can be `cholesky(Symmetric(A))` or the tiled Cholesky from the
-earlier exercise.
+earlier exercise. The same page has a collapsible **Use your agents** panel with
+opencode, claude, and codex buttons. Each opens a terminal on the machine
+running the console (not on Odo); the agent must be on `PATH` and a terminal
+emulator must be available. The endpoint accepts requests only from localhost.
 
 **Save JSON** downloads the selected report. Reports also remain in the Odo
 workspace under `results/demo-timelines/` for ordinary terminal runs.

@@ -11,7 +11,7 @@ import threading
 import unittest
 import urllib.error
 import urllib.request
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 BASE = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("console", BASE / "host/app.py")
@@ -107,6 +107,10 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn("showFinal", page)
         self.assertIn("Final Exercise", page)
         self.assertIn('dataset.final = "1"', page)
+        self.assertIn("Use your agents", page)
+        self.assertIn('data-agent="opencode"', page)
+        self.assertIn('data-agent="claude"', page)
+        self.assertIn('data-agent="codex"', page)
         self.assertGreaterEqual(page.count("Task timeline"), 2)
         self.assertGreaterEqual(page.count("Session output"), 2)
 
@@ -123,6 +127,22 @@ class ConsoleTests(unittest.TestCase):
         c.run(dict(op="eval", mode="single", demo="final", code="x = 1"))
         command = c.send.call_args[0][0]
         self.assertEqual(command["label"], "Final Exercise")
+
+    def test_agent_launch_uses_a_terminal_and_whitelists(self):
+        with self.assertRaisesRegex(ValueError, "Unknown agent"):
+            app.launch_local_agent("nope")
+        def which(name):
+            return {"opencode": "/usr/bin/opencode",
+                    "x-terminal-emulator": "/usr/bin/x-terminal-emulator"}.get(name)
+        with patch.object(app.sys, "platform", "linux"), \
+                patch.dict(app.os.environ, {"DISPLAY": ":0"}), \
+                patch.object(app.shutil, "which", side_effect=which), \
+                patch.object(app.subprocess, "Popen") as popen:
+            app.launch_local_agent("opencode")
+            self.assertEqual(popen.call_args[0][0][0], "x-terminal-emulator")
+        with patch.object(app.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(ValueError, "not installed"):
+                app.launch_local_agent("opencode")
 
     def test_exercise_run_uses_demo_layout_and_harness_defaults(self):
         c = console()

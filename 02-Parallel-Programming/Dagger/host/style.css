@@ -295,11 +295,9 @@ button:focus-visible,select:focus-visible,textarea:focus-visible {
   font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace
 }
 .exercise-primer {
-  margin:0;
-  padding:16px 20px;
-  white-space:pre-wrap;
-  color:var(--muted);
-  font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace
+  min-height:260px;
+  font-size:12px;
+  line-height:1.55
 }
 .exercise-panel textarea {
   width:100%;

@@ -113,43 +113,37 @@ EXERCISES = {
 
 
 EXERCISE_PRIMER = textwrap.dedent("""\
-    How the exercise runs
+    # Walkthrough: create, distribute, and call the Cholesky exercise.
+    # Fill in the missing pieces, then compare with the harness.
 
-    The editor contains only the imports and my_cholesky!. Each press of
-    Run exercise builds the problem around it:
+    using Dagger, LinearAlgebra
+    import LinearAlgebra: BLAS, LAPACK
 
-    1. Create a symmetric positive-definite matrix.
-         n, bs = 1024, 256
-         A = rand(n, n); A = A + A'; A[diagind(A)] .+= 2n
+    n, bs = 1024, 256
+    A = rand(n, n); A = A + A'; A[diagind(A)] .+= 2n
 
-    2. Tile it into a Dagger DArray. Blocks(bs, bs) makes each tile
-       bs x bs; DA holds Dagger handles, not a second copy of A.
-         DA = DArray(A, Blocks(bs, bs))
-         size(DA.chunks)          # (n ÷ bs, n ÷ bs)
+    # 1. Choose a scope for the selected target.
+    #    CPU:   Dagger.scope(worker=1)
+    #    GPU:   Dagger.scope(rocm_gpu=1)
+    #    MPI:   Dagger.scope(mpi_ranks=:)
+    #    Mixed: Dagger.UnionScope(cpu, gpu)
+    scope = ???
 
-    3. Place the tiles for the selected target. The harness uses
-       Dagger.with_options(scope=...) so the same code runs on CPU
-       workers, a ROCm GPU, or MPI ranks.
-         CPU:   Dagger.scope(worker=1)
-         GPU:   Dagger.scope(rocm_gpu=1)
-         MPI:   Dagger.scope(mpi_ranks=:)
-         Mixed: Dagger.UnionScope(cpu, gpu)
+    Dagger.with_options(scope=scope) do
+        # 2. Tile A into a DArray with bs x bs blocks.
+        DA = DArray(A, Blocks(???, ???))
 
-    4. Call your function with the grid of tiles.
-         my_cholesky!(DA.chunks)
+        # 3. Call my_cholesky! on the grid of tiles.
+        my_cholesky!(???)
 
-    5. Collect and check the factor.
-         L = collect(DA)
-         # the harness checks the scaled residual is below 16
+        # 4. Collect and check the factor.
+        L = collect(DA)
+        println("collected ", size(L))
+    end
 
-    Inside Dagger.spawn_datadeps, a tile is a matrix. Outside a task,
-    DA.chunks[i, j] is a Dagger handle; use fetch or collect to get its
-    data.
-
-    The Run exercise button runs harness/run.jl with this editor code, the
-    selected Target, and the section's worker layout. It performs the steps
-    above, then prints PASS/FAIL and a Dagger timeline.
+    # The Run exercise button performs this setup in the harness.
 """)
+
 
 
 def exercises():

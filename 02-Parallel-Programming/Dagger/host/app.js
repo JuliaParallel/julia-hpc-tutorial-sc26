@@ -11,8 +11,10 @@ const exerciseByDemo = new Map(); // demo id -> Exercise panel
 const COLLAPSE_KEY = "sc26-console-collapsed";
 const ACTIVE_KEY = "sc26-console-active";
 const EXERCISE_CODE_KEY = "sc26-exercise-code";
+const EXERCISE_PRIMER_KEY = "sc26-exercise-primer";
 let collapsedState = {};
 let exerciseCode = null;
+let exercisePrimer = null;
 try {
   const saved = JSON.parse(localStorage.getItem(COLLAPSE_KEY) || "{}");
   // Older consoles stored a plain list of collapsed ids.
@@ -27,6 +29,14 @@ function saveExerciseCode() {
 function syncExerciseEditors(except) {
   for (const editor of document.querySelectorAll('[data-role="exercise-code"]')) {
     if (editor !== except) editor.value = exerciseCode ?? "";
+  }
+}
+function saveExercisePrimer() {
+  try { localStorage.setItem(EXERCISE_PRIMER_KEY, exercisePrimer ?? ""); } catch (e) {}
+}
+function syncExercisePrimerEditors(except) {
+  for (const editor of document.querySelectorAll('[data-role="exercise-primer"]')) {
+    if (editor !== except) editor.value = exercisePrimer ?? "";
   }
 }
 function withoutComments(code) {
@@ -119,11 +129,12 @@ ${collapseButton(pid + "-body", pid + "-title")}
 <div class="panel-head">
 <h3 id="${pid}-primer-title">How it works</h3>
 <div class="panel-tools">
+<button type="button" data-role="exercise-primer-reset">Reset walkthrough</button>
 ${collapseButton(pid + "-primer-body", pid + "-primer-title")}
 </div>
 </div>
 <div class="panel-body" id="${pid}-primer-body">
-<pre class="exercise-primer" data-role="exercise-primer"></pre>
+<textarea class="exercise-primer" data-role="exercise-primer" spellcheck="false"></textarea>
 </div>
 </section>
 <label class="sr-only" for="${pid}-code">Exercise code</label>
@@ -345,14 +356,25 @@ function createExercisePanel(demo) {
     code: role("exercise-code"), run: role("exercise-run"),
     reset: role("exercise-reset"), target: role("exercise-target"),
     strict: role("exercise-strict"), prompt: role("exercise-prompt"),
-    primer: role("exercise-primer"), output: role("output"), clear: role("clear"),
+    primer: role("exercise-primer"), primerReset: role("exercise-primer-reset"),
+    output: role("output"), clear: role("clear"),
     metrics: role("metrics"), history: role("history"), timeline: role("timeline"),
     summary: role("summary"), moves: role("moves"), zoom: role("zoom"),
     download: role("download"), traces: [], activeTrace: null,
   };
   panel.timeline.owner = panel;
   panel.prompt.textContent = exercise.prompt;
-  panel.primer.textContent = config.exercise_primer ?? "";
+  panel.primer.value = exercisePrimer ?? config.exercise_primer ?? "";
+  panel.primer.oninput = () => {
+    exercisePrimer = panel.primer.value;
+    saveExercisePrimer();
+    syncExercisePrimerEditors(panel.primer);
+  };
+  panel.primerReset.onclick = () => {
+    exercisePrimer = config.exercise_primer ?? "";
+    saveExercisePrimer();
+    syncExercisePrimerEditors();
+  };
   panel.target.value = exercise.target;
   panel.strict.checked = exercise.strict;
   panel.code.value = exerciseCode ?? config.exercise_template ?? "";
@@ -495,6 +517,7 @@ function activate(demoId, {scroll = true, expand = true} = {}) {
   showSection(sectionId);
   selectedDemo = demoId;
   syncExerciseEditors();
+  syncExercisePrimerEditors();
   try { localStorage.setItem(ACTIVE_KEY, demoId); } catch (e) {}
   if (expand) expandAncestors(pane.el);
   // A newly visible timeline had no measurable width while hidden.
@@ -728,6 +751,11 @@ async function init() {
       // The saved copy was only an older template, possibly with comments.
       saveExerciseCode();
     }
+  } catch (e) {}
+  exercisePrimer = config.exercise_primer ?? "";
+  try {
+    const saved = localStorage.getItem(EXERCISE_PRIMER_KEY);
+    if (saved !== null) exercisePrimer = saved;
   } catch (e) {}
   $("remote").textContent = `${config.host}:${config.remote_root}`;
   buildSidebar();

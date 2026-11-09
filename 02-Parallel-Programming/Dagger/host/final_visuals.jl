@@ -9,7 +9,7 @@ rows(A, digits) = [[round(A[i, j], digits = digits) for j in 1:size(A, 2)]
                    for i in 1:size(A, 1)]
 
 function payload(omega::AbstractMatrix, psi::AbstractMatrix;
-                 frames = nothing, max_frames::Integer = 16)
+                 frames = nothing, max_frames::Integer = 32)
     size(omega) == size(psi) || error("omega and psi must have the same shape")
     nx, ny = size(omega)
     h = 1.0 / (nx - 1)

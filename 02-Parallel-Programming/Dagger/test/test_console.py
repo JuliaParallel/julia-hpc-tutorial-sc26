@@ -161,6 +161,8 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn('play.textContent = "Play"', page)
         self.assertIn("data.frames", page)
         self.assertIn("setInterval", page)
+        fields = (BASE / "host/final_visuals.jl").read_text(encoding="utf-8")
+        self.assertIn("max_frames::Integer = 32", fields)
 
     def test_final_exercise_eval_is_allowed(self):
         c = console()

@@ -21,10 +21,9 @@ function visualSample(rows, nx, ny, x, y) {
   const fx = x * (nx - 1), fy = y * (ny - 1);
   const i = Math.floor(fx), j = Math.floor(fy);
   const tx = fx - i, ty = fy - j;
-  const at = (a, b) => rows[Math.max(0, Math.min(nx - 1, a))]
-                            [Math.max(0, Math.min(ny - 1, b))];
-  // Catmull-Rom bicubic upsampling: smoother than bilinear when a 128-cell
-  // field is stretched over several hundred screen pixels.
+  const at = (a, b) => rows[(a % nx + nx) % nx][(b % ny + ny) % ny];
+  // Catmull-Rom bicubic upsampling with periodic wrapping: smoother than
+  // bilinear when a 256-cell field is stretched over several hundred pixels.
   const cubic = (p0, p1, p2, p3, t) => {
     const t2 = t * t, t3 = t2 * t;
     return 0.5 * (2 * p1 + (-p0 + p2) * t +

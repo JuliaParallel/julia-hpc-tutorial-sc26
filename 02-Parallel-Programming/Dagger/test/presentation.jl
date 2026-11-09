@@ -12,7 +12,7 @@ using .DemoPresentation
     @test occursin("a = Dagger.@spawn", source)
     @test !occursin("DemoPresentation", source)
     @test !occursin("        a =", source)
-    for file in ("01_tasks.jl", "02_datadeps.jl", "03_gpu.jl", "matrix_product.jl")
+    for file in ("00_julia.jl", "01_tasks.jl", "02_datadeps.jl", "03_gpu.jl", "matrix_product.jl")
         code = DemoPresentation.source_excerpt(joinpath(@__DIR__, "..", "demos", file))
         @test Meta.parse("begin\n" * code * "\nend") isa Expr
     end

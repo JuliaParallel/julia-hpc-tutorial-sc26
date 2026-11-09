@@ -11,7 +11,7 @@ if USE_MPI
     Dagger.accelerate!(:mpi)
 end
 const RANK = USE_MPI ? MPI.Comm_rank(MPI.COMM_WORLD) : 0
-const DEMOS = Dict("01_tasks"=>false, "02_datadeps"=>false, "03_gpu"=>false,
+const DEMOS = Dict("00_julia"=>false, "01_tasks"=>false, "02_datadeps"=>false, "03_gpu"=>false,
                    "05_multigpu"=>false, "06_multinode"=>true,
                    "07_multinode_multigpu"=>true)
 const LOADED = Dict{String,Module}()

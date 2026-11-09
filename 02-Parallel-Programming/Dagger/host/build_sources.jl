@@ -4,7 +4,7 @@ include(joinpath(@__DIR__, "..", "demos", "presentation.jl"))
 using .DemoPresentation, JSON3
 
 root = dirname(@__DIR__)
-catalog = map(sort(filter(f -> occursin(r"^0[1-7]_.*\.jl$", f), readdir(joinpath(root, "demos"))))) do file
+catalog = map(sort(filter(f -> occursin(r"^0[0-7]_.*\.jl$", f), readdir(joinpath(root, "demos"))))) do file
     paths = [joinpath("demos", file)]
     startswith(file, r"0[5-7]") && push!(paths, joinpath("demos", "matrix_product.jl"))
     sources = map(paths) do path

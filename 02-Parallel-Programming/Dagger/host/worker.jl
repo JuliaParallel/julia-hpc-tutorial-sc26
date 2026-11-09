@@ -183,28 +183,26 @@ while true
                 # Render the selected fields here, outside the logged run, so the
                 # plotting code stays out of the student's source and timeline.
                 types = String.(get(command, :visuals, String[]))
-                if !isempty(types)
-                    try
-                        omega = workspace_value(:omega)
-                        psi = workspace_value(:psi)
-                        (omega isa AbstractMatrix && psi isa AbstractMatrix) ||
-                            error("the run must leave omega and psi defined")
-                        data = FinalVisuals.payload(omega, psi;
-                                                    frames = workspace_value(:__sc26_frames))
-                        if get(ENV, "SC26_PORTAL", "0") == "1"
-                            DemoPresentation.emit("visual"; demo=demo, types=types, data...)
-                        else
-                            v = data.vortex
-                            println("primary vortex: psi = ", v.psi,
-                                    " at x = ", v.x, ", y = ", v.y)
-                        end
-                    catch err
-                        message = sprint(showerror, err)
-                        if get(ENV, "SC26_PORTAL", "0") == "1"
-                            DemoPresentation.emit("visual"; demo=demo, types=types, error=message)
-                        else
-                            println(stderr, "visualization: ", message)
-                        end
+                try
+                    omega = workspace_value(:omega)
+                    psi = workspace_value(:psi)
+                    (omega isa AbstractMatrix && psi isa AbstractMatrix) ||
+                        error("the run must leave omega and psi defined")
+                    data = FinalVisuals.payload(omega, psi;
+                                                frames = workspace_value(:__sc26_frames))
+                    if get(ENV, "SC26_PORTAL", "0") == "1"
+                        DemoPresentation.emit("visual"; demo=demo, types=types, data...)
+                    else
+                        v = data.vortex
+                        println("primary vortex: psi = ", v.psi,
+                                " at x = ", v.x, ", y = ", v.y)
+                    end
+                catch err
+                    message = sprint(showerror, err)
+                    if get(ENV, "SC26_PORTAL", "0") == "1"
+                        DemoPresentation.emit("visual"; demo=demo, types=types, error=message)
+                    else
+                        println(stderr, "visualization: ", message)
                     end
                 end
             end

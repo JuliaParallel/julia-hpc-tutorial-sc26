@@ -161,6 +161,9 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn('play.textContent = "Play"', page)
         self.assertIn("data.frames", page)
         self.assertIn("setInterval", page)
+        self.assertIn("_visualApply", page)
+        script = (BASE / "host/app.js").read_text(encoding="utf-8")
+        self.assertIn("_visualApply", script)
         fields = (BASE / "host/final_visuals.jl").read_text(encoding="utf-8")
         self.assertIn("max_frames::Integer = 32", fields)
 

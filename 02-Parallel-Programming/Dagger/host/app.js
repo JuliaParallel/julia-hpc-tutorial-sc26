@@ -522,6 +522,11 @@ function createFinalExercisePanel() {
     input.type = "checkbox";
     input.dataset.visual = item.id;
     input.checked = true;
+    input.onchange = () => {
+      const selected = [...panel.el.querySelectorAll("[data-visual]:checked")]
+        .map(box => box.dataset.visual);
+      panel.visual?._visualApply?.(selected);
+    };
     label.append(input, document.createTextNode(` ${item.label}`));
     panel.visualControls.append(label);
   }
@@ -567,6 +572,7 @@ function createFinalExercisePanel() {
     const visuals = [...panel.el.querySelectorAll("[data-visual]:checked")]
       .map(input => input.dataset.visual);
     if (panel.visual) {
+      panel.visual._visualApply = null;
       panel.visual.textContent = visuals.length
         ? "Rendering selected fields after the run…"
         : "No visualization selected.";
@@ -1048,11 +1054,15 @@ function event(item) {
   } else if (item.kind === "visual") {
     const pane = paneFor(item);
     if (!pane || !pane.visual) return;
-    renderVisualization(pane.visual, item);
+    const selected = [...pane.el.querySelectorAll("[data-visual]:checked")]
+      .map(box => box.dataset.visual);
+    renderVisualization(pane.visual, item, selected);
   } else if (item.kind === "error" || (item.kind === "done" && !item.ok)) {
     const pane = paneFor(item);
-    if (pane && pane.visual && (item.demo === "final" || pane.demo === "final"))
+    if (pane && pane.visual && (item.demo === "final" || pane.demo === "final")) {
+      pane.visual._visualApply = null;
       pane.visual.textContent = "Visualization skipped: the run failed.";
+    }
     alertError(item.error);
   }
 }

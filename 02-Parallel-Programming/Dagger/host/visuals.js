@@ -51,10 +51,13 @@ function visualCanvas(canvas, container, aspect, dpr) {
   const available = canvas.parentElement?.clientWidth || container.clientWidth;
   const width = Math.min(760, Math.max(280, available - 8));
   const height = Math.round(width * aspect);
+  const bw = Math.round(width * dpr), bh = Math.round(height * dpr);
   canvas.style.width = `${width}px`;
   canvas.style.height = `${height}px`;
-  canvas.width = Math.round(width * dpr);
-  canvas.height = Math.round(height * dpr);
+  if (canvas.width !== bw || canvas.height !== bh) {
+    canvas.width = bw;
+    canvas.height = bh;
+  }
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   return {ctx, w: canvas.width, h: canvas.height, dpr};
@@ -124,7 +127,7 @@ function visualField(canvas, container, rows, options) {
   layout.pw = Math.max(1, Math.round(w - layout.L - 108 * dpr));
   layout.ph = Math.max(1, Math.round(h - layout.T - 42 * dpr));
   const nx = rows.length, ny = rows[0].length;
-  const [min, max] = visualRange(rows, options.symmetric, options.percentile || 0.9);
+  const [min, max] = options.range || visualRange(rows, options.symmetric, options.percentile || 0.9);
   const span = max - min || 1;
   const image = ctx.createImageData(layout.pw, layout.ph);
   for (let py = 0; py < layout.ph; py++) {
@@ -141,7 +144,7 @@ function visualField(canvas, container, rows, options) {
   }
   ctx.putImageData(image, layout.L, layout.T);
   if (options.contours) {
-    const N = 192, fine = visualResample(rows, N);
+    const N = options.contourN || 192, fine = visualResample(rows, N);
     const [lo, hi] = options.contourRange || [min, max];
     const levels = options.levels || 8;
     ctx.strokeStyle = options.contourColor || "rgba(15, 25, 35, 0.55)";
@@ -185,7 +188,17 @@ function visualField(canvas, container, rows, options) {
   visualColorbar(ctx, layout, options.colormap, min, max, dpr);
 }
 
+function visualSeriesRange(frames, field, symmetric, percentile) {
+  const rows = [];
+  for (const frame of frames) rows.push(...frame[field]);
+  return visualRange(rows, symmetric, percentile);
+}
+
 function renderVisualization(container, data) {
+  if (container._visualTimer) {
+    clearInterval(container._visualTimer);
+    container._visualTimer = null;
+  }
   container.replaceChildren();
   if (!data) return;
   if (data.error) {
@@ -203,6 +216,36 @@ function renderVisualization(container, data) {
     container.append(empty);
     return;
   }
+  const frames = Array.isArray(data.frames) && data.frames.length
+    ? data.frames
+    : [{omega: data.omega, psi: data.psi}];
+  const ranges = {
+    vorticity: visualSeriesRange(frames, "omega", true, 0.9),
+    streamfunction: visualSeriesRange(frames, "psi", false, 0.9),
+  };
+  const cards = [];
+  let slider = null, stepLabel = null, play = null;
+
+  if (frames.length > 1) {
+    const time = document.createElement("div");
+    time.className = "visual-time";
+    play = document.createElement("button");
+    play.type = "button";
+    play.className = "visual-play";
+    play.textContent = "Play";
+    slider = document.createElement("input");
+    slider.className = "visual-slider";
+    slider.type = "range";
+    slider.min = "0";
+    slider.max = String(frames.length - 1);
+    slider.step = "1";
+    slider.value = "0";
+    stepLabel = document.createElement("span");
+    stepLabel.className = "visual-step";
+    time.append(play, slider, stepLabel);
+    container.append(time);
+  }
+
   for (const type of types) {
     const figure = document.createElement("figure");
     figure.className = "visual-card";
@@ -212,17 +255,57 @@ function renderVisualization(container, data) {
     container.append(figure);
     if (type === "vorticity") {
       caption.textContent = "Vorticity ω · blue negative, red positive";
-      visualField(canvas, container, data.omega, {
+      cards.push({canvas, type, options: {
         colormap: "coolwarm", symmetric: true, percentile: 0.9,
-        contours: true, levels: 1, contourRange: [0, 0], contourColor: "rgba(20, 30, 40, 0.45)",
-      });
+        contours: true, levels: 1, contourRange: [0, 0],
+        contourColor: "rgba(20, 30, 40, 0.45)", contourN: 128,
+        range: ranges.vorticity,
+      }});
     } else if (type === "streamfunction") {
       caption.textContent = "Streamfunction ψ · streamlines";
-      visualField(canvas, container, data.psi, {
+      cards.push({canvas, type, options: {
         colormap: "viridis", symmetric: false, contours: true, levels: 9,
-      });
+        contourN: 128, range: ranges.streamfunction,
+      }});
     }
   }
+
+  const draw = index => {
+    const frame = frames[index];
+    for (const card of cards) {
+      const rows = card.type === "vorticity" ? frame.omega : frame.psi;
+      visualField(card.canvas, container, rows, card.options);
+    }
+    if (slider) slider.value = String(index);
+    if (stepLabel) stepLabel.textContent = `${index + 1} / ${frames.length}`;
+  };
+
+  if (frames.length > 1) {
+    const stop = () => {
+      if (container._visualTimer) {
+        clearInterval(container._visualTimer);
+        container._visualTimer = null;
+      }
+      play.textContent = "Play";
+    };
+    play.onclick = () => {
+      if (container._visualTimer) {
+        stop();
+        return;
+      }
+      play.textContent = "Pause";
+      container._visualTimer = setInterval(() => {
+        const next = (Number(slider.value) + 1) % frames.length;
+        draw(next);
+      }, 160);
+    };
+    slider.oninput = () => {
+      stop();
+      draw(Number(slider.value));
+    };
+  }
+
+  draw(0);
   if (data.vortex) {
     const note = document.createElement("p");
     note.className = "visual-note";

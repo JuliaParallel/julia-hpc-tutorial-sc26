@@ -155,6 +155,13 @@ class ConsoleTests(unittest.TestCase):
         self.assertEqual([item["id"] for item in app.FINAL_VISUALS],
                          ["vorticity", "streamfunction"])
 
+    def test_visualization_has_time_controls(self):
+        page = (BASE / "host/visuals.js").read_text(encoding="utf-8")
+        self.assertIn('type = "range"', page)
+        self.assertIn('play.textContent = "Play"', page)
+        self.assertIn("data.frames", page)
+        self.assertIn("setInterval", page)
+
     def test_final_exercise_eval_is_allowed(self):
         c = console()
         c.send = Mock()

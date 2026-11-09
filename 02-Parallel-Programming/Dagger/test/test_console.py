@@ -133,6 +133,10 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn("streamfunction-vorticity", final["prompt"])
         self.assertIn("A = ???", final["template"])
         self.assertIn("F = ???", final["template"])
+        self.assertIn("UnicodePlots", final["template"])
+        self.assertIn("heatmap(permutedims(omega)", final["template"])
+        self.assertIn("contourplot(", final["template"])
+        self.assertIn("lineplot(u[nx ÷ 2, :]", final["template"])
 
     def test_final_exercise_eval_is_allowed(self):
         c = console()

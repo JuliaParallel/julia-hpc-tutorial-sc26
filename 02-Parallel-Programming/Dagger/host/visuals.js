@@ -49,7 +49,7 @@ function visualNumber(v) {
 
 function visualCanvas(canvas, container, aspect, dpr) {
   const available = canvas.parentElement?.clientWidth || container.clientWidth;
-  const width = Math.min(760, Math.max(280, available - 8));
+  const width = Math.max(200, available - 8);
   const height = Math.round(width * aspect);
   const bw = Math.round(width * dpr), bh = Math.round(height * dpr);
   canvas.style.width = `${width}px`;
@@ -199,6 +199,10 @@ function renderVisualization(container, data, selected = null) {
     clearInterval(container._visualTimer);
     container._visualTimer = null;
   }
+  if (container._visualResize) {
+    container._visualResize.disconnect();
+    container._visualResize = null;
+  }
   container.replaceChildren();
   if (!data) return;
   if (data.error) {
@@ -224,6 +228,7 @@ function renderVisualization(container, data, selected = null) {
   }
   let chosen = new Set((selected ?? data.types ?? available)
     .filter(type => available.includes(type)));
+  container.classList?.toggle("single", chosen.size <= 1);
   const ranges = {
     vorticity: visualSeriesRange(frames, "omega", true, 0.9),
     streamfunction: visualSeriesRange(frames, "psi", false, 0.9),
@@ -337,12 +342,25 @@ function renderVisualization(container, data, selected = null) {
 
   container._visualApply = types => {
     chosen = new Set(types.filter(type => available.includes(type)));
+    container.classList?.toggle("single", chosen.size <= 1);
     for (const card of cards) card.figure.hidden = !chosen.has(card.type);
     if (time) time.hidden = chosen.size === 0;
     empty.hidden = chosen.size > 0;
     if (vortexNote) vortexNote.hidden = chosen.size === 0;
     draw(current);
   };
+
+  if (typeof ResizeObserver !== "undefined") {
+    let lastWidth = Math.round(container.clientWidth);
+    const observer = new ResizeObserver(() => {
+      const width = Math.round(container.clientWidth);
+      if (width === lastWidth) return;
+      lastWidth = width;
+      draw(current);
+    });
+    observer.observe(container);
+    container._visualResize = observer;
+  }
 
   if (time) time.hidden = chosen.size === 0;
   draw(0);

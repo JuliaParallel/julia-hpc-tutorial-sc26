@@ -572,6 +572,10 @@ function createFinalExercisePanel() {
     const visuals = [...panel.el.querySelectorAll("[data-visual]:checked")]
       .map(input => input.dataset.visual);
     if (panel.visual) {
+      if (panel.visual._visualTimer) {
+        clearInterval(panel.visual._visualTimer);
+        panel.visual._visualTimer = null;
+      }
       panel.visual._visualApply = null;
       panel.visual.textContent = visuals.length
         ? "Rendering selected fields after the run…"
@@ -1060,6 +1064,10 @@ function event(item) {
   } else if (item.kind === "error" || (item.kind === "done" && !item.ok)) {
     const pane = paneFor(item);
     if (pane && pane.visual && (item.demo === "final" || pane.demo === "final")) {
+      if (pane.visual._visualTimer) {
+        clearInterval(pane.visual._visualTimer);
+        pane.visual._visualTimer = null;
+      }
       pane.visual._visualApply = null;
       pane.visual.textContent = "Visualization skipped: the run failed.";
     }

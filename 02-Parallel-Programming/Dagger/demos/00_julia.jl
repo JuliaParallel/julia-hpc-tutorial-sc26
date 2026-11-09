@@ -47,6 +47,25 @@ function run_demo()
         tile = (name = "tile-3", rows = 2:3)
         println("tile.name = ", tile.name, ", tile.rows = ", tile.rows)
 
+        # A for loop walks a range or any iterable. The tile demos use
+        # this shape to visit every tile in a DArray.
+        total = 0
+        for i in 1:4
+            total += i
+        end
+        println("sum 1:4 = ", total)
+
+        # Nested loops share one `for`; `enumerate` pairs an index with
+        # each item, as in `for (i, tile) in enumerate(DA.chunks)`.
+        C = zeros(2, 3)
+        for j in 1:3, i in 1:2
+            C[i, j] = 10i + j
+        end
+        for (k, value) in enumerate([2.0, 3.0, 5.0])
+            println("item ", k, " = ", value)
+        end
+        println("C = ", C)
+
         # Macros transform code before it runs. @views makes slices views;
         # @. turns a whole expression into broadcasting.
         @views begin

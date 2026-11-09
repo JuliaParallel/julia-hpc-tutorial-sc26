@@ -209,7 +209,7 @@ an editable, incomplete setup template: create the matrix, tile it with
 exercise** performs the same setup in the harness. The **Function** panel holds
 the `my_cholesky!` editor and the Reset/Run buttons.
 
-A seventh sidebar entry, **Final Exercise**, opens a Gray-Scott
+The final sidebar entry, **Final Exercise**, opens a Gray-Scott
 reaction-diffusion experiment on a periodic grid. It explains how to build the
 1D periodic Laplacian, factor the two ADI diffusion operators with Cholesky,
 and write the two half steps whose column and row solves are independent

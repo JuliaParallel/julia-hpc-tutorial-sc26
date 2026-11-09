@@ -68,7 +68,7 @@ class ConsoleTests(unittest.TestCase):
     def test_exercises_cover_the_hands_on_demos(self):
         exercises = app.exercises()
         self.assertEqual(set(exercises),
-                         {"02_datadeps", "03_gpu", "04_mpi", "05_multigpu"})
+                         {"02_datadeps", "03_gpu", "05_multigpu"})
         for demo, exercise in exercises.items():
             self.assertIn(demo, {entry[0] for entry in app.DEMOS})
             self.assertIn("Exercise:", exercise["prompt"])
@@ -252,12 +252,6 @@ class ConsoleTests(unittest.TestCase):
         self.assertEqual(command["gpus"], "1")
         self.assertEqual(command["label"], "Exercise · CPU")
         c.busy = False
-        c.run(dict(op="exercise", demo="04_mpi", target="cpu",
-                   strict=True, code="x = 1"))
-        command = c.send.call_args[0][0]
-        self.assertEqual(command["mode"], "mpi")
-        self.assertTrue(command["strict"])
-        c.busy = False
         c.run(dict(op="exercise", demo="05_multigpu", target="gpu",
                    strict=False, code="x = 1"))
         command = c.send.call_args[0][0]
@@ -278,7 +272,7 @@ class ConsoleTests(unittest.TestCase):
                     f"http://127.0.0.1:{server.server_port}/api/config") as response:
                 config = json.load(response)
             self.assertEqual(set(config["exercises"]),
-                             {"02_datadeps", "03_gpu", "04_mpi", "05_multigpu"})
+                             {"02_datadeps", "03_gpu", "05_multigpu"})
             self.assertEqual(config["exercises"]["02_datadeps"]["target"], "cpu")
             self.assertIn("function my_cholesky!", config["exercise_template"])
             self.assertIn("DArray(A, ???)", config["exercise_primer"])

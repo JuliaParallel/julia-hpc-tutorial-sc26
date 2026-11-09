@@ -12,7 +12,7 @@ if USE_MPI
 end
 const RANK = USE_MPI ? MPI.Comm_rank(MPI.COMM_WORLD) : 0
 const DEMOS = Dict("01_tasks"=>false, "02_datadeps"=>false, "03_gpu"=>false,
-                   "04_mpi"=>true, "05_multigpu"=>false, "06_multinode"=>true,
+                   "05_multigpu"=>false, "06_multinode"=>true,
                    "07_multinode_multigpu"=>true)
 const LOADED = Dict{String,Module}()
 const HARNESS = Dict{Tuple{Bool,Bool},Module}()

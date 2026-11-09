@@ -41,7 +41,6 @@ DEMOS = [
     ("05_multigpu", "Multiple GPUs", "single"),
     ("06_multinode", "Multi-node · CPU MPI", "mpi"),
     ("07_multinode_multigpu", "Multi-node + multi-GPU", "mpi"),
-    ("04_mpi", "MPI tile processing", "mpi"),
 ]
 # Demos that share one page section. Everything else gets its own section.
 SECTIONS = [
@@ -92,20 +91,6 @@ EXERCISES = {
             Keep the shared editor content, set Target to GPU, and run.
             If the GPU run fails inside your own helper, spawn the BLAS/LAPACK
             call itself so Dagger can substitute the GPU implementation.
-
-            Full handout: exercise/README.md""")),
-    "04_mpi": dict(
-        target="cpu", strict=True, gpus="1",
-        prompt=textwrap.dedent("""\
-            Exercise: same code, across MPI ranks
-
-            No code changes. Run the same exercise/my_cholesky.jl function on
-            two MPI ranks on one node. This section uses the MPI worker layout;
-            keep Target on CPU and Strict checked.
-
-            --strict places tasks away from their data, so a missing InOut
-            loses its writes and fails the check. Every rank must run
-            identical Dagger code; do not branch on the rank.
 
             Full handout: exercise/README.md""")),
     "05_multigpu": dict(

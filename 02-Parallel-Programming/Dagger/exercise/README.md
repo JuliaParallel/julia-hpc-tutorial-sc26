@@ -63,8 +63,13 @@ bash frontier/allocate.sh
 3. Wrap each tile argument in `In(...)` (only read) or `InOut(...)` (read and written).
 
 Keep the existing algorithm and loop structure, and return `T`. Each
-`T[i,j]` is a Dagger handle to a tile. Spawn each BLAS/LAPACK function
-directly so Dagger can select its GPU equivalent. Avoid `fetch`, `wait`,
+`T[i,j]` is a Dagger handle to a tile. Spawn each tile operation directly
+(`factor_diagonal_tile!`, `solve_panel_tile!`, `update_diagonal_tile!`,
+`update_offdiagonal_tile!`) so Dagger can select its GPU equivalent. Those
+names are `const` aliases of `LAPACK.potrf!`, `BLAS.trsm!`, `BLAS.syrk!`, and
+`BLAS.gemm!`: they are the BLAS functions themselves, just renamed, so Dagger
+still swaps them for rocBLAS/rocSOLVER on the GPU. Do not replace them with
+your own wrapper functions. Avoid `fetch`, `wait`,
 `@sync`, or `Threads.@spawn` inside the Datadeps region, and keep GPU- and
 MPI-specific code out of `my_cholesky!`.
 
@@ -126,5 +131,5 @@ timelines; see the [visual feedback workflow](../README.md#fast-feedback-and-plo
 |---|---|
 | `MethodError: no method matching potrf!(::Char, ::DTask)` | A call is missing `Dagger.@spawn`, or it's outside `spawn_datadeps`. Outside a task, tiles are Dagger handles, not matrices. |
 | `FAIL: warm-up residual ...` | A tile that's written is marked `In` (or not marked at all). Written tiles need `InOut`. |
-| GPU run errors inside your own helper function | Spawn `BLAS.gemm!(...)` itself, not a function that calls it. Dagger swaps BLAS for rocBLAS only on the spawned function. |
+| GPU run errors inside your own helper function | Spawn `BLAS.gemm!(...)` itself (or its `const` alias, e.g. `update_offdiagonal_tile!`), not a function that calls it. Dagger swaps BLAS for rocBLAS only on the spawned function. |
 | MPI run hangs | Code differs between ranks (e.g. `if rank == 0`). Every rank must run identical Dagger code. |

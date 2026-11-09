@@ -76,13 +76,17 @@ class ConsoleTests(unittest.TestCase):
             self.assertIn(exercise["target"], ("cpu", "gpu", "mixed"))
             self.assertIn(exercise["gpus"], ("1", "all"))
 
-    def test_exercise_template_is_the_clean_student_stub(self):
+    def test_exercise_template_defines_the_tile_operations(self):
         template = app.exercise_template()
         self.assertIn("function my_cholesky!", template)
-        self.assertIn("LAPACK.potrf!", template)
-        self.assertIn("BLAS.gemm!", template)
-        self.assertFalse(any(line.strip().startswith("#")
-                             for line in template.splitlines()))
+        for name, kernel in (("factor_diagonal_tile!", "LAPACK.potrf!"),
+                             ("solve_panel_tile!", "BLAS.trsm!"),
+                             ("update_diagonal_tile!", "BLAS.syrk!"),
+                             ("update_offdiagonal_tile!", "BLAS.gemm!")):
+            self.assertIn(f"const {name} = {kernel}", template)
+        # They must stay aliases: Dagger selects the GPU kernel by function
+        # identity, so a wrapper function would break the GPU run.
+        self.assertNotIn("function factor_diagonal_tile!", template)
 
     def test_exercise_primer_is_an_incomplete_editable_template(self):
         primer = app.EXERCISE_PRIMER

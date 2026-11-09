@@ -60,16 +60,19 @@ EXERCISES = {
             without changing the algorithm or the loop structure.
 
             1. Wrap the whole loop nest in Dagger.spawn_datadeps() do ... end.
-            2. Put Dagger.@spawn in front of each of the four BLAS/LAPACK
-               calls: potrf!, trsm!, syrk!, and gemm!.
+            2. Put Dagger.@spawn in front of each of the four tile operations
+               (factor_diagonal_tile!, solve_panel_tile!, update_diagonal_tile!,
+               update_offdiagonal_tile! -- aliases of potrf!, trsm!, syrk!,
+               gemm!).
             3. Annotate every tile argument:
                In(tile)    -- the call only reads the tile.
                InOut(tile) -- the call reads and writes the tile.
             4. Return T.
 
             Rules:
-            - Spawn the BLAS/LAPACK call itself, not a helper that calls it.
-              Dagger replaces BLAS with rocBLAS/rocSOLVER on GPU tasks.
+            - Spawn the BLAS/LAPACK call itself (the aliases are those calls),
+              not a helper that calls it. Dagger replaces BLAS with
+              rocBLAS/rocSOLVER on GPU tasks.
             - Do not use fetch or wait inside the Datadeps region.
             - Under MPI every rank must build the same graph; do not branch
               on rank.

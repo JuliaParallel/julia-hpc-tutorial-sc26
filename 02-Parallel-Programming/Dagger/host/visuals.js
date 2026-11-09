@@ -293,9 +293,14 @@ function renderVisualization(container, data) {
         stop();
         return;
       }
+      if (Number(slider.value) >= frames.length - 1) draw(0);
       play.textContent = "Pause";
       container._visualTimer = setInterval(() => {
-        const next = (Number(slider.value) + 1) % frames.length;
+        const next = Number(slider.value) + 1;
+        if (next >= frames.length) {
+          stop();
+          return;
+        }
         draw(next);
       }, 160);
     };

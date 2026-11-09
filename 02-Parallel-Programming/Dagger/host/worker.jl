@@ -131,8 +131,7 @@ while true
                         psi = workspace_value(:psi)
                         (omega isa AbstractMatrix && psi isa AbstractMatrix) ||
                             error("the run must leave omega and psi defined")
-                        data = FinalVisuals.payload(omega, psi;
-                                                    lid = workspace_value(:lid, 1.0))
+                        data = FinalVisuals.payload(omega, psi)
                         if get(ENV, "SC26_PORTAL", "0") == "1"
                             DemoPresentation.emit("visual"; demo=demo, types=types, data...)
                         else

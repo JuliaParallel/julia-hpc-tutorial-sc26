@@ -11,8 +11,10 @@ host entry, opens the SSH connection, and then serves the page. See
 [Credentials](#credentials) for what it writes and how an existing `odo` entry
 is treated.
 
-Open **http://127.0.0.1:8767**, then select **Connect & allocate**, then
-**Run demo** in any console. Requires
+Open **http://127.0.0.1:8767**; the console immediately requests one node and
+precompiles the Julia environment, so **Run demo** is fast once the page says
+it is ready. Pass `--no-auto-allocate` to wait for **Connect & allocate**
+instead. Requires
 Python 3.10+ and OpenSSH with connection multiplexing locally; no Python
 packages, local Julia, Node, or internet-hosted web assets are needed. Odo's
 Python 3.6 runs only the coordinator.
@@ -211,13 +213,12 @@ A seventh sidebar entry, **Final Exercise**, opens a 2D lid-driven cavity in
 streamfunction-vorticity form. It explains the Poisson solve, provides an
 incomplete editable template, and runs it in the single-process worker; the
 factorization can be `cholesky(Symmetric(A))` or the tiled Cholesky from the
-earlier exercise. Above the task timeline, a **Visualization** panel lets
-attendees pick the vorticity field, the streamfunction contours (streamlines),
-and the centreline velocity profile. The worker returns those fields after a
-successful run and the console draws high-resolution canvas plots, so the
-plotting code stays out of the submitted script and the console source. The
-panel also reports the primary vortex location. The
-same page has a collapsible **Use your agents** panel with
+earlier exercise. Above the task timeline, a **Visualization** panel shows the
+vorticity field and the streamfunction contours (streamlines) side by side.
+The worker returns those fields after a successful run and the console draws
+high-resolution canvas plots, so the plotting code stays out of the submitted
+script and the console source. The panel also reports the primary vortex
+location. The same page has a collapsible **Use your agents** panel with
 OpenCode, Claude, and Codex buttons. Each opens an embedded terminal in the page
 and runs the agent in a local PTY on the machine running the console (not on
 Odo). The agent must be on `PATH`; the terminal endpoints accept requests only

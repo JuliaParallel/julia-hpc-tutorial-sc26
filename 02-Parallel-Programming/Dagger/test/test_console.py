@@ -153,7 +153,7 @@ class ConsoleTests(unittest.TestCase):
         self.assertNotIn("UnicodePlots", final["template"])
         self.assertNotIn("heatmap(", final["template"])
         self.assertEqual([item["id"] for item in app.FINAL_VISUALS],
-                         ["vorticity", "streamfunction", "velocity"])
+                         ["vorticity", "streamfunction"])
 
     def test_final_exercise_eval_is_allowed(self):
         c = console()
@@ -166,9 +166,9 @@ class ConsoleTests(unittest.TestCase):
         c = console()
         c.send = Mock()
         c.run(dict(op="eval", mode="single", demo="final", code="x = 1",
-                   visuals=["vorticity", "velocity"]))
+                   visuals=["vorticity", "streamfunction"]))
         command = c.send.call_args[0][0]
-        self.assertEqual(command["visuals"], ["vorticity", "velocity"])
+        self.assertEqual(command["visuals"], ["vorticity", "streamfunction"])
         c.busy = False
         with self.assertRaisesRegex(ValueError, "Unknown visualization"):
             c.run(dict(op="eval", mode="single", demo="final", code="x = 1",

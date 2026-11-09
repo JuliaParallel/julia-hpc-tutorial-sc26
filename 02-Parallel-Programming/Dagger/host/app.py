@@ -162,7 +162,6 @@ EXERCISE_PRIMER = textwrap.dedent("""\
 FINAL_VISUALS = [
     dict(id="vorticity", label="Vorticity"),
     dict(id="streamfunction", label="Streamfunction"),
-    dict(id="velocity", label="Velocity profile"),
 ]
 FINAL_VISUAL_IDS = tuple(item["id"] for item in FINAL_VISUALS)
 
@@ -1177,6 +1176,8 @@ def main():
     parser.add_argument("--reservation", default="")
     parser.add_argument("--no-auth", action="store_true",
                         help="Skip the startup SSH login; Connect then needs an existing connection")
+    parser.add_argument("--no-auto-allocate", action="store_true",
+                        help="Wait for Connect instead of allocating and warming Julia at startup")
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
     if args.ssh_host and (not re.fullmatch(r"[\w@.-]+", args.ssh_host) or args.ssh_host.startswith("-")):
@@ -1206,6 +1207,14 @@ def main():
         except (ValueError, OSError, subprocess.TimeoutExpired):
             pass
     atexit.register(console.disconnect)
+    if authenticated and not args.no_auto_allocate:
+        def _auto_connect():
+            time.sleep(0.5)
+            try:
+                console.connect()
+            except Exception:
+                pass
+        threading.Thread(target=_auto_connect, daemon=True).start()
     url = f"http://127.0.0.1:{args.port}"
     if authenticated:
         connection_note = ""
@@ -1216,6 +1225,8 @@ def main():
     print(f"Tutorial console: {url}\nOdo user: {args.odo_user} via {args.ssh_host}"
           f"\nOdo workspace: {args.remote_root}{connection_note}"
           + "\nCtrl-C releases the console's allocation.", flush=True)
+    if authenticated and not args.no_auto_allocate:
+        print("Allocating a node and precompiling Julia in the background…", flush=True)
     if args.host == "0.0.0.0":
         for ip in tailscale_ips:
             print(f"Tailscale: http://{ip}:{args.port}", flush=True)

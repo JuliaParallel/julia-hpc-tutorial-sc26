@@ -70,6 +70,59 @@ def close_worker():
     ready.clear()
 
 
+def start_worker(wanted):
+    global worker, mode
+    if wanted not in ("single", "mpi"):
+        raise ValueError("Unknown worker layout")
+    if worker is not None and worker.poll() is None and mode == wanted:
+        return
+    close_worker()
+    if stopping.is_set():
+        raise RuntimeError("Session is stopping")
+    mode = wanted
+    env = dict(os.environ, SC26_NODES="1", SC26_GPUS_PER_TASK="2" if wanted == "mpi" else "4",
+               SC26_PORTAL="1", SC26_DEMO_LOAD_ONLY="1", JULIA_PKG_OFFLINE="true")
+    args = ["bash", str(ROOT / "frontier/launch.sh"), "2" if wanted == "mpi" else "1",
+            "--startup-file=no", str(ROOT / "host/worker.jl")]
+    if wanted == "mpi":
+        args.append("--mpi")
+    ready.clear()
+    emit("status", message=f"Starting {'two MPI ranks' if wanted == 'mpi' else 'one Julia process'}…")
+    worker = subprocess.Popen(args, cwd=ROOT, env=env, stdin=subprocess.PIPE,
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                              universal_newlines=True, bufsize=1, start_new_session=True)
+    threading.Thread(target=relay, args=(worker,), daemon=True).start()
+    if not ready.wait(timeout=300):
+        raise TimeoutError("Julia startup exceeded five minutes; cancel and inspect the output")
+    if worker.poll() is not None:
+        raise RuntimeError("Julia worker exited during startup")
+
+
+def warmup():
+    """Precompile the project and start the single-process worker before the
+    first Run, so the browser's buttons become enabled with a warm Julia."""
+    emit("status", message="Precompiling packages on the allocated node…")
+    script = ("using Pkg; Pkg.precompile(); "
+              "using Dagger, UnicodePlots, JSON3, Highlights; println(\"warm-up ok\")")
+    try:
+        result = subprocess.run(
+            ["srun", f"--jobid={job}", "--exact", "-N", "1", "-n", "1", "-c", "7",
+             "--threads-per-core=1", "--gpus-per-task=8", "--gpu-bind=none",
+             "julia", f"--project={ROOT}", "--startup-file=no", "-e", script],
+            cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            universal_newlines=True, timeout=1800,
+            env=dict(os.environ, JULIA_PKG_OFFLINE="true"))
+        if result.returncode != 0:
+            tail = " | ".join((result.stdout or "").strip().splitlines()[-3:])
+            emit("status", message="Package warm-up failed; the first run may compile. " + tail)
+            return
+        if stopping.is_set():
+            return
+        start_worker("single")
+    except Exception as exc:
+        emit("status", message=f"Package warm-up skipped: {exc}")
+
+
 def execute(command):
     global worker, mode
     if not operation.acquire(blocking=False):
@@ -77,27 +130,7 @@ def execute(command):
         return
     try:
         wanted = command.get("mode", "single")
-        if wanted not in ("single", "mpi"):
-            raise ValueError("Unknown worker layout")
-        if worker is None or worker.poll() is not None or mode != wanted:
-            close_worker()
-            if stopping.is_set():
-                return
-            mode = wanted
-            env = dict(os.environ, SC26_NODES="1", SC26_GPUS_PER_TASK="2" if wanted == "mpi" else "4",
-                       SC26_PORTAL="1", SC26_DEMO_LOAD_ONLY="1", JULIA_PKG_OFFLINE="true")
-            args = ["bash", str(ROOT / "frontier/launch.sh"), "2" if wanted == "mpi" else "1",
-                    "--startup-file=no", str(ROOT / "host/worker.jl")]
-            if wanted == "mpi":
-                args.append("--mpi")
-            ready.clear()
-            emit("status", message=f"Starting {'two MPI ranks' if wanted == 'mpi' else 'one Julia process'}…")
-            worker = subprocess.Popen(args, cwd=ROOT, env=env, stdin=subprocess.PIPE,
-                                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                      universal_newlines=True, bufsize=1, start_new_session=True)
-            threading.Thread(target=relay, args=(worker,), daemon=True).start()
-            if not ready.wait(timeout=300):
-                raise TimeoutError("Julia startup exceeded five minutes; cancel and inspect the output")
+        start_worker(wanted)
         if worker is None or worker.poll() is not None:
             raise RuntimeError("Julia worker exited during startup")
         worker.stdin.write(json.dumps(command) + "\n")
@@ -136,6 +169,9 @@ def watch_allocation():
             break
         state, nodes = result.stdout.strip().split("|", 1)
         if state == "RUNNING" and not announced:
+            warmup()
+            if stopping.is_set():
+                break
             emit("allocated", job=job, nodes=nodes)
             announced = True
 

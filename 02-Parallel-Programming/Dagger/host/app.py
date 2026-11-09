@@ -190,14 +190,14 @@ FINAL_EXERCISE = dict(
         your my_cholesky! implementation.
 
         Fill in the three missing pieces in the template and run it. Choose
-        the fields you want in the Visualization panel: the harness renders
-        them after a successful run, so no plotting code belongs in your
-        script.
+        the fields you want in the Visualization panel: the console plots
+        them from the fields your run leaves behind, so no plotting code
+        belongs in your script.
     """),
     template=textwrap.dedent("""\
         # Final exercise: 2D lid-driven cavity in streamfunction-vorticity form.
         # Fill in the three missing pieces, then run. Select the fields to draw
-        # in the Visualization panel; the harness renders them after the run.
+        # in the Visualization panel; the console plots them after the run.
 
         using Dagger, LinearAlgebra
 
@@ -1062,13 +1062,15 @@ def handler_for(console):
                                                int(query.get("after", ["0"])[0])))
                 except (ValueError, TypeError) as exc:
                     self.reply(dict(error=str(exc)), code=400)
-            elif url.path in ("/", "/app.js", "/ansi.js", "/timeline.js", "/style.css",
+            elif url.path in ("/", "/app.js", "/ansi.js", "/timeline.js", "/visuals.js", "/style.css",
                               "/xterm.js", "/xterm.css", "/addon-fit.js"):
                 file = {"/":"index.html", "/app.js":"app.js", "/ansi.js":"ansi.js", "/timeline.js":"timeline.js",
+                        "/visuals.js":"visuals.js",
                         "/style.css":"style.css", "/xterm.js":"xterm.js", "/xterm.css":"xterm.css",
                         "/addon-fit.js":"addon-fit.js"}[url.path]
                 content_type = {"/":"text/html; charset=utf-8", "/app.js":"text/javascript; charset=utf-8",
                                 "/ansi.js":"text/javascript; charset=utf-8", "/timeline.js":"text/javascript; charset=utf-8",
+                                "/visuals.js":"text/javascript; charset=utf-8",
                                 "/style.css":"text/css; charset=utf-8", "/xterm.js":"text/javascript; charset=utf-8",
                                 "/xterm.css":"text/css; charset=utf-8", "/addon-fit.js":"text/javascript; charset=utf-8"}[url.path]
                 self.reply((ROOT / "host" / file).read_bytes(), content_type)

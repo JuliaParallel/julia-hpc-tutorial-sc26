@@ -131,11 +131,14 @@ while true
                         psi = workspace_value(:psi)
                         (omega isa AbstractMatrix && psi isa AbstractMatrix) ||
                             error("the run must leave omega and psi defined")
-                        text = FinalVisuals.render(omega, psi; types, lid=workspace_value(:lid, 1.0))
+                        data = FinalVisuals.payload(omega, psi;
+                                                    lid = workspace_value(:lid, 1.0))
                         if get(ENV, "SC26_PORTAL", "0") == "1"
-                            DemoPresentation.emit("visual"; demo=demo, types=types, text=text)
+                            DemoPresentation.emit("visual"; demo=demo, types=types, data...)
                         else
-                            println(text)
+                            v = data.vortex
+                            println("primary vortex: psi = ", v.psi,
+                                    " at x = ", v.x, ", y = ", v.y)
                         end
                     catch err
                         message = sprint(showerror, err)

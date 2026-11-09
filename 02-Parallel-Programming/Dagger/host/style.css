@@ -456,6 +456,30 @@ pre.visual {
   white-space:pre;
   overflow:auto
 }
+.visual-grid {
+  display:grid;
+  gap:18px;
+  padding:14px 20px 4px
+}
+.visual-card {
+  margin:0;
+  padding:0
+}
+.visual-card figcaption {
+  color:var(--muted);
+  font-size:11px;
+  padding:0 0 6px
+}
+.visual-card canvas {
+  display:block;
+  max-width:100%;
+  border-radius:4px
+}
+.visual-note {
+  color:var(--muted);
+  font-size:11px;
+  margin:0
+}
 .plot-controls label {
   display:flex;
   align-items:center;

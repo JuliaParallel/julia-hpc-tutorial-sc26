@@ -120,7 +120,21 @@ function collapseButton(target, label) {
 </button>`;
 }
 
-function analysisMarkup(pid) {
+function analysisMarkup(pid, {visual = false} = {}) {
+  const visualization = visual ? `
+<section class="panel" id="${pid}-visual">
+<div class="panel-head">
+<h3 id="${pid}-visual-title">Visualization</h3>
+<div class="panel-tools">
+<span class="tag">Runs with the harness</span>
+${collapseButton(pid + "-visual-body", pid + "-visual-title")}
+</div>
+</div>
+<div class="panel-body" id="${pid}-visual-body">
+<div class="visual-controls" data-role="visual-controls"></div>
+<pre class="output visual" data-role="visual" aria-live="polite">Choose fields, then run the simulation.</pre>
+</div>
+</section>` : "";
   return `
 <section class="panel" id="${pid}-output">
 <div class="panel-head">
@@ -135,6 +149,7 @@ ${collapseButton(pid + "-output-body", pid + "-output-title")}
 </pre>
 </div>
 </section>
+${visualization}
 <section class="panel timeline-panel" id="${pid}-timeline">
 <div class="panel-head">
 <h3 id="${pid}-timeline-title">Task timeline</h3>
@@ -261,7 +276,7 @@ ${collapseButton(pid + "-function-body", pid + "-function-title")}
 </div>
 </div>
 </section>
-${analysisMarkup(pid)}
+${analysisMarkup(pid, {visual: true})}
 </div>
 </section>`;
 }
@@ -493,12 +508,23 @@ function createFinalExercisePanel() {
     code: role("final-code"), run: role("final-run"), reset: role("final-reset"),
     prompt: role("final-prompt"),
     output: role("output"), clear: role("clear"),
+    visual: role("visual"), visualControls: role("visual-controls"),
     metrics: role("metrics"), history: role("history"), timeline: role("timeline"),
     summary: role("summary"), moves: role("moves"), zoom: role("zoom"),
     download: role("download"), traces: [], activeTrace: null,
   };
   panel.timeline.owner = panel;
   panel.prompt.textContent = exercise.prompt;
+  panel.visualControls.replaceChildren();
+  for (const item of exercise.visuals ?? []) {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.dataset.visual = item.id;
+    input.checked = true;
+    label.append(input, document.createTextNode(` ${item.label}`));
+    panel.visualControls.append(label);
+  }
   panel.code.value = finalCode ?? exercise.template ?? "";
   let saveTimer = null;
   const pushFinalFile = () => {
@@ -537,9 +563,18 @@ function createFinalExercisePanel() {
     } catch (e) {}
   };
   setInterval(syncFinalFile, 1000);
-  panel.run.onclick = () => post("/api/run", {
-    op: "eval", mode: "single", demo: "final", code: panel.code.value,
-  });
+  panel.run.onclick = () => {
+    const visuals = [...panel.el.querySelectorAll("[data-visual]:checked")]
+      .map(input => input.dataset.visual);
+    if (panel.visual) {
+      panel.visual.textContent = visuals.length
+        ? "Rendering selected fields after the run…"
+        : "No visualization selected.";
+    }
+    post("/api/run", {
+      op: "eval", mode: "single", demo: "final", code: panel.code.value, visuals,
+    });
+  };
   panel.clear.onclick = () => panel.output.replaceChildren();
   panel.moves.onchange = panel.zoom.oninput = () => draw(panel);
   panel.download.onclick = () => {
@@ -1010,7 +1045,16 @@ function event(item) {
     if (pane.traces.length > 20) pane.traces.shift();
     pane.activeTrace = trace;
     draw(pane);
+  } else if (item.kind === "visual") {
+    const pane = paneFor(item);
+    if (!pane || !pane.visual) return;
+    pane.visual.replaceChildren();
+    if (item.error) pane.visual.textContent = `Visualization failed: ${item.error}`;
+    else ansi(pane.visual, item.text || "No visualization selected.");
   } else if (item.kind === "error" || (item.kind === "done" && !item.ok)) {
+    const pane = paneFor(item);
+    if (pane && pane.visual && (item.demo === "final" || pane.demo === "final"))
+      pane.visual.textContent = "Visualization skipped: the run failed.";
     alertError(item.error);
   }
 }

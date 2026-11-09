@@ -130,6 +130,10 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn("syncFinalFile", page)
         self.assertGreaterEqual(page.count("Task timeline"), 2)
         self.assertGreaterEqual(page.count("Session output"), 2)
+        self.assertIn('id="${pid}-visual"', page)
+        self.assertIn('data-role="visual"', page)
+        self.assertIn("visuals,", page)
+        self.assertIn('item.kind === "visual"', page)
         # Session output comes first in every pane; the timeline follows it.
         for function in ("function analysisMarkup", "function paneMarkup"):
             body = page[page.index(function):]
@@ -143,10 +147,11 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn("streamfunction-vorticity", final["prompt"])
         self.assertIn("A = ???", final["template"])
         self.assertIn("F = ???", final["template"])
-        self.assertIn("UnicodePlots", final["template"])
-        self.assertIn("heatmap(permutedims(omega)", final["template"])
-        self.assertIn("contourplot(", final["template"])
-        self.assertIn("lineplot(u[nx ÷ 2, :]", final["template"])
+        # The visualization code lives in the harness, not in the template.
+        self.assertNotIn("UnicodePlots", final["template"])
+        self.assertNotIn("heatmap(", final["template"])
+        self.assertEqual([item["id"] for item in app.FINAL_VISUALS],
+                         ["vorticity", "streamfunction", "velocity"])
 
     def test_final_exercise_eval_is_allowed(self):
         c = console()
@@ -154,6 +159,18 @@ class ConsoleTests(unittest.TestCase):
         c.run(dict(op="eval", mode="single", demo="final", code="x = 1"))
         command = c.send.call_args[0][0]
         self.assertEqual(command["label"], "Final Exercise")
+
+    def test_final_exercise_visuals_are_whitelisted(self):
+        c = console()
+        c.send = Mock()
+        c.run(dict(op="eval", mode="single", demo="final", code="x = 1",
+                   visuals=["vorticity", "velocity"]))
+        command = c.send.call_args[0][0]
+        self.assertEqual(command["visuals"], ["vorticity", "velocity"])
+        c.busy = False
+        with self.assertRaisesRegex(ValueError, "Unknown visualization"):
+            c.run(dict(op="eval", mode="single", demo="final", code="x = 1",
+                       visuals=["bogus"]))
 
     def test_agent_status_and_install_are_whitelisted(self):
         with patch.object(app.shutil, "which", return_value="/usr/bin/opencode"):
@@ -373,6 +390,7 @@ class ConsoleTests(unittest.TestCase):
         with tarfile.open(fileobj=io.BytesIO(app.snapshot())) as archive:
             names = archive.getnames()
         self.assertIn("host/worker.jl", names)
+        self.assertIn("host/final_visuals.jl", names)
         self.assertIn("demos/presentation.jl", names)
         self.assertFalse(any("results/" in n or "Manifest" in n or "Preferences" in n for n in names))
 

@@ -222,7 +222,8 @@ function renderVisualization(container, data, selected = null) {
     container.append(empty);
     return;
   }
-  let chosen = new Set(selected ?? data.types ?? available);
+  let chosen = new Set((selected ?? data.types ?? available)
+    .filter(type => available.includes(type)));
   const ranges = {
     vorticity: visualSeriesRange(frames, "omega", true, 0.9),
     streamfunction: visualSeriesRange(frames, "psi", false, 0.9),
@@ -335,7 +336,7 @@ function renderVisualization(container, data, selected = null) {
   }
 
   container._visualApply = types => {
-    chosen = new Set(types);
+    chosen = new Set(types.filter(type => available.includes(type)));
     for (const card of cards) card.figure.hidden = !chosen.has(card.type);
     if (time) time.hidden = chosen.size === 0;
     empty.hidden = chosen.size > 0;

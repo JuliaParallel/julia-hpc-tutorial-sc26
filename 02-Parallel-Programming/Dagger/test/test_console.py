@@ -60,10 +60,12 @@ class ConsoleTests(unittest.TestCase):
                          [f"{n:02d}" for n in range(1, len(layout) + 1)])
         demos = [demo for section in layout for demo in section["demos"]]
         self.assertEqual(demos, [demo for demo, _, _ in app.DEMOS])
-        self.assertEqual(layout[0], dict(id="cpu", title="CPU", number="01",
+        self.assertEqual(layout[0], dict(id="julia", title="Julia basics",
+                                         number="01", demos=["00_julia"]))
+        self.assertEqual(layout[1], dict(id="cpu", title="CPU", number="02",
                                          demos=["01_tasks", "02_datadeps"]))
-        self.assertEqual(layout[1]["demos"], ["03_gpu"])
-        self.assertEqual(layout[1]["title"], "Single GPU")
+        self.assertEqual(layout[2]["demos"], ["03_gpu"])
+        self.assertEqual(layout[2]["title"], "Single GPU")
 
     def test_exercises_cover_the_hands_on_demos(self):
         exercises = app.exercises()

@@ -21,6 +21,7 @@ check() {
 }
 export SC26_NODES=1
 export SC26_STEP_TIME="${SC26_STEP_TIME:-00:05:00}"
+check julia-basics bash frontier/launch.sh 1 demos/00_julia.jl
 check tasks bash frontier/launch.sh 1 demos/01_tasks.jl
 check datadeps bash frontier/launch.sh 1 demos/02_datadeps.jl
 check gpu-demo bash frontier/launch.sh 1 demos/03_gpu.jl

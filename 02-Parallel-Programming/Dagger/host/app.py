@@ -35,6 +35,7 @@ import webbrowser
 ROOT = Path(__file__).resolve().parents[1]
 PREFIX = "@@SC26@@"
 DEMOS = [
+    ("00_julia", "Julia basics", "single"),
     ("01_tasks", "Tasks & dependencies", "single"),
     ("02_datadeps", "Mutable data & tiles", "single"),
     ("03_gpu", "Single GPU", "single"),
@@ -44,6 +45,7 @@ DEMOS = [
 ]
 # Demos that share one page section. Everything else gets its own section.
 SECTIONS = [
+    ("julia", "Julia basics", ["00_julia"]),
     ("cpu", "CPU", ["01_tasks", "02_datadeps"]),
 ]
 # Proposed hands-on exercise for the demos that use it. The console shows the

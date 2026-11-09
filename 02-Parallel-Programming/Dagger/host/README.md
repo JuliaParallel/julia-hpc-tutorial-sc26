@@ -213,9 +213,10 @@ incomplete editable template, and runs it in the single-process worker; the
 factorization can be `cholesky(Symmetric(A))` or the tiled Cholesky from the
 earlier exercise. Above the task timeline, a **Visualization** panel lets
 attendees pick the vorticity field, the streamfunction contours (streamlines),
-and the centreline velocity profile. The worker renders the selection after a
-successful run, so the plotting code stays out of the submitted script and the
-console source. The panel also reports the primary vortex location. The
+and the centreline velocity profile. The worker returns those fields after a
+successful run and the console draws high-resolution canvas plots, so the
+plotting code stays out of the submitted script and the console source. The
+panel also reports the primary vortex location. The
 same page has a collapsible **Use your agents** panel with
 OpenCode, Claude, and Codex buttons. Each opens an embedded terminal in the page
 and runs the agent in a local PTY on the machine running the console (not on

@@ -132,7 +132,7 @@ ${collapseButton(pid + "-visual-body", pid + "-visual-title")}
 </div>
 <div class="panel-body" id="${pid}-visual-body">
 <div class="visual-controls" data-role="visual-controls"></div>
-<pre class="output visual" data-role="visual" aria-live="polite">Choose fields, then run the simulation.</pre>
+<div class="visual-grid" data-role="visual" aria-live="polite"><p class="visual-note">Choose fields, then run the simulation.</p></div>
 </div>
 </section>` : "";
   return `
@@ -1048,9 +1048,7 @@ function event(item) {
   } else if (item.kind === "visual") {
     const pane = paneFor(item);
     if (!pane || !pane.visual) return;
-    pane.visual.replaceChildren();
-    if (item.error) pane.visual.textContent = `Visualization failed: ${item.error}`;
-    else ansi(pane.visual, item.text || "No visualization selected.");
+    renderVisualization(pane.visual, item);
   } else if (item.kind === "error" || (item.kind === "done" && !item.ok)) {
     const pane = paneFor(item);
     if (pane && pane.visual && (item.demo === "final" || pane.demo === "final"))

@@ -132,6 +132,8 @@ class ConsoleTests(unittest.TestCase):
         self.assertGreaterEqual(page.count("Session output"), 2)
         self.assertIn('id="${pid}-visual"', page)
         self.assertIn('data-role="visual"', page)
+        self.assertIn('class="visual-grid"', page)
+        self.assertIn("renderVisualization", page)
         self.assertIn("visuals,", page)
         self.assertIn('item.kind === "visual"', page)
         # Session output comes first in every pane; the timeline follows it.
@@ -420,6 +422,9 @@ class ConsoleTests(unittest.TestCase):
             caught.exception.close()
             with urllib.request.urlopen(base+"/ansi.js") as response:
                 self.assertEqual(response.status, 200)
+            with urllib.request.urlopen(base+"/visuals.js") as response:
+                self.assertEqual(response.status, 200)
+                self.assertIn(b"renderVisualization", response.read())
         finally:
             server.shutdown()
             server.server_close()

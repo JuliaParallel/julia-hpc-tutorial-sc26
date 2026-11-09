@@ -194,7 +194,7 @@ function visualSeriesRange(frames, field, symmetric, percentile) {
   return visualRange(rows, symmetric, percentile);
 }
 
-function renderVisualization(container, data) {
+function renderVisualization(container, data, selected = null) {
   if (container._visualTimer) {
     clearInterval(container._visualTimer);
     container._visualTimer = null;
@@ -208,26 +208,30 @@ function renderVisualization(container, data) {
     container.append(error);
     return;
   }
-  const types = data.types || [];
-  if (!types.length) {
-    const empty = document.createElement("p");
-    empty.className = "visual-note";
-    empty.textContent = "No visualization selected.";
-    container.append(empty);
-    return;
-  }
   const frames = Array.isArray(data.frames) && data.frames.length
     ? data.frames
     : [{omega: data.omega, psi: data.psi}];
+  const sample = frames[0] || {};
+  const available = [];
+  if (sample.omega) available.push("vorticity");
+  if (sample.psi) available.push("streamfunction");
+  if (!available.length) {
+    const empty = document.createElement("p");
+    empty.className = "visual-note";
+    empty.textContent = "No fields were returned by the run.";
+    container.append(empty);
+    return;
+  }
+  let chosen = new Set(selected ?? data.types ?? available);
   const ranges = {
     vorticity: visualSeriesRange(frames, "omega", true, 0.9),
     streamfunction: visualSeriesRange(frames, "psi", false, 0.9),
   };
   const cards = [];
-  let slider = null, stepLabel = null, play = null;
+  let slider = null, stepLabel = null, play = null, time = null;
 
   if (frames.length > 1) {
-    const time = document.createElement("div");
+    time = document.createElement("div");
     time.className = "visual-time";
     play = document.createElement("button");
     play.type = "button";
@@ -246,33 +250,43 @@ function renderVisualization(container, data) {
     container.append(time);
   }
 
-  for (const type of types) {
+  for (const type of available) {
     const figure = document.createElement("figure");
     figure.className = "visual-card";
+    figure.hidden = !chosen.has(type);
     const caption = document.createElement("figcaption");
     const canvas = document.createElement("canvas");
     figure.append(caption, canvas);
     container.append(figure);
     if (type === "vorticity") {
       caption.textContent = "Vorticity ω · blue negative, red positive";
-      cards.push({canvas, type, options: {
+      cards.push({canvas, figure, type, options: {
         colormap: "coolwarm", symmetric: true, percentile: 0.9,
         contours: true, levels: 1, contourRange: [0, 0],
         contourColor: "rgba(20, 30, 40, 0.45)", contourN: 128,
         range: ranges.vorticity,
       }});
-    } else if (type === "streamfunction") {
+    } else {
       caption.textContent = "Streamfunction ψ · streamlines";
-      cards.push({canvas, type, options: {
+      cards.push({canvas, figure, type, options: {
         colormap: "viridis", symmetric: false, contours: true, levels: 9,
         contourN: 128, range: ranges.streamfunction,
       }});
     }
   }
 
+  const empty = document.createElement("p");
+  empty.className = "visual-note";
+  empty.textContent = "No visualization selected.";
+  empty.hidden = chosen.size > 0;
+  container.append(empty);
+
+  let current = 0;
   const draw = index => {
+    current = index;
     const frame = frames[index];
     for (const card of cards) {
+      if (card.figure.hidden) continue;
       const rows = card.type === "vorticity" ? frame.omega : frame.psi;
       visualField(card.canvas, container, rows, card.options);
     }
@@ -310,12 +324,25 @@ function renderVisualization(container, data) {
     };
   }
 
-  draw(0);
+  let vortexNote = null;
   if (data.vortex) {
-    const note = document.createElement("p");
-    note.className = "visual-note";
-    note.textContent = `Primary vortex: ψ = ${data.vortex.psi} at ` +
+    vortexNote = document.createElement("p");
+    vortexNote.className = "visual-note";
+    vortexNote.textContent = `Primary vortex: ψ = ${data.vortex.psi} at ` +
       `x = ${data.vortex.x}, y = ${data.vortex.y}`;
-    container.append(note);
+    vortexNote.hidden = chosen.size === 0;
+    container.append(vortexNote);
   }
+
+  container._visualApply = types => {
+    chosen = new Set(types);
+    for (const card of cards) card.figure.hidden = !chosen.has(card.type);
+    if (time) time.hidden = chosen.size === 0;
+    empty.hidden = chosen.size > 0;
+    if (vortexNote) vortexNote.hidden = chosen.size === 0;
+    draw(current);
+  };
+
+  if (time) time.hidden = chosen.size === 0;
+  draw(0);
 }

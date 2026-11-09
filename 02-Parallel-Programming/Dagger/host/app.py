@@ -167,55 +167,88 @@ FINAL_EXERCISE = dict(
         Each time step:
         1. Advect and diffuse the vorticity omega explicitly.
         2. Solve the Poisson equation
-               laplacian(psi) = -omega
+               -laplacian(psi) = omega            (A psi = omega)
            with psi = 0 on all walls.
         3. Compute u = d psi / d y and v = -d psi / d x.
         4. Update the wall vorticity from the lid velocity.
         5. Repeat to steady state.
 
-        The 5-point Laplacian for psi is symmetric positive definite, so
-        Cholesky applies. The matrix is constant: factor it once and reuse
-        the factor for every time step. For a small dense grid, use
-        cholesky(Symmetric(A)); for the Dagger exercise, use your
-        my_cholesky! implementation.
+        The 5-point operator A = -laplacian is symmetric positive
+        definite, so Cholesky applies. The matrix is constant: factor it
+        once and reuse the factor for every time step. For a small dense
+        grid, use cholesky(Symmetric(A)); for the Dagger exercise, use
+        your my_cholesky! implementation.
 
-        Fill in the template below and run it. Print or plot the final
-        streamfunction and vorticity.
+        Fill in the three missing pieces in the template and run it. The
+        plotting code at the end is given: it draws the vorticity field,
+        the streamfunction contours (streamlines), and the centreline
+        velocity.
     """),
     template=textwrap.dedent("""\
         # Final exercise: 2D lid-driven cavity in streamfunction-vorticity form.
-        # Fill in the missing steps, then run.
+        # Fill in the three missing pieces, then run. The plotting code at the
+        # bottom is given: it only needs omega, psi, and u from your solution.
 
-        using Dagger, LinearAlgebra, Random
+        using Dagger, LinearAlgebra, Statistics, UnicodePlots
 
         nx, ny = 32, 32
         h = 1.0 / (nx - 1)
-        dt = 0.001
+        dt = 0.01
         nu = 0.01
-        nsteps = 500
+        nsteps = 1000
+        lid = 1.0
 
-        omega = zeros(nx, ny)
-        psi = zeros(nx, ny)
+        omega = zeros(nx, ny)   # vorticity
+        psi = zeros(nx, ny)     # streamfunction
+        u = zeros(nx, ny)       # x velocity
+        v = zeros(nx, ny)       # y velocity
 
-        # 1. Build the 5-point Laplacian A for psi with psi = 0 on the walls.
+        # 1. Build the 5-point Laplacian A = -d2/dx2 - d2/dy2 on the interior nodes.
+        #    psi = 0 on every wall, so the unknowns are the (nx-2) x (ny-2) interior.
+        #    Number them like vec(omega[2:end-1, 2:end-1]) (x varies fastest), so
+        #    the diagonal is 4/h^2 and every interior neighbour is -1/h^2.
         A = ???
 
-        # 2. Factor A once with Cholesky.
+        # 2. Factor A once with Cholesky. A is symmetric positive definite, and
+        #    the matrix never changes, so every time step can reuse F.
         F = ???
 
         # 3. Time loop.
         for step in 1:nsteps
-            # Advect and diffuse omega (explicit).
+            # Advect and diffuse omega explicitly in the interior. Use a copy
+            # (or a separate domega array): the stencil reads the neighbours.
             # TODO
 
-            # Solve A psi = -omega.
+            # Solve A psi = omega in the interior with the cached factor.
             # TODO
 
-            # Update wall vorticity and compute u, v.
+            # u = d psi/dy, v = -d psi/dx, then update the wall vorticity (Thom):
+            #   omega_wall = -2 psi_next_to_wall / h^2, minus 2 lid / h on the top.
             # TODO
         end
 
-        println("final vorticity range: ", extrema(omega))
+        # 4. Visuals (given -- no need to change).
+        showplot(p) = (show(IOContext(stdout, :color => !haskey(ENV, "NO_COLOR")),
+                            MIME"text/plain"(), p); println())
+        z = quantile(abs.(vec(omega[2:end-1, 2:end-1])), 0.9)   # clip the wall layer
+        showplot(heatmap(permutedims(omega);
+                         title = "vorticity ω  (clipped at ±$(round(z, digits = 1)))",
+                         xlabel = "x", ylabel = "y", xfact = 1 / (nx - 1),
+                         yfact = 1 / (ny - 1), zlim = (-z, z),
+                         colormap = :coolwarm, width = nx, height = ny ÷ 2))
+        showplot(contourplot(range(0, 1, length = nx), range(0, 1, length = ny),
+                             permutedims(psi);
+                             title = "streamfunction ψ (streamlines)", xlabel = "x",
+                             ylabel = "y", width = 50, height = 25, levels = 8,
+                             colormap = :viridis))
+        showplot(lineplot(u[nx ÷ 2, :], range(0, 1, length = ny);
+                          title = "u(y) at x = 0.5", xlabel = "u", ylabel = "y",
+                          width = 50, height = 14, canvas = BlockCanvas))
+
+        k = argmin(psi)
+        println("primary vortex: psi = ", round(psi[k], digits = 3),
+                " at x = ", round((k[1] - 1) * h, digits = 2),
+                ", y = ", round((k[2] - 1) * h, digits = 2))
     """),
 )
 

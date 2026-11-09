@@ -130,6 +130,12 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn("syncFinalFile", page)
         self.assertGreaterEqual(page.count("Task timeline"), 2)
         self.assertGreaterEqual(page.count("Session output"), 2)
+        # Session output comes first in every pane; the timeline follows it.
+        for function in ("function analysisMarkup", "function paneMarkup"):
+            body = page[page.index(function):]
+            body = body[:body.index("\n}")]
+            self.assertLess(body.index('id="${pid}-output"'),
+                            body.index('id="${pid}-timeline"'), function)
 
     def test_final_exercise_is_configured(self):
         final = app.FINAL_EXERCISE

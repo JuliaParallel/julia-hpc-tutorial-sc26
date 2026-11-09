@@ -122,6 +122,19 @@ function collapseButton(target, label) {
 
 function analysisMarkup(pid) {
   return `
+<section class="panel" id="${pid}-output">
+<div class="panel-head">
+<h3 id="${pid}-output-title">Session output</h3>
+<div class="panel-tools">
+<button data-role="clear">Clear display</button>
+${collapseButton(pid + "-output-body", pid + "-output-title")}
+</div>
+</div>
+<div class="panel-body" id="${pid}-output-body">
+<pre class="output" data-role="output" aria-live="polite">Waiting for a run.
+</pre>
+</div>
+</section>
 <section class="panel timeline-panel" id="${pid}-timeline">
 <div class="panel-head">
 <h3 id="${pid}-timeline-title">Task timeline</h3>
@@ -154,19 +167,6 @@ ${collapseButton(pid + "-timeline-body", pid + "-timeline-title")}
 <p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Run again to see a warm session.</p>
 <div class="summary" data-role="summary">
 </div>
-</div>
-</section>
-<section class="panel" id="${pid}-output">
-<div class="panel-head">
-<h3 id="${pid}-output-title">Session output</h3>
-<div class="panel-tools">
-<button data-role="clear">Clear display</button>
-${collapseButton(pid + "-output-body", pid + "-output-title")}
-</div>
-</div>
-<div class="panel-body" id="${pid}-output-body">
-<pre class="output" data-role="output" aria-live="polite">Waiting for a run.
-</pre>
 </div>
 </section>`;
 }
@@ -325,6 +325,19 @@ fetch(a)</textarea>
 </div>
 </section>
 </div>
+<section class="panel" id="${pid}-output">
+<div class="panel-head">
+<h3 id="${pid}-output-title">Session output</h3>
+<div class="panel-tools">
+<button data-role="clear">Clear display</button>
+${collapse(pid + "-output-body", pid + "-output-title")}
+</div>
+</div>
+<div class="panel-body" id="${pid}-output-body">
+<pre class="output" data-role="output" aria-live="polite">Waiting for a run.
+</pre>
+</div>
+</section>
 <section class="panel timeline-panel" id="${pid}-timeline" data-pane="${id}">
 <div class="panel-head">
 <h3 id="${pid}-timeline-title">Task timeline</h3>
@@ -357,19 +370,6 @@ ${collapse(pid + "-timeline-body", pid + "-timeline-title")}
 <p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Run again to see a warm session.</p>
 <div class="summary" data-role="summary">
 </div>
-</div>
-</section>
-<section class="panel" id="${pid}-output">
-<div class="panel-head">
-<h3 id="${pid}-output-title">Session output</h3>
-<div class="panel-tools">
-<button data-role="clear">Clear display</button>
-${collapse(pid + "-output-body", pid + "-output-title")}
-</div>
-</div>
-<div class="panel-body" id="${pid}-output-body">
-<pre class="output" data-role="output" aria-live="polite">Waiting for a run.
-</pre>
 </div>
 </section>
 </div>

@@ -72,6 +72,19 @@ function inject_frame_capture(expr)
     end
     loop = find_loop(expr)
     loop === nothing && return false
+    # Run 16 more sampling frames than the submitted code asked for. The
+    # stride matches the sampler below, so the extra steps are exactly 16
+    # additional frames at the same spacing.
+    iterator = loop.args[1]
+    if iterator isa Expr && iterator.head == :(=) && length(iterator.args) == 2
+        range = iterator.args[2]
+        if range isa Expr && range.head == :call && range.args[1] == :(:)
+            upper = range.args[end]
+            if contains_symbol(upper, :nsteps)
+                range.args[end] = :(($upper) + 16 * max(1, ($upper) ÷ 24))
+            end
+        end
+    end
     body = loop.args[2]
     if !(body isa Expr && body.head == :block)
         body = Expr(:block, body)
@@ -84,7 +97,7 @@ function inject_frame_capture(expr)
             if __sc26_tick == 1
                 __sc26_stride = max(1, nsteps ÷ 24)
             end
-            if (__sc26_tick - 1) % __sc26_stride == 0
+            if __sc26_tick > 1 && (__sc26_tick - 1) % __sc26_stride == 0
                 push!(__sc26_frames, (; omega = copy(omega), psi = copy(psi)))
             end
         catch

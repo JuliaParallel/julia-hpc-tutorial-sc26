@@ -214,8 +214,9 @@ streamfunction-vorticity form. It explains the Poisson solve, provides an
 incomplete editable template, and runs it in the single-process worker; the
 factorization can be `cholesky(Symmetric(A))` or the tiled Cholesky from the
 earlier exercise. Above the task timeline, a **Visualization** panel shows the
-vorticity field and the streamfunction contours (streamlines) side by side.
-The worker returns those fields after a successful run and the console draws
+vorticity field and the streamfunction contours (streamlines) side by side,
+with a slider and Play button that replay the sampled time steps. The worker
+returns those fields after a successful run and the console draws
 high-resolution canvas plots, so the plotting code stays out of the submitted
 script and the console source. The panel also reports the primary vortex
 location. The same page has a collapsible **Use your agents** panel with

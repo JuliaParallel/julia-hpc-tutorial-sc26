@@ -837,7 +837,7 @@ function buildSidebar() {
   finalButton.dataset.final = "1";
   const finalNumber = document.createElement("span");
   finalNumber.className = "num";
-  finalNumber.textContent = "07";
+  finalNumber.textContent = String(config.sections.length + 1).padStart(2, "0");
   finalButton.append(finalNumber, document.createTextNode("Final Exercise"));
   finalButton.onclick = () => showFinal();
   nav.append(finalButton);

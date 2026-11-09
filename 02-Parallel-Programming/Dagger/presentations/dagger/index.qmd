@@ -531,7 +531,7 @@ The entry script demos/06_multinode.jl requires two MPI ranks, checks the
 assembled result, and reports where the tile tasks executed. Run the shell
 command in the existing one-node allocation. MPI coordinates separate processes
 on either one host or several; only launcher placement changes.
-The attendee launch remains bash frontier/launch.sh 2 demos/04_mpi.jl on one node.
+The attendee launch remains bash frontier/launch.sh 2 demos/06_multinode.jl on one node.
 That exercises the programming model without claiming inter-server communication.
 The same-node demo does not measure inter-node network performance.
 No additional attendee or presenter nodes are required.

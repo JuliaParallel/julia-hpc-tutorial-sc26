@@ -72,7 +72,7 @@ one marked `Host sc26-odo-<user>` entry in `~/.ssh/config`, and opens the SSH
 connection; a working `odo` alias is reused untouched. The console then
 connects to Odo, prepares packages on the login node, and manages your
 one-node allocation and persistent Julia workers.
-It offers all seven demos, a multiline Julia evaluator, an exercise editor that
+It offers all six demos, a multiline Julia evaluator, an exercise editor that
 runs the harness on CPU, GPU, or MPI, a final Gray-Scott reaction-diffusion
 exercise with side-by-side substrate and activator visualizations with time
 scrubbing, an embedded local
@@ -146,7 +146,7 @@ export SC26_NODES=1
 bash frontier/launch.sh 1 demos/05_multigpu.jl          # one product, two GPUs
 bash frontier/launch.sh 1 demos/05_multigpu.jl --gpus=4 # one product, four GPUs
 SC26_GPUS_PER_TASK=2 bash frontier/run.sh 1 --impl=solution --target=gpu --gpus=all
-bash frontier/launch.sh 2 demos/04_mpi.jl
+bash frontier/launch.sh 2 demos/06_multinode.jl
 bash frontier/run.sh 2 --impl=solution --mpi --strict
 bash frontier/launch.sh 4 demos/05_multigpu.jl --mpi
 bash frontier/run.sh 4 --impl=solution --mpi --strict --target=gpu

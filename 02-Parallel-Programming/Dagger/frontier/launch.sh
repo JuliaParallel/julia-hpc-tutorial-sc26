@@ -1,6 +1,6 @@
 #!/bin/bash
 # Launch Julia in an existing allocation, including from its login-node shell:
-# SLURM_JOB_ID=123 SC26_NODES=1 bash frontier/launch.sh 4 demos/04_mpi.jl
+# SLURM_JOB_ID=123 SC26_NODES=1 bash frontier/launch.sh 4 demos/06_multinode.jl
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 : "${SLURM_JOB_ID:?Obtain an allocation with frontier/allocate.sh first}"

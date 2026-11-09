@@ -208,7 +208,7 @@ FINAL_EXERCISE = dict(
         dt = 1.0
         Du, Dv = 0.16, 0.08
         F, k = 0.055, 0.062
-        nsteps = 3000
+        nsteps = 3600
 
         Random.seed!(42)
         u = ones(n, n)

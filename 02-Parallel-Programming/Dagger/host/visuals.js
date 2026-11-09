@@ -19,11 +19,22 @@ function visualColor(name, t) {
 
 function visualSample(rows, nx, ny, x, y) {
   const fx = x * (nx - 1), fy = y * (ny - 1);
-  const i = Math.max(0, Math.min(nx - 2, Math.floor(fx)));
-  const j = Math.max(0, Math.min(ny - 2, Math.floor(fy)));
+  const i = Math.floor(fx), j = Math.floor(fy);
   const tx = fx - i, ty = fy - j;
-  const a = rows[i][j], b = rows[i + 1][j], c = rows[i][j + 1], d = rows[i + 1][j + 1];
-  return (1 - tx) * (1 - ty) * a + tx * (1 - ty) * b + (1 - tx) * ty * c + tx * ty * d;
+  const at = (a, b) => rows[Math.max(0, Math.min(nx - 1, a))]
+                            [Math.max(0, Math.min(ny - 1, b))];
+  // Catmull-Rom bicubic upsampling: smoother than bilinear when a 128-cell
+  // field is stretched over several hundred screen pixels.
+  const cubic = (p0, p1, p2, p3, t) => {
+    const t2 = t * t, t3 = t2 * t;
+    return 0.5 * (2 * p1 + (-p0 + p2) * t +
+                  (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+                  (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+  };
+  const cols = [0, 1, 2, 3].map(k => cubic(
+    at(i - 1 + k, j - 1), at(i - 1 + k, j),
+    at(i - 1 + k, j + 1), at(i - 1 + k, j + 2), ty));
+  return cubic(cols[0], cols[1], cols[2], cols[3], tx);
 }
 
 function visualResample(rows, N) {

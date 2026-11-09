@@ -53,6 +53,45 @@ function workspace_value(name, default = nothing)
         err isa UndefVarError ? default : rethrow()
     end
 end
+
+# Capture (omega, psi) snapshots for the time slider without putting logging
+# code in the student's template: append a guarded push to the main time loop.
+contains_symbol(x, s) = x === s || (x isa Expr && any(a -> contains_symbol(a, s), x.args))
+
+function inject_frame_capture(expr)
+    function find_loop(x)
+        x isa Expr || return nothing
+        if x.head == :for && length(x.args) == 2 && contains_symbol(x.args[1], :nsteps)
+            return x
+        end
+        for arg in x.args
+            found = find_loop(arg)
+            found === nothing || return found
+        end
+        return nothing
+    end
+    loop = find_loop(expr)
+    loop === nothing && return false
+    body = loop.args[2]
+    if !(body isa Expr && body.head == :block)
+        body = Expr(:block, body)
+        loop.args[2] = body
+    end
+    push!(body.args, quote
+        try
+            global __sc26_tick, __sc26_stride
+            __sc26_tick += 1
+            if __sc26_tick == 1
+                __sc26_stride = max(1, nsteps ÷ 24)
+            end
+            if (__sc26_tick - 1) % __sc26_stride == 0
+                push!(__sc26_frames, (; omega = copy(omega), psi = copy(psi)))
+            end
+        catch
+        end
+    end)
+    return true
+end
 RANK == 0 && DemoPresentation.emit("worker_ready"; mode=USE_MPI ? "mpi" : "single")
 
 while true
@@ -114,8 +153,14 @@ while true
         elseif command.op == "eval"
             code = String(command.code)
             demo = haskey(command, :demo) && command.demo !== nothing ? String(command.demo) : nothing
+            expr = Meta.parseall(code)
+            if demo == "final"
+                Core.eval(WORKSPACE, :(__sc26_frames = Any[]; __sc26_tick = 0;
+                                        __sc26_stride = 1))
+                inject_frame_capture(expr)
+            end
             DemoPresentation.present(; title="REPL", demo=demo, source=code, mpi=USE_MPI ? MPI : nothing) do
-                result = Core.eval(WORKSPACE, Meta.parseall(code))
+                result = Core.eval(WORKSPACE, expr)
                 if RANK == 0 && result !== nothing
                     show(stdout, MIME"text/plain"(), result)
                     println()
@@ -131,7 +176,8 @@ while true
                         psi = workspace_value(:psi)
                         (omega isa AbstractMatrix && psi isa AbstractMatrix) ||
                             error("the run must leave omega and psi defined")
-                        data = FinalVisuals.payload(omega, psi)
+                        data = FinalVisuals.payload(omega, psi;
+                                                    frames = workspace_value(:__sc26_frames))
                         if get(ENV, "SC26_PORTAL", "0") == "1"
                             DemoPresentation.emit("visual"; demo=demo, types=types, data...)
                         else

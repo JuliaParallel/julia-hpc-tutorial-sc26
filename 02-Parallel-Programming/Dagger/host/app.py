@@ -191,7 +191,8 @@ FINAL_EXERCISE = dict(
         Fill in the three missing pieces in the template and run it. Choose
         the fields you want in the Visualization panel: the console plots
         them from the fields your run leaves behind, so no plotting code
-        belongs in your script.
+        belongs in your script. The panel samples the run and replays the
+        time steps with a slider and a Play button.
     """),
     template=textwrap.dedent("""\
         # Final exercise: 2D lid-driven cavity in streamfunction-vorticity form.

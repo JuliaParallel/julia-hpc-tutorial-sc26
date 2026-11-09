@@ -481,7 +481,44 @@ pre.visual {
   max-width:100%;
   border-radius:4px
 }
+.visual-time {
+  grid-column:1/-1;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:2px 0 4px
+}
+.visual-play {
+  flex:0 0 auto;
+  min-width:74px;
+  padding:6px 14px;
+  border:1px solid var(--border);
+  border-radius:4px;
+  background:var(--panel);
+  color:var(--text);
+  font:inherit;
+  font-size:12px;
+  cursor:pointer
+}
+.visual-play:hover {
+  border-color:var(--teal);
+  color:var(--teal)
+}
+.visual-slider {
+  flex:1 1 auto;
+  min-width:120px;
+  accent-color:var(--teal);
+  cursor:pointer
+}
+.visual-step {
+  flex:0 0 auto;
+  min-width:56px;
+  text-align:right;
+  color:var(--muted);
+  font:11px ui-monospace, monospace
+}
 .visual-note {
+  grid-column:1/-1;
   color:var(--muted);
   font-size:11px;
   margin:0

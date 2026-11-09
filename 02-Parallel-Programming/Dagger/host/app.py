@@ -204,7 +204,7 @@ FINAL_EXERCISE = dict(
 
         using Dagger, LinearAlgebra, Random
 
-        n = 128
+        n = 256
         dt = 1.0
         Du, Dv = 0.16, 0.08
         F, k = 0.055, 0.062

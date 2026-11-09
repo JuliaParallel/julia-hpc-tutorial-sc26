@@ -1,9 +1,11 @@
 // High-resolution canvas plots for the final exercise's Visualization panel.
-// The harness sends omega/psi/u; this file turns them into real figures.
+// The harness sends Gray-Scott u/v frames; this file turns them into plots.
 
 const VISUAL_COLORS = {
   coolwarm: [[59, 76, 192], [221, 221, 221], [180, 4, 38]],
   viridis: [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]],
+  cividis: [[0, 32, 76], [0, 67, 117], [42, 102, 124], [87, 139, 125], [135, 174, 110], [190, 206, 89], [249, 238, 77]],
+  magma: [[0, 0, 4], [40, 11, 84], [101, 21, 110], [159, 42, 99], [212, 72, 66], [245, 125, 21], [250, 193, 39], [252, 255, 164]],
 };
 
 function visualColor(name, t) {
@@ -31,10 +33,17 @@ function visualResample(rows, N) {
 }
 
 function visualRange(rows, symmetric, percentile) {
-  const values = [];
-  for (const row of rows) for (const v of row) values.push(v);
-  if (!symmetric) return [Math.min(...values), Math.max(...values)];
-  const mags = values.map(Math.abs).sort((a, b) => a - b);
+  if (!symmetric) {
+    let lo = Infinity, hi = -Infinity;
+    for (const row of rows) for (const v of row) {
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+    }
+    return [lo, hi];
+  }
+  const mags = [];
+  for (const row of rows) for (const v of row) mags.push(Math.abs(v));
+  mags.sort((a, b) => a - b);
   const at = Math.min(mags.length - 1, Math.floor(percentile * (mags.length - 1)));
   return [-mags[at], mags[at]];
 }
@@ -122,7 +131,7 @@ function visualColorbar(ctx, layout, colormap, min, max, dpr) {
 
 function visualField(canvas, container, rows, options) {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const {ctx, w, h} = visualCanvas(canvas, container, 0.72, dpr);
+  const {ctx, w, h} = visualCanvas(canvas, container, 0.82, dpr);
   const layout = {L: 46 * dpr, T: 12 * dpr, pw: 0, ph: 0, w, h};
   layout.pw = Math.max(1, Math.round(w - layout.L - 108 * dpr));
   layout.ph = Math.max(1, Math.round(h - layout.T - 42 * dpr));
@@ -194,6 +203,31 @@ function visualSeriesRange(frames, field, symmetric, percentile) {
   return visualRange(rows, symmetric, percentile);
 }
 
+function visualUnpack(encoded, nx, ny, range) {
+  const binary = atob(encoded);
+  const [lo, hi] = range;
+  const span = hi - lo || 1;
+  const rows = Array.from({length: nx}, () => new Float32Array(ny));
+  for (let i = 0; i < nx; i++) {
+    for (let j = 0; j < ny; j++) {
+      rows[i][j] = lo + (binary.charCodeAt(i + j * nx) / 255) * span;
+    }
+  }
+  return rows;
+}
+
+function visualFrames(data) {
+  const source = Array.isArray(data.frames) && data.frames.length
+    ? data.frames
+    : [{u: data.u, v: data.v}];
+  if (typeof source[0].u !== "string") return source;
+  const range = data.frame_range;
+  return source.map(frame => ({
+    u: visualUnpack(frame.u, data.nx, data.ny, range.u),
+    v: visualUnpack(frame.v, data.nx, data.ny, range.v),
+  }));
+}
+
 function renderVisualization(container, data, selected = null) {
   if (container._visualTimer) {
     clearInterval(container._visualTimer);
@@ -212,13 +246,11 @@ function renderVisualization(container, data, selected = null) {
     container.append(error);
     return;
   }
-  const frames = Array.isArray(data.frames) && data.frames.length
-    ? data.frames
-    : [{omega: data.omega, psi: data.psi}];
+  const frames = visualFrames(data);
   const sample = frames[0] || {};
   const available = [];
-  if (sample.omega) available.push("vorticity");
-  if (sample.psi) available.push("streamfunction");
+  if (sample.u) available.push("substrate");
+  if (sample.v) available.push("activator");
   if (!available.length) {
     const empty = document.createElement("p");
     empty.className = "visual-note";
@@ -230,8 +262,8 @@ function renderVisualization(container, data, selected = null) {
     .filter(type => available.includes(type)));
   container.classList?.toggle("single", chosen.size <= 1);
   const ranges = {
-    vorticity: visualSeriesRange(frames, "omega", true, 0.9),
-    streamfunction: visualSeriesRange(frames, "psi", false, 0.9),
+    substrate: visualSeriesRange(frames, "u", false, 0.9),
+    activator: visualSeriesRange(frames, "v", false, 0.9),
   };
   const cards = [];
   let slider = null, stepLabel = null, play = null, time = null;
@@ -264,19 +296,17 @@ function renderVisualization(container, data, selected = null) {
     const canvas = document.createElement("canvas");
     figure.append(caption, canvas);
     container.append(figure);
-    if (type === "vorticity") {
-      caption.textContent = "Vorticity ω · blue negative, red positive";
+    if (type === "substrate") {
+      caption.textContent = "Substrate u · Gray-Scott";
       cards.push({canvas, figure, type, options: {
-        colormap: "coolwarm", symmetric: true, percentile: 0.9,
-        contours: true, levels: 1, contourRange: [0, 0],
-        contourColor: "rgba(20, 30, 40, 0.45)", contourN: 128,
-        range: ranges.vorticity,
+        colormap: "magma", symmetric: false, contours: false,
+        contourN: 128, range: ranges.substrate,
       }});
     } else {
-      caption.textContent = "Streamfunction ψ · streamlines";
+      caption.textContent = "Activator v · Gray-Scott";
       cards.push({canvas, figure, type, options: {
-        colormap: "viridis", symmetric: false, contours: true, levels: 9,
-        contourN: 128, range: ranges.streamfunction,
+        colormap: "magma", symmetric: false, contours: false,
+        contourN: 128, range: ranges.activator,
       }});
     }
   }
@@ -293,7 +323,7 @@ function renderVisualization(container, data, selected = null) {
     const frame = frames[index];
     for (const card of cards) {
       if (card.figure.hidden) continue;
-      const rows = card.type === "vorticity" ? frame.omega : frame.psi;
+      const rows = card.type === "substrate" ? frame.u : frame.v;
       visualField(card.canvas, container, rows, card.options);
     }
     if (slider) slider.value = String(index);
@@ -330,14 +360,14 @@ function renderVisualization(container, data, selected = null) {
     };
   }
 
-  let vortexNote = null;
-  if (data.vortex) {
-    vortexNote = document.createElement("p");
-    vortexNote.className = "visual-note";
-    vortexNote.textContent = `Primary vortex: ψ = ${data.vortex.psi} at ` +
-      `x = ${data.vortex.x}, y = ${data.vortex.y}`;
-    vortexNote.hidden = chosen.size === 0;
-    container.append(vortexNote);
+  let paramsNote = null;
+  if (data.params && data.params.F != null) {
+    paramsNote = document.createElement("p");
+    paramsNote.className = "visual-note";
+    paramsNote.textContent = `Periodic Gray-Scott · F = ${data.params.F}, ` +
+      `k = ${data.params.k}`;
+    paramsNote.hidden = chosen.size === 0;
+    container.append(paramsNote);
   }
 
   container._visualApply = types => {
@@ -346,7 +376,7 @@ function renderVisualization(container, data, selected = null) {
     for (const card of cards) card.figure.hidden = !chosen.has(card.type);
     if (time) time.hidden = chosen.size === 0;
     empty.hidden = chosen.size > 0;
-    if (vortexNote) vortexNote.hidden = chosen.size === 0;
+    if (paramsNote) paramsNote.hidden = chosen.size === 0;
     draw(current);
   };
 

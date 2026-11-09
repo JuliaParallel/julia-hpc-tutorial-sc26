@@ -209,18 +209,18 @@ an editable, incomplete setup template: create the matrix, tile it with
 exercise** performs the same setup in the harness. The **Function** panel holds
 the `my_cholesky!` editor and the Reset/Run buttons.
 
-A seventh sidebar entry, **Final Exercise**, opens a 2D lid-driven cavity in
-streamfunction-vorticity form. It explains the Poisson solve, provides an
-incomplete editable template, and runs it in the single-process worker; the
-factorization can be `cholesky(Symmetric(A))` or the tiled Cholesky from the
-earlier exercise. Above the task timeline, a **Visualization** panel shows the
-vorticity field and the streamfunction contours (streamlines) side by side,
-with a slider and Play button that replay the sampled time steps. The worker
-returns those fields after a successful run and the console draws
-high-resolution canvas plots, so the plotting code stays out of the submitted
-script and the console source. The panel also reports the primary vortex
-location. The field checkboxes show or hide either picture immediately; no
-rerun is needed. The same page has a collapsible **Use your agents** panel with
+A seventh sidebar entry, **Final Exercise**, opens a Gray-Scott
+reaction-diffusion experiment on a periodic grid. It explains how to build the
+1D periodic Laplacian, factor the two ADI diffusion operators with Cholesky,
+and write the two half steps whose column and row solves are independent
+Dagger tasks. Above the task timeline, a **Visualization** panel shows the
+substrate u and activator v fields side by side, with a slider and Play button
+that replay the sampled time steps. The worker returns those fields after a
+successful run and the console draws high-resolution canvas plots, so the
+plotting code stays out of the submitted script and the console source. The
+panel also reports the F and k parameters. The field checkboxes show or hide
+either picture immediately; no rerun is needed. The same page has a collapsible
+**Use your agents** panel with
 OpenCode, Claude, and Codex buttons. Each opens an embedded terminal in the page
 and runs the agent in a local PTY on the machine running the console (not on
 Odo). The agent must be on `PATH`; the terminal endpoints accept requests only

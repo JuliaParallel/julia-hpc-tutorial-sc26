@@ -98,7 +98,7 @@ function inject_frame_capture(expr)
                 __sc26_stride = max(1, nsteps ÷ 24)
             end
             if __sc26_tick > 1 && (__sc26_tick - 1) % __sc26_stride == 0
-                push!(__sc26_frames, (; omega = copy(omega), psi = copy(psi)))
+                push!(__sc26_frames, (; u = copy(u), v = copy(v)))
             end
         catch
         end
@@ -184,18 +184,18 @@ while true
                 # plotting code stays out of the student's source and timeline.
                 types = String.(get(command, :visuals, String[]))
                 try
-                    omega = workspace_value(:omega)
-                    psi = workspace_value(:psi)
-                    (omega isa AbstractMatrix && psi isa AbstractMatrix) ||
-                        error("the run must leave omega and psi defined")
-                    data = FinalVisuals.payload(omega, psi;
-                                                frames = workspace_value(:__sc26_frames))
+                    u = workspace_value(:u)
+                    v = workspace_value(:v)
+                    (u isa AbstractMatrix && v isa AbstractMatrix) ||
+                        error("the run must leave u and v defined")
+                    data = FinalVisuals.payload(u, v;
+                                                frames = workspace_value(:__sc26_frames),
+                                                params = (; F = workspace_value(:F),
+                                                            k = workspace_value(:k)))
                     if get(ENV, "SC26_PORTAL", "0") == "1"
                         DemoPresentation.emit("visual"; demo=demo, types=types, data...)
                     else
-                        v = data.vortex
-                        println("primary vortex: psi = ", v.psi,
-                                " at x = ", v.x, ", y = ", v.y)
+                        println("u range: ", extrema(u), " v range: ", extrema(v))
                     end
                 catch err
                     message = sprint(showerror, err)

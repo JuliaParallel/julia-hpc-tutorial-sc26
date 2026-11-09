@@ -160,87 +160,90 @@ EXERCISE_PRIMER = textwrap.dedent("""\
 
 
 FINAL_VISUALS = [
-    dict(id="vorticity", label="Vorticity"),
-    dict(id="streamfunction", label="Streamfunction"),
+    dict(id="substrate", label="Substrate u"),
+    dict(id="activator", label="Activator v"),
 ]
 FINAL_VISUAL_IDS = tuple(item["id"] for item in FINAL_VISUALS)
 
 FINAL_EXERCISE = dict(
     title="Final Exercise",
     prompt=textwrap.dedent("""\
-        Final exercise: 2D lid-driven cavity
+        Final exercise: Gray-Scott reaction-diffusion
 
-        Solve the incompressible Navier-Stokes equations in
-        streamfunction-vorticity form on a small 2D grid.
+        Two chemicals diffuse and react on a periodic 2D grid:
+            du/dt = Du laplacian(u) - u v^2 + F (1 - u)
+            dv/dt = Dv laplacian(v) + u v^2 - (F + k) v
 
-        Each time step:
-        1. Advect and diffuse the vorticity omega explicitly.
-        2. Solve the Poisson equation
-               -laplacian(psi) = omega            (A psi = omega)
-           with psi = 0 on all walls.
-        3. Compute u = d psi / d y and v = -d psi / d x.
-        4. Update the wall vorticity from the lid velocity.
-        5. Repeat to steady state.
+        The feed and kill rates F = 0.055 and k = 0.062 produce a
+        labyrinth of spots and stripes. Use ADI splitting: each time
+        step is two half steps. In the first, x is implicit and y is
+        explicit; in the second, y is implicit and x is explicit.
+        Each half step solves one independent 1D system per column
+        or row, which is exactly the loop to parallelize with Dagger.
+        For the first half step,
+            rhs = u + dt/2 * (Du * (u * L) + reaction(u, v))
+        then solve with Fu for every column j; repeat for v with
+        Fv. The second half step uses L * u and solves rows i.
 
-        The 5-point operator A = -laplacian is symmetric positive
-        definite, so Cholesky applies. The matrix is constant: factor it
-        once and reuse the factor for every time step. For a small dense
-        grid, use cholesky(Symmetric(A)); for the Dagger exercise, use
-        your my_cholesky! implementation.
+        The 1D periodic Laplacian L is symmetric. The two implicit
+        operators
+            A_u = I - (dt/2) Du L       A_v = I - (dt/2) Dv L
+        are symmetric positive definite, so factor each once with
+        cholesky(Symmetric(A)) and reuse the factors every step.
+        For the Dagger exercise, use your my_cholesky! implementation.
 
-        Fill in the three missing pieces in the template and run it. Choose
-        the fields you want in the Visualization panel: the console plots
-        them from the fields your run leaves behind, so no plotting code
-        belongs in your script. The panel samples the run and replays the
-        time steps with a slider and a Play button.
+        Fill in L, Fu, Fv, and the two half steps, then run. The
+        Visualization panel draws substrate u and activator v side by
+        side and animates the sampled time steps; no plotting code
+        belongs in your script.
     """),
     template=textwrap.dedent("""\
-        # Final exercise: 2D lid-driven cavity in streamfunction-vorticity form.
-        # Fill in the three missing pieces, then run. Select the fields to draw
+        # Final exercise: Gray-Scott reaction-diffusion on a periodic grid.
+        # Fill in the missing pieces, then run. Select the fields to draw
         # in the Visualization panel; the console plots them after the run.
 
-        using Dagger, LinearAlgebra
+        using Dagger, LinearAlgebra, Random
 
-        nx, ny = 32, 32
-        h = 1.0 / (nx - 1)
-        dt = 0.01
-        nu = 0.01
-        nsteps = 1000
-        lid = 1.0
+        n = 128
+        dt = 1.0
+        Du, Dv = 0.16, 0.08
+        F, k = 0.055, 0.062
+        nsteps = 3000
 
-        omega = zeros(nx, ny)   # vorticity
-        psi = zeros(nx, ny)     # streamfunction
-        u = zeros(nx, ny)       # x velocity
-        v = zeros(nx, ny)       # y velocity
+        Random.seed!(42)
+        u = ones(n, n)
+        v = 0.01 .* rand(n, n)
+        for _ in 1:14
+            cx, cy = rand(6:n-5, 2)
+            v[cx-3:cx+3, cy-3:cy+3] .= 1.0
+            u[cx-3:cx+3, cy-3:cy+3] .= 0.5
+        end
 
-        # 1. Build the 5-point Laplacian A = -d2/dx2 - d2/dy2 on the interior nodes.
-        #    psi = 0 on every wall, so the unknowns are the (nx-2) x (ny-2) interior.
-        #    Number them like vec(omega[2:end-1, 2:end-1]) (x varies fastest), so
-        #    the diagonal is 4/h^2 and every interior neighbour is -1/h^2.
-        A = ???
+        # 1. Build the 1D periodic Laplacian L: diagonal -2, neighbour
+        #    entries +1, and the first/last rows wrap around.
+        L = ???
 
-        # 2. Factor A once with Cholesky. A is symmetric positive definite, and
-        #    the matrix never changes, so every time step can reuse F.
-        F = ???
+        # 2. Factor the implicit operators A_u = I - (dt/2) Du L and
+        #    A_v = I - (dt/2) Dv L with Cholesky. They are SPD and
+        #    constant, so one factorization serves every time step.
+        Fu = ???
+        Fv = ???
 
-        # 3. Time loop.
+        # 3. Time loop with ADI splitting. Each column/row solve is
+        #    independent; this is the loop to spawn as Dagger tasks.
+        ru = similar(u)
+        rv = similar(v)
         for step in 1:nsteps
-            # Advect and diffuse omega explicitly in the interior. Use a copy
-            # (or a separate domega array): the stencil reads the neighbours.
+            # First half step: y explicit (u * L), x implicit (Fu).
             # TODO
 
-            # Solve A psi = omega in the interior with the cached factor.
-            # TODO
-
-            # u = d psi/dy, v = -d psi/dx, then update the wall vorticity (Thom):
-            #   omega_wall = -2 psi_next_to_wall / h^2, minus 2 lid / h on the top.
+            # Second half step: x explicit (L * u), y implicit (Fv).
             # TODO
         end
 
-        println("vorticity range: ", extrema(omega))
+        println("u range: ", extrema(u), " v range: ", extrema(v))
     """),
 )
-
 
 FINAL_WORKSPACE = ROOT / "results" / "final-exercise"
 FINAL_FILE = FINAL_WORKSPACE / "final_exercise.jl"

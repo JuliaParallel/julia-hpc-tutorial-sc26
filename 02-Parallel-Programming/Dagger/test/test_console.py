@@ -146,14 +146,15 @@ class ConsoleTests(unittest.TestCase):
     def test_final_exercise_is_configured(self):
         final = app.FINAL_EXERCISE
         self.assertEqual(final["title"], "Final Exercise")
-        self.assertIn("streamfunction-vorticity", final["prompt"])
-        self.assertIn("A = ???", final["template"])
-        self.assertIn("F = ???", final["template"])
+        self.assertIn("Gray-Scott", final["prompt"])
+        self.assertIn("L = ???", final["template"])
+        self.assertIn("Fu = ???", final["template"])
+        self.assertIn("Fv = ???", final["template"])
         # The visualization code lives in the harness, not in the template.
         self.assertNotIn("UnicodePlots", final["template"])
         self.assertNotIn("heatmap(", final["template"])
         self.assertEqual([item["id"] for item in app.FINAL_VISUALS],
-                         ["vorticity", "streamfunction"])
+                         ["substrate", "activator"])
 
     def test_visualization_has_time_controls(self):
         page = (BASE / "host/visuals.js").read_text(encoding="utf-8")
@@ -162,6 +163,8 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn("data.frames", page)
         self.assertIn("setInterval", page)
         self.assertIn("_visualApply", page)
+        self.assertIn("visualUnpack", page)
+        self.assertIn("frame_range", page)
         script = (BASE / "host/app.js").read_text(encoding="utf-8")
         self.assertIn("_visualApply", script)
         fields = (BASE / "host/final_visuals.jl").read_text(encoding="utf-8")
@@ -178,9 +181,9 @@ class ConsoleTests(unittest.TestCase):
         c = console()
         c.send = Mock()
         c.run(dict(op="eval", mode="single", demo="final", code="x = 1",
-                   visuals=["vorticity", "streamfunction"]))
+                   visuals=["substrate", "activator"]))
         command = c.send.call_args[0][0]
-        self.assertEqual(command["visuals"], ["vorticity", "streamfunction"])
+        self.assertEqual(command["visuals"], ["substrate", "activator"])
         c.busy = False
         with self.assertRaisesRegex(ValueError, "Unknown visualization"):
             c.run(dict(op="eval", mode="single", demo="final", code="x = 1",
@@ -280,7 +283,7 @@ class ConsoleTests(unittest.TestCase):
             self.assertIn("function my_cholesky!", config["exercise_template"])
             self.assertIn("DArray(A, ???)", config["exercise_primer"])
             self.assertEqual(config["final_exercise"]["title"], "Final Exercise")
-            self.assertIn("A = ???", config["final_exercise"]["template"])
+            self.assertIn("L = ???", config["final_exercise"]["template"])
             self.assertTrue(config["final_workspace"].endswith("final-exercise"))
         finally:
             server.shutdown()

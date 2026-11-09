@@ -48,7 +48,8 @@ function visualNumber(v) {
 }
 
 function visualCanvas(canvas, container, aspect, dpr) {
-  const width = Math.min(760, Math.max(320, container.clientWidth - 8));
+  const available = canvas.parentElement?.clientWidth || container.clientWidth;
+  const width = Math.min(760, Math.max(280, available - 8));
   const height = Math.round(width * aspect);
   canvas.style.width = `${width}px`;
   canvas.style.height = `${height}px`;
@@ -184,55 +185,6 @@ function visualField(canvas, container, rows, options) {
   visualColorbar(ctx, layout, options.colormap, min, max, dpr);
 }
 
-function visualProfile(canvas, container, u) {
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const {ctx, w, h} = visualCanvas(canvas, container, 0.58, dpr);
-  const L = 46 * dpr, T = 12 * dpr, R = 24 * dpr, B = 42 * dpr;
-  const pw = w - L - R, ph = h - T - B;
-  const umin = Math.min(...u), umax = Math.max(...u);
-  const pad = (umax - umin || 1) * 0.08;
-  const x0 = umin - pad, x1 = umax + pad;
-  const X = value => L + (value - x0) / (x1 - x0) * pw;
-  ctx.strokeStyle = "#2d4350";
-  ctx.lineWidth = 1 * dpr;
-  ctx.strokeRect(L, T, pw, ph);
-  ctx.strokeStyle = "#41525c";
-  ctx.setLineDash([3 * dpr, 4 * dpr]);
-  ctx.beginPath();
-  ctx.moveTo(X(0), T);
-  ctx.lineTo(X(0), T + ph);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.strokeStyle = "#73e4c3";
-  ctx.lineWidth = 2 * dpr;
-  ctx.beginPath();
-  u.forEach((value, j) => {
-    const x = X(value), y = T + (1 - j / (u.length - 1)) * ph;
-    if (j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-  ctx.strokeStyle = "#2d4350";
-  ctx.lineWidth = 1 * dpr;
-  ctx.fillStyle = "#9fb4bf";
-  ctx.font = `${11 * dpr}px ui-monospace, monospace`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "top";
-  for (const value of [x0, 0, x1]) {
-    if (value < x0 || value > x1) continue;
-    ctx.fillText(visualNumber(value), X(value), T + ph + 7 * dpr);
-  }
-  ctx.fillText("u", L + pw / 2, T + ph + 27 * dpr);
-  ctx.textAlign = "right";
-  ctx.textBaseline = "middle";
-  for (const t of [0, 0.5, 1]) ctx.fillText(String(t), L - 7 * dpr, T + (1 - t) * ph);
-  ctx.save();
-  ctx.translate(10 * dpr, T + ph / 2);
-  ctx.rotate(-Math.PI / 2);
-  ctx.textAlign = "center";
-  ctx.fillText("y", 0, 0);
-  ctx.restore();
-}
-
 function renderVisualization(container, data) {
   container.replaceChildren();
   if (!data) return;
@@ -269,9 +221,6 @@ function renderVisualization(container, data) {
       visualField(canvas, container, data.psi, {
         colormap: "viridis", symmetric: false, contours: true, levels: 9,
       });
-    } else if (type === "velocity") {
-      caption.textContent = "u(y) at x = 0.5";
-      visualProfile(canvas, container, data.u);
     }
   }
   if (data.vortex) {

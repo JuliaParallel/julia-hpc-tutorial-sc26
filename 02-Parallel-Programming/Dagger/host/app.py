@@ -189,8 +189,8 @@ FINAL_EXERCISE = dict(
         operators
             A_u = I - (dt/2) Du L       A_v = I - (dt/2) Dv L
         are symmetric positive definite, so factor each once with
-        cholesky(Symmetric(A)) and reuse the factors every step.
-        For the Dagger exercise, use your my_cholesky! implementation.
+        cholesky(Symmetric(A)) and reuse the factors every step. The
+        1D systems are small; the parallel work is the line solves.
 
         Fill in L, Fu, Fv, and the two half steps, then run. The
         Visualization panel draws substrate u and activator v side by

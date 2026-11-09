@@ -1,7 +1,8 @@
 # Solution: 2D lid-driven cavity in streamfunction-vorticity form.
 # This is the completed version of results/final-exercise/final_exercise.jl.
+# The console's Visualization panel renders omega and psi after this runs.
 
-using Dagger, LinearAlgebra, Statistics, UnicodePlots
+using Dagger, LinearAlgebra
 
 nx, ny = 32, 32
 h = 1.0 / (nx - 1)
@@ -65,22 +66,4 @@ for step in 1:nsteps
     omega[:, end] .= @views -2 .* psi[:, end-1] ./ h^2 .- 2lid / h
 end
 
-# 4. Visuals (given -- no need to change).
-showplot(p) = (show(IOContext(stdout, :color => !haskey(ENV, "NO_COLOR")),
-                    MIME"text/plain"(), p); println())
-z = quantile(abs.(vec(omega[2:end-1, 2:end-1])), 0.9)   # clip the wall layer
-showplot(heatmap(permutedims(omega);
-                 title = "vorticity ω  (clipped at ±$(round(z, digits = 1)))",
-                 xlabel = "x", ylabel = "y", xfact = 1 / (nx - 1), yfact = 1 / (ny - 1),
-                 zlim = (-z, z), colormap = :coolwarm, width = nx, height = ny ÷ 2))
-showplot(contourplot(range(0, 1, length = nx), range(0, 1, length = ny), permutedims(psi);
-                     title = "streamfunction ψ (streamlines)", xlabel = "x", ylabel = "y",
-                     width = 50, height = 25, levels = 8, colormap = :viridis))
-showplot(lineplot(u[nx ÷ 2, :], range(0, 1, length = ny);
-                  title = "u(y) at x = 0.5", xlabel = "u", ylabel = "y",
-                  width = 50, height = 14, canvas = BlockCanvas))
-
-k = argmin(psi)
-println("primary vortex: psi = ", round(psi[k], digits = 3),
-        " at x = ", round((k[1] - 1) * h, digits = 2),
-        ", y = ", round((k[2] - 1) * h, digits = 2))
+println("vorticity range: ", extrema(omega))

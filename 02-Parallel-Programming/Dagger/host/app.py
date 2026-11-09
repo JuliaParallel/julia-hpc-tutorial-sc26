@@ -159,6 +159,13 @@ EXERCISE_PRIMER = textwrap.dedent("""\
 
 
 
+FINAL_VISUALS = [
+    dict(id="vorticity", label="Vorticity"),
+    dict(id="streamfunction", label="Streamfunction"),
+    dict(id="velocity", label="Velocity profile"),
+]
+FINAL_VISUAL_IDS = tuple(item["id"] for item in FINAL_VISUALS)
+
 FINAL_EXERCISE = dict(
     title="Final Exercise",
     prompt=textwrap.dedent("""\
@@ -182,17 +189,17 @@ FINAL_EXERCISE = dict(
         grid, use cholesky(Symmetric(A)); for the Dagger exercise, use
         your my_cholesky! implementation.
 
-        Fill in the three missing pieces in the template and run it. The
-        plotting code at the end is given: it draws the vorticity field,
-        the streamfunction contours (streamlines), and the centreline
-        velocity.
+        Fill in the three missing pieces in the template and run it. Choose
+        the fields you want in the Visualization panel: the harness renders
+        them after a successful run, so no plotting code belongs in your
+        script.
     """),
     template=textwrap.dedent("""\
         # Final exercise: 2D lid-driven cavity in streamfunction-vorticity form.
-        # Fill in the three missing pieces, then run. The plotting code at the
-        # bottom is given: it only needs omega, psi, and u from your solution.
+        # Fill in the three missing pieces, then run. Select the fields to draw
+        # in the Visualization panel; the harness renders them after the run.
 
-        using Dagger, LinearAlgebra, Statistics, UnicodePlots
+        using Dagger, LinearAlgebra
 
         nx, ny = 32, 32
         h = 1.0 / (nx - 1)
@@ -230,28 +237,7 @@ FINAL_EXERCISE = dict(
             # TODO
         end
 
-        # 4. Visuals (given -- no need to change).
-        showplot(p) = (show(IOContext(stdout, :color => !haskey(ENV, "NO_COLOR")),
-                            MIME"text/plain"(), p); println())
-        z = quantile(abs.(vec(omega[2:end-1, 2:end-1])), 0.9)   # clip the wall layer
-        showplot(heatmap(permutedims(omega);
-                         title = "vorticity ω  (clipped at ±$(round(z, digits = 1)))",
-                         xlabel = "x", ylabel = "y", xfact = 1 / (nx - 1),
-                         yfact = 1 / (ny - 1), zlim = (-z, z),
-                         colormap = :coolwarm, width = nx, height = ny ÷ 2))
-        showplot(contourplot(range(0, 1, length = nx), range(0, 1, length = ny),
-                             permutedims(psi);
-                             title = "streamfunction ψ (streamlines)", xlabel = "x",
-                             ylabel = "y", width = 50, height = 25, levels = 8,
-                             colormap = :viridis))
-        showplot(lineplot(u[nx ÷ 2, :], range(0, 1, length = ny);
-                          title = "u(y) at x = 0.5", xlabel = "u", ylabel = "y",
-                          width = 50, height = 14, canvas = BlockCanvas))
-
-        k = argmin(psi)
-        println("primary vortex: psi = ", round(psi[k], digits = 3),
-                " at x = ", round((k[1] - 1) * h, digits = 2),
-                ", y = ", round((k[2] - 1) * h, digits = 2))
+        println("vorticity range: ", extrema(omega))
     """),
 )
 
@@ -358,7 +344,7 @@ def snapshot():
         for name in ("Project.toml", "demos", "harness", "frontier", "solution"):
             archive.add(ROOT / name, arcname=name,
                         filter=lambda item: None if "__pycache__" in item.name else item)
-        for name in ("worker.jl", "remote_agent.py"):
+        for name in ("worker.jl", "remote_agent.py", "final_visuals.jl"):
             archive.add(ROOT / "host" / name, arcname="host/" + name)
     return stream.getvalue()
 
@@ -979,6 +965,10 @@ class Console:
                     raise ValueError("Unknown demo")
                 if command.get("demo") == "final":
                     command["label"] = "Final Exercise"
+                    visuals = command.get("visuals", [])
+                    if not isinstance(visuals, list) or any(v not in FINAL_VISUAL_IDS for v in visuals):
+                        raise ValueError("Unknown visualization")
+                    command["visuals"] = visuals
             else:
                 raise ValueError("Unknown operation")
             command["id"] = secrets.token_hex(8)
@@ -1045,7 +1035,7 @@ def handler_for(console):
                 self.reply(dict(token=console.token, demos=DEMOS, sections=section_layout(),
                                 exercises=exercises(), exercise_template=exercise_template(),
                                 exercise_primer=EXERCISE_PRIMER,
-                                final_exercise=FINAL_EXERCISE,
+                                final_exercise=dict(FINAL_EXERCISE, visuals=FINAL_VISUALS),
                                 final_workspace=str(FINAL_WORKSPACE),
                                 host=console.args.ssh_host,
                                 remote_root=console.args.remote_root, time=console.args.time))

@@ -1,6 +1,8 @@
 # Persistent compute-side Julia evaluator. The HTTP server runs on the laptop.
 using Dagger, JSON3, LinearAlgebra, Random
 include(joinpath(@__DIR__, "..", "demos", "presentation.jl"))
+include(joinpath(@__DIR__, "final_visuals.jl"))
+using .FinalVisuals
 const USE_MPI = "--mpi" in ARGS
 if USE_MPI
     # Install GPU processors before MPI initializes its processor inventory,
@@ -42,6 +44,15 @@ end
 const WORKSPACE = workspace(:AttendeeREPL)
 Core.eval(WORKSPACE, :(using Dagger, LinearAlgebra, Random))
 USE_MPI && Core.eval(WORKSPACE, :(using MPI))
+# Values created by the latest eval live in a newer world than this loop, so
+# isdefined/getglobal can miss them; evaluate the symbol to read its binding.
+function workspace_value(name, default = nothing)
+    try
+        Core.eval(WORKSPACE, name)
+    catch err
+        err isa UndefVarError ? default : rethrow()
+    end
+end
 RANK == 0 && DemoPresentation.emit("worker_ready"; mode=USE_MPI ? "mpi" : "single")
 
 while true
@@ -108,6 +119,32 @@ while true
                 if RANK == 0 && result !== nothing
                     show(stdout, MIME"text/plain"(), result)
                     println()
+                end
+            end
+            if demo == "final" && RANK == 0
+                # Render the selected fields here, outside the logged run, so the
+                # plotting code stays out of the student's source and timeline.
+                types = String.(get(command, :visuals, String[]))
+                if !isempty(types)
+                    try
+                        omega = workspace_value(:omega)
+                        psi = workspace_value(:psi)
+                        (omega isa AbstractMatrix && psi isa AbstractMatrix) ||
+                            error("the run must leave omega and psi defined")
+                        text = FinalVisuals.render(omega, psi; types, lid=workspace_value(:lid, 1.0))
+                        if get(ENV, "SC26_PORTAL", "0") == "1"
+                            DemoPresentation.emit("visual"; demo=demo, types=types, text=text)
+                        else
+                            println(text)
+                        end
+                    catch err
+                        message = sprint(showerror, err)
+                        if get(ENV, "SC26_PORTAL", "0") == "1"
+                            DemoPresentation.emit("visual"; demo=demo, types=types, error=message)
+                        else
+                            println(stderr, "visualization: ", message)
+                        end
+                    end
                 end
             end
         else

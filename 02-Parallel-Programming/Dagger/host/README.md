@@ -211,9 +211,11 @@ A seventh sidebar entry, **Final Exercise**, opens a 2D lid-driven cavity in
 streamfunction-vorticity form. It explains the Poisson solve, provides an
 incomplete editable template, and runs it in the single-process worker; the
 factorization can be `cholesky(Symmetric(A))` or the tiled Cholesky from the
-earlier exercise. The template's given plotting block prints a colored
-vorticity field, a streamfunction contour plot (streamlines), and the
-centreline velocity profile, then reports the primary vortex location. The
+earlier exercise. Above the task timeline, a **Visualization** panel lets
+attendees pick the vorticity field, the streamfunction contours (streamlines),
+and the centreline velocity profile. The worker renders the selection after a
+successful run, so the plotting code stays out of the submitted script and the
+console source. The panel also reports the primary vortex location. The
 same page has a collapsible **Use your agents** panel with
 OpenCode, Claude, and Codex buttons. Each opens an embedded terminal in the page
 and runs the agent in a local PTY on the machine running the console (not on

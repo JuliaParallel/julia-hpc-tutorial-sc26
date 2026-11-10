@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 480" role="img" aria-label="An eight by eight array in four tiles. The three by three neighbourhood of a point next to a tile edge includes one column from the next tile, the halo that Dagger copies. At the outer edge Wrap reads the opposite side. On the right, the window is indexed nb[1,1] to nb[3,3], with nb[2,2] the point itself.">
+<title>An eight by eight array in four tiles. The three by three neighbourhood of a point next to a tile edge includes one column from the next tile, the halo that Dagger copies. At the outer edge Wrap reads the opposite side. On the right, the window is indexed nb[1,1] to nb[3,3], with nb[2,2] the point itself.</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10" fill="#adbdc9"/></marker></defs>
+<rect x="70" y="52" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="106" y="52" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="142" y="52" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="178" y="52" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="214" y="52" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="250" y="52" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="286" y="52" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="322" y="52" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="70" y="88" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="106" y="88" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="142" y="88" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="178" y="88" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="214" y="88" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="250" y="88" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="286" y="88" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="322" y="88" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="70" y="124" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="106" y="124" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="142" y="124" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="178" y="124" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="214" y="124" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="250" y="124" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="286" y="124" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="322" y="124" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="70" y="160" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="106" y="160" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="142" y="160" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="178" y="160" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="214" y="160" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="250" y="160" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="286" y="160" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="322" y="160" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="70" y="196" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="106" y="196" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="142" y="196" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="178" y="196" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="214" y="196" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="250" y="196" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="286" y="196" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="322" y="196" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="70" y="232" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="106" y="232" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="142" y="232" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="178" y="232" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="214" y="232" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="250" y="232" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="286" y="232" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="322" y="232" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="70" y="268" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="106" y="268" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="142" y="268" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="178" y="268" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="214" y="268" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="250" y="268" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="286" y="268" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="322" y="268" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="70" y="304" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="106" y="304" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="142" y="304" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="178" y="304" width="32" height="32" rx="4" fill="#18232c" stroke="#253a48" stroke-width="1.5"/>
+<rect x="214" y="304" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="250" y="304" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="286" y="304" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<rect x="322" y="304" width="32" height="32" rx="4" fill="#152530" stroke="#253a48" stroke-width="1.5"/>
+<line x1="68" y1="50" x2="68" y2="338" stroke="#adbdc9" stroke-width="2.5"/>
+<line x1="68" y1="50" x2="356" y2="50" stroke="#adbdc9" stroke-width="2.5"/>
+<line x1="212" y1="50" x2="212" y2="338" stroke="#adbdc9" stroke-width="2.5"/>
+<line x1="68" y1="194" x2="356" y2="194" stroke="#adbdc9" stroke-width="2.5"/>
+<line x1="356" y1="50" x2="356" y2="338" stroke="#adbdc9" stroke-width="2.5"/>
+<line x1="68" y1="338" x2="356" y2="338" stroke="#adbdc9" stroke-width="2.5"/>
+<text x="140" y="38" fill="#adbdc9" font-size="16" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">tile (1,1)</text>
+<text x="284" y="38" fill="#adbdc9" font-size="16" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">tile (1,2)</text>
+<text x="24" y="196" fill="#adbdc9" font-size="16" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">i ↓</text>
+<text x="368" y="38" fill="#adbdc9" font-size="16" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">j →</text>
+<rect x="142" y="88" width="32" height="32" rx="4" fill="#182530" stroke="#73e2bd" stroke-width="2.5"/>
+<rect x="178" y="88" width="32" height="32" rx="4" fill="#182530" stroke="#73e2bd" stroke-width="2.5"/>
+<rect x="214" y="88" width="32" height="32" rx="4" fill="#182530" stroke="#ffc184" stroke-width="2.5"/>
+<rect x="142" y="124" width="32" height="32" rx="4" fill="#182530" stroke="#73e2bd" stroke-width="2.5"/>
+<rect x="178" y="124" width="32" height="32" rx="4" fill="#244a42" stroke="#73e2bd" stroke-width="2.5"/>
+<rect x="214" y="124" width="32" height="32" rx="4" fill="#182530" stroke="#ffc184" stroke-width="2.5"/>
+<rect x="142" y="160" width="32" height="32" rx="4" fill="#182530" stroke="#73e2bd" stroke-width="2.5"/>
+<rect x="178" y="160" width="32" height="32" rx="4" fill="#182530" stroke="#73e2bd" stroke-width="2.5"/>
+<rect x="214" y="160" width="32" height="32" rx="4" fill="#182530" stroke="#ffc184" stroke-width="2.5"/>
+<rect x="70" y="232" width="32" height="32" rx="4" fill="#182530" stroke="#b8a0f5" stroke-width="2.5"/>
+<rect x="106" y="232" width="32" height="32" rx="4" fill="#182530" stroke="#b8a0f5" stroke-width="2.5"/>
+<rect x="34" y="232" width="32" height="32" rx="4" fill="none" stroke="#b8a0f5" stroke-width="1.5" stroke-dasharray="5 4"/>
+<rect x="322" y="232" width="32" height="32" rx="4" fill="#2a2540" stroke="#b8a0f5" stroke-width="2.5"/>
+<rect x="70" y="268" width="32" height="32" rx="4" fill="#244a42" stroke="#b8a0f5" stroke-width="2.5"/>
+<rect x="106" y="268" width="32" height="32" rx="4" fill="#182530" stroke="#b8a0f5" stroke-width="2.5"/>
+<rect x="34" y="268" width="32" height="32" rx="4" fill="none" stroke="#b8a0f5" stroke-width="1.5" stroke-dasharray="5 4"/>
+<rect x="322" y="268" width="32" height="32" rx="4" fill="#2a2540" stroke="#b8a0f5" stroke-width="2.5"/>
+<rect x="70" y="304" width="32" height="32" rx="4" fill="#182530" stroke="#b8a0f5" stroke-width="2.5"/>
+<rect x="106" y="304" width="32" height="32" rx="4" fill="#182530" stroke="#b8a0f5" stroke-width="2.5"/>
+<rect x="34" y="304" width="32" height="32" rx="4" fill="none" stroke="#b8a0f5" stroke-width="1.5" stroke-dasharray="5 4"/>
+<rect x="322" y="304" width="32" height="32" rx="4" fill="#2a2540" stroke="#b8a0f5" stroke-width="2.5"/>
+<path d="M50.0 342 C 52.0 388, 338.0 388, 338.0 346" fill="none" stroke="#b8a0f5" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
+<text x="196.0" y="402" fill="#b8a0f5" font-size="16" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">Wrap(): the left neighbour of column 1 is column 8</text>
+<text x="30" y="432" fill="#73e2bd" font-size="16" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">mint: the window in its own tile</text>
+<text x="30" y="456" fill="#ffc184" font-size="16" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">amber: the halo, copied from tile (1,2)</text>
+<rect x="560" y="70" width="84" height="84" rx="10" fill="#182530" stroke="#415b6b" stroke-width="1.5"/>
+<text x="602.0" y="119.0" fill="#edf3f5" font-size="18" text-anchor="middle" font-family="DejaVu Sans Mono, monospace">nb[1,1]</text>
+<rect x="652" y="70" width="84" height="84" rx="10" fill="#182530" stroke="#415b6b" stroke-width="1.5"/>
+<text x="694.0" y="119.0" fill="#edf3f5" font-size="18" text-anchor="middle" font-family="DejaVu Sans Mono, monospace">nb[1,2]</text>
+<rect x="744" y="70" width="84" height="84" rx="10" fill="#182530" stroke="#415b6b" stroke-width="1.5"/>
+<text x="786.0" y="119.0" fill="#edf3f5" font-size="18" text-anchor="middle" font-family="DejaVu Sans Mono, monospace">nb[1,3]</text>
+<rect x="560" y="162" width="84" height="84" rx="10" fill="#182530" stroke="#415b6b" stroke-width="1.5"/>
+<text x="602.0" y="211.0" fill="#edf3f5" font-size="18" text-anchor="middle" font-family="DejaVu Sans Mono, monospace">nb[2,1]</text>
+<rect x="652" y="162" width="84" height="84" rx="10" fill="#244a42" stroke="#73e2bd" stroke-width="1.5"/>
+<text x="694.0" y="211.0" fill="#73e2bd" font-size="18" text-anchor="middle" font-family="DejaVu Sans Mono, monospace">nb[2,2]</text>
+<rect x="744" y="162" width="84" height="84" rx="10" fill="#182530" stroke="#415b6b" stroke-width="1.5"/>
+<text x="786.0" y="211.0" fill="#edf3f5" font-size="18" text-anchor="middle" font-family="DejaVu Sans Mono, monospace">nb[2,3]</text>
+<rect x="560" y="254" width="84" height="84" rx="10" fill="#182530" stroke="#415b6b" stroke-width="1.5"/>
+<text x="602.0" y="303.0" fill="#edf3f5" font-size="18" text-anchor="middle" font-family="DejaVu Sans Mono, monospace">nb[3,1]</text>
+<rect x="652" y="254" width="84" height="84" rx="10" fill="#182530" stroke="#415b6b" stroke-width="1.5"/>
+<text x="694.0" y="303.0" fill="#edf3f5" font-size="18" text-anchor="middle" font-family="DejaVu Sans Mono, monospace">nb[3,2]</text>
+<rect x="744" y="254" width="84" height="84" rx="10" fill="#182530" stroke="#415b6b" stroke-width="1.5"/>
+<text x="786.0" y="303.0" fill="#edf3f5" font-size="18" text-anchor="middle" font-family="DejaVu Sans Mono, monospace">nb[3,3]</text>
+<text x="694.0" y="52" fill="#edf3f5" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">nb = @neighbors(A[idx], 1, Wrap())</text>
+<text x="560" y="372" fill="#73e2bd" font-size="19" text-anchor="start" font-family="DejaVu Sans Mono, monospace">sum(nb) / 9</text>
+<text x="810" y="372" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">the 3 × 3 mean</text>
+<text x="560" y="406" fill="#73e2bd" font-size="19" text-anchor="start" font-family="DejaVu Sans Mono, monospace">nb[2,3] - nb[2,1]</text>
+<text x="810" y="406" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">a difference along j</text>
+<text x="560" y="440" fill="#73e2bd" font-size="19" text-anchor="start" font-family="DejaVu Sans Mono, monospace">nb[2,2]</text>
+<text x="810" y="440" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">the point itself, A[idx]</text>
+<text x="900" y="80" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">1 = distance:</text>
+<text x="900" y="106" fill="#edf3f5" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">a 3 × 3 window</text>
+<text x="900" y="150" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">Wrap(): periodic</text>
+<text x="900" y="176" fill="#edf3f5" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">also Pad, Reflect,</text>
+<text x="900" y="202" fill="#edf3f5" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">Clamp, ...</text>
+<text x="900" y="246" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">One task per tile;</text>
+<text x="900" y="272" fill="#edf3f5" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">Dagger copies the</text>
+<text x="900" y="298" fill="#edf3f5" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">halos it needs.</text>
+</svg>

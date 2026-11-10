@@ -36,8 +36,11 @@ class ConsoleTests(unittest.TestCase):
                 self.assertEqual(app.re.sub(r"\x1b\[[0-9;]*m", "", source["ansi"]), source["code"])
         gpu = app.demo_sources("05_multigpu")["sources"][0]["code"]
         cpu = app.demo_sources("06_multinode")["sources"][0]["code"]
-        self.assertIn("DEMO_USE_GPU = true", gpu)
-        self.assertIn("DEMO_USE_GPU = false", cpu)
+        self.assertIn("AMDGPU", gpu)
+        self.assertIn("using Dagger, MPI", cpu)
+        self.assertNotIn("DEMO_", gpu)
+        self.assertNotIn("DEMO_", cpu)
+        self.assertNotIn("SC26_DEMO_LOAD_ONLY", gpu + cpu)
         with self.assertRaises(ValueError):
             app.demo_sources("../../Project")
 

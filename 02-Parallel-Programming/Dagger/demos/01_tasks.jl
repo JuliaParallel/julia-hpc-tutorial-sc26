@@ -28,4 +28,6 @@ function run_demo()
         # source-end
     end
 end
-get(ENV, "SC26_DEMO_LOAD_ONLY", "0") == "1" || run_demo()
+if abspath(PROGRAM_FILE) == @__FILE__
+    run_demo()
+end

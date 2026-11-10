@@ -294,7 +294,7 @@ button:focus-visible,select:focus-visible,textarea:focus-visible {
   color:var(--muted);
   font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace
 }
-.exercise-primer {
+.exercise-setup {
   min-height:260px;
   font-size:12px;
   line-height:1.55

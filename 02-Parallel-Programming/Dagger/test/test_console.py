@@ -70,16 +70,22 @@ class ConsoleTests(unittest.TestCase):
         self.assertEqual(layout[2]["demos"], ["03_gpu"])
         self.assertEqual(layout[2]["title"], "Single GPU")
 
-    def test_exercises_cover_the_hands_on_demos(self):
+    def test_every_section_has_an_exercise(self):
         exercises = app.exercises()
-        self.assertEqual(set(exercises),
-                         {"02_datadeps", "03_gpu", "05_multigpu"})
+        sections = app.section_layout()
+        for section in sections:
+            self.assertEqual(sum(demo in exercises for demo in section["demos"]), 1,
+                             section["id"])
         for demo, exercise in exercises.items():
             self.assertIn(demo, {entry[0] for entry in app.DEMOS})
             self.assertIn("Exercise:", exercise["prompt"])
             self.assertIn("my_cholesky.jl", exercise["prompt"])
-            self.assertIn(exercise["target"], ("cpu", "gpu", "mixed"))
-            self.assertIn(exercise["gpus"], ("1", "all"))
+            self.assertIn(exercise["target"], app.TARGETS)
+            self.assertIn(exercise["mode"], app.MODES)
+        # The MPI sections start on two ranks, the others on one process.
+        self.assertEqual(exercises["06_multinode"]["mode"], "mpi")
+        self.assertEqual(exercises["07_multinode_multigpu"]["mode"], "mpi")
+        self.assertEqual(exercises["02_datadeps"]["mode"], "single")
 
     def test_exercise_template_defines_the_tile_operations(self):
         template = app.exercise_template()
@@ -93,25 +99,53 @@ class ConsoleTests(unittest.TestCase):
         # identity, so a wrapper function would break the GPU run.
         self.assertNotIn("function factor_diagonal_tile!", template)
 
-    def test_exercise_primer_is_an_incomplete_editable_template(self):
-        primer = app.EXERCISE_PRIMER
-        self.assertIn("DArray(A, ???)", primer)
-        self.assertIn("my_cholesky!(???)", primer)
-        self.assertIn("collect(???)", primer)
-        self.assertIn("Dagger.with_options", primer)
-        self.assertIn("Run exercise", primer)
+    def test_setup_and_use_is_runnable_for_every_target_and_layout(self):
+        for build, call in ((app.exercise_setup, "my_cholesky!(DA.chunks)"),
+                            (app.final_setup, "simulate!(u, v,")):
+            setups = app.setup_templates(build)
+            self.assertEqual(set(setups), {f"{t}/{m}" for t in app.TARGETS for m in app.MODES})
+            for key, setup in setups.items():
+                target, mode = key.split("/")
+                self.assertNotIn("???", setup, key)
+                self.assertIn(call, setup, key)
+                self.assertIn("Dagger.with_options(scope=scope)", setup, key)
+                self.assertEqual("using AMDGPU" in setup, target != "cpu", key)
+                self.assertEqual("using MPI" in setup, mode == "mpi", key)
+                # Under MPI every rank runs the code; only rank 0 prints.
+                if mode == "mpi":
+                    self.assertIn("rank == 0 && println(", setup, key)
+        cpu = app.exercise_setup("cpu", "single")
+        self.assertIn("scope = Dagger.scope(worker=1)", cpu)
+        self.assertIn("PASS", cpu)
+        self.assertIn("scope = Dagger.scope(rocm_gpu=1)", app.exercise_setup("gpu", "single"))
+        self.assertIn("scope = Dagger.scope(rocm_gpus=:)", app.exercise_setup("gpus", "single"))
+        self.assertIn("Dagger.UnionScope(cpu, gpu)", app.exercise_setup("mixed", "mpi"))
+        self.assertIn("mpi_ranks=:", app.exercise_setup("cpu", "mpi"))
+        # The visualization reads these globals after the final exercise runs.
+        final = app.final_setup("cpu", "single")
+        for name in ("u = ", "v = ", "F, k = ", "nsteps = "):
+            self.assertIn(name, final)
 
     def test_console_generates_a_shared_exercise_editor(self):
         page = (BASE / "host/app.js").read_text()
         self.assertIn('data-role="exercise-code"', page)
-        self.assertIn('data-role="exercise-primer"', page)
-        self.assertIn('data-role="exercise-primer-reset"', page)
+        self.assertIn('data-role="exercise-setup"', page)
+        self.assertIn('data-role="exercise-setup-reset"', page)
+        self.assertIn('data-role="exercise-target"', page)
+        self.assertIn('data-role="exercise-mode"', page)
         self.assertIn("Setup and Use", page)
         self.assertIn(">Function<", page)
         self.assertIn('op: "exercise"', page)
+        self.assertIn("setup: panel.setup.value", page)
+        self.assertIn("mode: panel.mode.value", page)
         self.assertIn("exercise_template", page)
-        self.assertIn("exercise_primer", page)
-        self.assertIn("EXERCISE_PRIMER_KEY", page)
+        self.assertIn("exercise_setups", page)
+        self.assertIn("EXERCISE_SETUP_KEY", page)
+        # The final exercise has the same Setup and Use and run controls.
+        final = page[page.index("function finalExerciseMarkup"):]
+        final = final[:final.index("\n}")]
+        self.assertIn("setupMarkup(pid)", final)
+        self.assertIn("runControlsMarkup()", final)
         self.assertIn("withoutComments", page)
         self.assertIn("finalExerciseMarkup", page)
         self.assertIn("showFinal", page)
@@ -155,6 +189,8 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn("L = ???", final["template"])
         self.assertIn("Fu = ???", final["template"])
         self.assertIn("Fv = ???", final["template"])
+        self.assertIn("function simulate!(u, v, p, nsteps)", final["template"])
+        self.assertIn("for step in 1:nsteps", final["template"])
         # The visualization code lives in the harness, not in the template.
         self.assertNotIn("UnicodePlots", final["template"])
         self.assertNotIn("heatmap(", final["template"])
@@ -178,20 +214,27 @@ class ConsoleTests(unittest.TestCase):
     def test_final_exercise_eval_is_allowed(self):
         c = console()
         c.send = Mock()
-        c.run(dict(op="eval", mode="single", demo="final", code="x = 1"))
+        c.run(dict(op="eval", mode="single", demo="final", code="x = 1", setup="y = 2"))
         command = c.send.call_args[0][0]
-        self.assertEqual(command["label"], "Final Exercise")
+        self.assertEqual(command["label"], "Final Exercise · One process")
+        self.assertEqual(command["setup"], "y = 2")
+        c.busy = False
+        c.run(dict(op="eval", mode="mpi", demo="final", code="x = 1", setup="y = 2"))
+        self.assertEqual(c.send.call_args[0][0]["label"], "Final Exercise · Two MPI ranks")
+        c.busy = False
+        with self.assertRaisesRegex(ValueError, "Setup and Use"):
+            c.run(dict(op="eval", mode="single", demo="final", code="x = 1"))
 
     def test_final_exercise_visuals_are_whitelisted(self):
         c = console()
         c.send = Mock()
-        c.run(dict(op="eval", mode="single", demo="final", code="x = 1",
+        c.run(dict(op="eval", mode="single", demo="final", code="x = 1", setup="y = 2",
                    visuals=["substrate", "activator"]))
         command = c.send.call_args[0][0]
         self.assertEqual(command["visuals"], ["substrate", "activator"])
         c.busy = False
         with self.assertRaisesRegex(ValueError, "Unknown visualization"):
-            c.run(dict(op="eval", mode="single", demo="final", code="x = 1",
+            c.run(dict(op="eval", mode="single", demo="final", code="x = 1", setup="y = 2",
                        visuals=["bogus"]))
 
     def test_agent_status_and_install_are_whitelisted(self):
@@ -223,6 +266,18 @@ class ConsoleTests(unittest.TestCase):
                 self.assertEqual(state["code"], "x = 1\n")
                 self.assertGreater(state["mtime"], 0)
 
+    def test_final_workspace_sets_aside_the_old_one_file_layout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch.object(app, "FINAL_WORKSPACE", root), \
+                    patch.object(app, "FINAL_FILE", root / "final_exercise.jl"), \
+                    patch.object(app, "FINAL_README", root / "README.md"):
+                old = "# Setup: parameters, fields, and the constant operators.\nn = 256\n"
+                app.FINAL_FILE.write_text(old)
+                app.ensure_final_workspace()
+                self.assertEqual((root / "final_exercise.old.jl").read_text(), old)
+                self.assertIn("function simulate!", app.FINAL_FILE.read_text())
+
     def test_embedded_terminal_whitelists_and_streams(self):
         with self.assertRaisesRegex(ValueError, "Unknown agent"):
             app.open_agent_terminal("nope", 80, 24)
@@ -242,31 +297,38 @@ class ConsoleTests(unittest.TestCase):
         finally:
             app.close_terminal_session(session)
 
-    def test_exercise_run_uses_demo_layout_and_harness_defaults(self):
+    def test_exercise_run_sends_function_setup_target_and_layout(self):
         c = console()
         c.send = Mock()
         c.run(dict(op="exercise", demo="02_datadeps", target="cpu",
-                   strict=False, code="x = 1"))
+                   code="x = 1", setup="y = 2"))
         started = [event for event in c.events if event["kind"] == "run"][-1]
         self.assertTrue(started["exercise"])
         command = c.send.call_args[0][0]
         self.assertEqual(command["mode"], "single")
         self.assertEqual(command["target"], "cpu")
-        self.assertEqual(command["sizes"], "1024")
-        self.assertEqual(command["bs"], 256)
-        self.assertEqual(command["gpus"], "1")
-        self.assertEqual(command["label"], "Exercise · CPU")
+        self.assertEqual(command["setup"], "y = 2")
+        self.assertEqual(command["label"], "Exercise · CPU · One process")
         c.busy = False
-        c.run(dict(op="exercise", demo="05_multigpu", target="gpu",
-                   strict=False, code="x = 1"))
+        # Processes chooses the worker layout in any section, not only MPI ones.
+        c.run(dict(op="exercise", demo="03_gpu", target="gpu", mode="mpi",
+                   code="x = 1", setup="y = 2"))
         command = c.send.call_args[0][0]
-        self.assertEqual(command["gpus"], "all")
-        self.assertEqual(command["bs"], 512)
+        self.assertEqual(command["mode"], "mpi")
+        self.assertEqual(command["label"], "Exercise · GPU · Two MPI ranks")
+        c.busy = False
+        c.run(dict(op="exercise", demo="06_multinode", code="x = 1", setup="y = 2"))
+        self.assertEqual(c.send.call_args[0][0]["mode"], "mpi")
         c.busy = False
         with self.assertRaisesRegex(ValueError, "no exercise"):
-            c.run(dict(op="exercise", demo="01_tasks", code="x = 1"))
+            c.run(dict(op="exercise", demo="01_tasks", code="x = 1", setup="y = 2"))
         with self.assertRaisesRegex(ValueError, "Write Julia code"):
-            c.run(dict(op="exercise", demo="02_datadeps", code=" "))
+            c.run(dict(op="exercise", demo="02_datadeps", code=" ", setup="y = 2"))
+        with self.assertRaisesRegex(ValueError, "Setup and Use"):
+            c.run(dict(op="exercise", demo="02_datadeps", code="x = 1", setup=""))
+        with self.assertRaisesRegex(ValueError, "layout"):
+            c.run(dict(op="exercise", demo="02_datadeps", code="x = 1", setup="y = 2",
+                       mode="three"))
 
     def test_config_exposes_exercises(self):
         c = console()
@@ -276,13 +338,15 @@ class ConsoleTests(unittest.TestCase):
             with urllib.request.urlopen(
                     f"http://127.0.0.1:{server.server_port}/api/config") as response:
                 config = json.load(response)
-            self.assertEqual(set(config["exercises"]),
-                             {"02_datadeps", "03_gpu", "05_multigpu"})
+            self.assertEqual(set(config["exercises"]), set(app.EXERCISES))
             self.assertEqual(config["exercises"]["02_datadeps"]["target"], "cpu")
             self.assertIn("function my_cholesky!", config["exercise_template"])
-            self.assertIn("DArray(A, ???)", config["exercise_primer"])
+            self.assertIn("my_cholesky!(DA.chunks)", config["exercise_setups"]["cpu/single"])
+            self.assertEqual(list(config["targets"]), list(app.TARGETS))
+            self.assertEqual(list(config["modes"]), ["single", "mpi"])
             self.assertEqual(config["final_exercise"]["title"], "Final Exercise")
             self.assertIn("L = ???", config["final_exercise"]["template"])
+            self.assertIn("simulate!(u, v,", config["final_exercise"]["setups"]["cpu/mpi"])
             self.assertTrue(config["final_workspace"].endswith("final-exercise"))
         finally:
             server.shutdown()

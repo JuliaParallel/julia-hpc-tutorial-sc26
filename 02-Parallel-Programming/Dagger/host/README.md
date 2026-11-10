@@ -194,26 +194,41 @@ remembered per browser. Within a console the Algorithm and Julia REPL panes
 collapse independently, keeping their width and shrinking vertically to the
 title bar; on narrow screens they stack.
 
-For the CPU Datadeps, GPU, MPI, and multi-GPU demos, the section page shows two
-sibling panels: **Demo** and a collapsible **Exercise** panel. The Exercise
-panel proposes the step for that target and contains an editor for
-`my_cholesky!`. The editor is shared by all four exercise sections, so code
-written for the CPU run is reused unchanged on the GPU and MPI runs.
-**Run exercise** writes the editor contents to the remote workspace and runs
-`harness/run.jl` with the selected target and worker layout; **Reset code**
-restores the student stub. Results and timelines appear in the Exercise panel's
-own output and timeline panels. A collapsible **Setup and Use** primer contains
-an editable, incomplete setup template: create the matrix, tile it with
-`DArray(A, ...)`, place it with the target scope, and call
-`my_cholesky!(...)`. Fill in the blanks or use it as a reference; **Run
-exercise** performs the same setup in the harness. The **Function** panel holds
-the `my_cholesky!` editor and the Reset/Run buttons.
+Every section page shows two sibling panels: **Demo** and a collapsible
+**Exercise** panel. The Exercise panel's head has two controls: **Target**
+(CPU, GPU, All GPUs, or Mixed) and **Processes** (One process or Two MPI
+ranks). Each section starts on its own choice, for example GPU in Single GPU
+and Two MPI ranks in the MPI sections. Inside the panel are the section's
+prompt and two editors:
+
+- **Setup and Use** is runnable code: it chooses the Dagger scope for the
+  target, builds a seeded test matrix, tiles it with `DArray`, calls
+  `my_cholesky!(DA.chunks)`, and checks the factor (it prints `PASS`). Under
+  MPI every rank runs it and only rank 0 prints. Changing Target or Processes
+  loads the matching template, after asking if you have edited it; **Reset
+  setup** restores it. Each section keeps its own Setup and Use.
+- **Function** holds `my_cholesky!`. It is shared by all sections, so code
+  written for the CPU run is reused unchanged on the GPU and MPI runs; **Reset
+  code** restores the student stub.
+
+**Run exercise** runs the Function, then Setup and Use, in a fresh Julia module
+on a worker with the chosen Processes layout (the console restarts the worker
+when the layout changes). Results and timelines appear in the Exercise panel's
+own output and timeline panels. The terminal harness (`frontier/run.sh`,
+`harness/run.jl`) is unchanged and still offers `--strict`, size sweeps, and
+CSV results.
 
 The final sidebar entry, **Final Exercise**, opens a Gray-Scott
 reaction-diffusion experiment on a periodic grid. It explains how to build the
 1D periodic Laplacian, factor the two ADI diffusion operators with Cholesky,
 and write the two half steps whose column and row solves are independent
-Dagger tasks. Above the task timeline, a **Visualization** panel shows the
+Dagger tasks. It has the same Target and Processes controls and the same
+**Setup and Use** editor as the other exercises: the **Simulation** editor
+(`results/final-exercise/final_exercise.jl`) defines
+`simulate!(u, v, p, nsteps)`, and Setup and Use sets the parameters and the
+initial fields, calls it where the scope says, and checks the result. A
+workspace file from an older console, which held the whole script, is kept as
+`final_exercise.old.jl`. Above the task timeline, a **Visualization** panel shows the
 substrate u and activator v fields side by side, with a slider and Play button
 that replay the sampled time steps. The worker returns those fields after a
 successful run and the console draws high-resolution canvas plots, so the

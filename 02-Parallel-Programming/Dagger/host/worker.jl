@@ -15,25 +15,6 @@ const DEMOS = Dict("00_julia"=>false, "01_tasks"=>false, "02_datadeps"=>false, "
                    "05_multigpu"=>false, "06_multinode"=>true,
                    "07_multinode_multigpu"=>true)
 const LOADED = Dict{String,Module}()
-const HARNESS = Dict{Tuple{Bool,Bool},Module}()
-function harness_module(use_mpi, use_gpu)
-    key = (use_mpi, use_gpu)
-    get!(HARNESS, key) do
-        m = Module(Symbol("ExerciseHarness_", use_mpi ? "mpi" : "single", "_", use_gpu ? "gpu" : "cpu"))
-        Core.eval(m, :(include(path::AbstractString) = Base.include($m, path)))
-        saved = copy(ARGS)
-        try
-            empty!(ARGS)
-            use_mpi && push!(ARGS, "--mpi")
-            use_gpu && push!(ARGS, "--target=gpu")
-            Base.include(m, joinpath(@__DIR__, "..", "harness", "run.jl"))
-        finally
-            empty!(ARGS)
-            append!(ARGS, saved)
-        end
-        m
-    end
-end
 function workspace(name)
     mod = Module(name)
     Core.eval(mod, :(include(path::AbstractString) = Base.include($mod, path)))
@@ -54,7 +35,7 @@ function workspace_value(name, default = nothing)
     end
 end
 
-# Capture (omega, psi) snapshots for the time slider without putting logging
+# Capture (u, v) snapshots for the time slider without putting logging
 # code in the student's template: append a guarded push to the main time loop.
 contains_symbol(x, s) = x === s || (x isa Expr && any(a -> contains_symbol(a, s), x.args))
 
@@ -131,34 +112,18 @@ while true
         elseif command.op == "exercise"
             demo = String(command.demo)
             haskey(DEMOS, demo) || error("Unknown demo: $demo")
-            DEMOS[demo] == USE_MPI || error("Switch the worker layout for this demo")
-            target = String(get(command, :target, "cpu"))
-            target in ("cpu", "gpu", "mixed") || error("Unknown exercise target: $target")
-            strict = Bool(get(command, :strict, false))
-            gpus = String(get(command, :gpus, "1"))
-            gpus in ("1", "all") || error("Unknown exercise GPU selection: $gpus")
-            code = String(command.code)
-            job = get(ENV, "SLURM_JOB_ID", "local")
-            path = joinpath(@__DIR__, "..", "results", "exercise-$job-$demo.jl")
-            if RANK == 0
-                mkpath(dirname(path))
-                write(path, code)
-            end
-            USE_MPI && MPI.Barrier(MPI.COMM_WORLD)
-            args = ["--impl=student", "--file=$path", "--target=$target",
-                    "--sizes=$(String(get(command, :sizes, "1024")))",
-                    "--bs=$(Int(get(command, :bs, 256)))",
-                    "--trials=$(Int(get(command, :trials, 1)))"]
-            USE_MPI && push!(args, "--mpi")
-            strict && push!(args, "--strict")
-            gpus == "all" && push!(args, "--gpus=all")
-            harness = harness_module(USE_MPI, target != "cpu")
+            code, setup = String(command.code), String(command.setup)
+            # A fresh module per run: the Function defines my_cholesky!, then
+            # Setup and Use chooses the scope and calls it, on every MPI rank.
+            m = workspace(Symbol("Exercise_", demo))
             old_threads = BLAS.get_num_threads()
             try
-                DemoPresentation.present(; title="Exercise · $(uppercase(target))", demo=demo,
-                                         source=code, mpi=USE_MPI ? MPI : nothing) do
-                    result = Base.invokelatest(getglobal(harness, :main), args)
-                    result == 0 || error("Exercise run failed; see the output above")
+                DemoPresentation.present(; title=String(get(command, :label, "Exercise")),
+                                         demo=demo, source=code * "\n" * setup,
+                                         mpi=USE_MPI ? MPI : nothing) do
+                    Base.include_string(m, code, "Function")
+                    Base.include_string(m, setup, "Setup and Use")
+                    nothing
                 end
             finally
                 BLAS.set_num_threads(old_threads)
@@ -166,6 +131,8 @@ while true
         elseif command.op == "eval"
             code = String(command.code)
             demo = haskey(command, :demo) && command.demo !== nothing ? String(command.demo) : nothing
+            # The final exercise runs its Simulation, then its Setup and Use.
+            demo == "final" && (code *= "\n\n" * String(command.setup))
             expr = Meta.parseall(code)
             if demo == "final"
                 Core.eval(WORKSPACE, :(__sc26_frames = Any[]; __sc26_tick = 0;
@@ -213,7 +180,8 @@ while true
         RANK == 0 && DemoPresentation.emit("done"; ok=true)
     catch err
         if RANK == 0
-            showerror(stdout, err, catch_backtrace()); println()
+            # Show the error in the latest world: it may name functions the run defined.
+            Base.invokelatest(showerror, stdout, err, catch_backtrace()); println()
             DemoPresentation.emit("done"; ok=false, error=sprint(showerror, err))
         end
         # An MPI exception may leave another rank in a collective. Restart the

@@ -11,11 +11,12 @@ const exerciseByDemo = new Map(); // demo id -> Exercise panel
 const COLLAPSE_KEY = "sc26-console-collapsed";
 const ACTIVE_KEY = "sc26-console-active";
 const EXERCISE_CODE_KEY = "sc26-exercise-code";
-const EXERCISE_PRIMER_KEY = "sc26-exercise-primer";
-const FINAL_CODE_KEY = "sc26-final-code";
+// v2: the final exercise moved its setup into Setup and Use (simulate!).
+const EXERCISE_SETUP_KEY = "sc26-exercise-setup";
+const FINAL_CODE_KEY = "sc26-final-code-v2";
 let collapsedState = {};
 let exerciseCode = null;
-let exercisePrimer = null;
+let setupStore = {};             // panel id -> {target, mode, code}
 let finalCode = null;
 let finalMtime = 0;
 let finalPanel = null;
@@ -35,13 +36,8 @@ function syncExerciseEditors(except) {
     if (editor !== except) editor.value = exerciseCode ?? "";
   }
 }
-function saveExercisePrimer() {
-  try { localStorage.setItem(EXERCISE_PRIMER_KEY, exercisePrimer ?? ""); } catch (e) {}
-}
-function syncExercisePrimerEditors(except) {
-  for (const editor of document.querySelectorAll('[data-role="exercise-primer"]')) {
-    if (editor !== except) editor.value = exercisePrimer ?? "";
-  }
+function saveSetups() {
+  try { localStorage.setItem(EXERCISE_SETUP_KEY, JSON.stringify(setupStore)); } catch (e) {}
 }
 function saveFinalCode() {
   try { localStorage.setItem(FINAL_CODE_KEY, finalCode ?? ""); } catch (e) {}
@@ -126,7 +122,7 @@ function analysisMarkup(pid, {visual = false} = {}) {
 <div class="panel-head">
 <h3 id="${pid}-visual-title">Visualization</h3>
 <div class="panel-tools">
-<span class="tag">Runs with the harness</span>
+<span class="tag">Drawn after the run</span>
 ${collapseButton(pid + "-visual-body", pid + "-visual-title")}
 </div>
 </div>
@@ -186,6 +182,73 @@ ${collapseButton(pid + "-timeline-body", pid + "-timeline-title")}
 </section>`;
 }
 
+// Target and Processes: where an exercise runs. Both pick the Setup and Use
+// template; Processes also picks the worker layout (one process or MPI).
+function runControlsMarkup() {
+  const options = choices => Object.entries(choices ?? {})
+    .map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+  return `
+<label class="exercise-control">Target
+<select data-role="exercise-target" aria-label="Exercise target">${options(config.targets)}</select>
+</label>
+<label class="exercise-control">Processes
+<select data-role="exercise-mode" aria-label="Exercise processes">${options(config.modes)}</select>
+</label>`;
+}
+
+function setupMarkup(pid) {
+  return `
+<section class="panel" id="${pid}-setup">
+<div class="panel-head">
+<h3 id="${pid}-setup-title">Setup and Use</h3>
+<div class="panel-tools">
+<button type="button" data-role="exercise-setup-reset">Reset setup</button>
+${collapseButton(pid + "-setup-body", pid + "-setup-title")}
+</div>
+</div>
+<div class="panel-body" id="${pid}-setup-body">
+<label class="sr-only" for="${pid}-setup-code">Setup and Use code</label>
+<textarea id="${pid}-setup-code" class="exercise-setup" data-role="exercise-setup" spellcheck="false"></textarea>
+</div>
+</section>`;
+}
+
+// Keep one Setup and Use per panel. Changing Target or Processes loads the
+// matching template, after asking if the attendee has edited the current one.
+function wireSetup(panel, key, templates, defaults) {
+  const saved = setupStore[key] ?? {};
+  panel.target.value = saved.target in (config.targets ?? {}) ? saved.target : defaults.target;
+  panel.mode.value = saved.mode in (config.modes ?? {}) ? saved.mode : defaults.mode;
+  const template = () => templates[`${panel.target.value}/${panel.mode.value}`] ?? "";
+  panel.setup.value = typeof saved.code === "string" ? saved.code : template();
+  const save = () => {
+    setupStore[key] = {target: panel.target.value, mode: panel.mode.value, code: panel.setup.value};
+    saveSetups();
+  };
+  const choose = () => {
+    const edited = !Object.values(templates).includes(panel.setup.value);
+    const name = `${config.targets[panel.target.value]} · ${config.modes[panel.mode.value]}`;
+    if (!edited || confirm(`Load the Setup and Use for ${name}? This replaces your edits. ` +
+                           "Cancel keeps your code; the run still uses the chosen Processes.")) {
+      panel.setup.value = template();
+    }
+    save();
+  };
+  panel.target.onchange = panel.mode.onchange = choose;
+  panel.setup.oninput = save;
+  panel.setupReset.onclick = () => { panel.setup.value = template(); save(); };
+}
+
+// Ctrl / Cmd + Enter in an exercise editor presses its Run button.
+function runOnCtrlEnter(editor, button) {
+  editor.onkeydown = event => {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      event.preventDefault();
+      if (!button.disabled) button.click();
+    }
+  };
+}
+
 function exercisePanelMarkup(demo) {
   const exercise = config.exercises?.[demo[0]];
   if (!exercise) return "";
@@ -195,31 +258,13 @@ function exercisePanelMarkup(demo) {
 <div class="panel-head">
 <h3 id="${pid}-title">Exercise</h3>
 <div class="panel-tools">
-<label class="exercise-control">Target
-<select data-role="exercise-target" aria-label="Exercise target">
-<option value="cpu">CPU</option>
-<option value="gpu">GPU</option>
-<option value="mixed">Mixed</option>
-</select>
-</label>
-<label class="exercise-control"><input data-role="exercise-strict" type="checkbox"> Strict</label>
+${runControlsMarkup()}
 ${collapseButton(pid + "-body", pid + "-title")}
 </div>
 </div>
 <div class="panel-body" id="${pid}-body">
 <pre class="exercise-prompt" data-role="exercise-prompt"></pre>
-<section class="panel" id="${pid}-primer">
-<div class="panel-head">
-<h3 id="${pid}-primer-title">Setup and Use</h3>
-<div class="panel-tools">
-<button type="button" data-role="exercise-primer-reset">Reset walkthrough</button>
-${collapseButton(pid + "-primer-body", pid + "-primer-title")}
-</div>
-</div>
-<div class="panel-body" id="${pid}-primer-body">
-<textarea class="exercise-primer" data-role="exercise-primer" spellcheck="false"></textarea>
-</div>
-</section>
+${setupMarkup(pid)}
 <section class="panel" id="${pid}-function">
 <div class="panel-head">
 <h3 id="${pid}-function-title">Function</h3>
@@ -231,7 +276,7 @@ ${collapseButton(pid + "-function-body", pid + "-function-title")}
 <label class="sr-only" for="${pid}-code">Exercise code</label>
 <textarea id="${pid}-code" data-role="exercise-code" spellcheck="false"></textarea>
 <div class="exercise-footer">
-<span>Runs <code>harness/run.jl</code> with this code. Shared by the CPU, GPU, and MPI exercises; output and timeline appear below.</span>
+<span>Runs this function, then Setup and Use, on the chosen Target and Processes. The function is shared by every section; output and timeline appear below.</span>
 <div class="exercise-actions">
 <button type="button" data-role="exercise-reset">Reset code</button>
 <button class="primary" type="button" data-role="exercise-run" disabled>Run exercise <span>↗</span></button>
@@ -251,12 +296,13 @@ function finalExerciseMarkup() {
 <div class="panel-head">
 <h3 id="${pid}-title">Final Exercise</h3>
 <div class="panel-tools">
-<span class="tag">2D incompressible flow</span>
+${runControlsMarkup()}
 ${collapseButton(pid + "-body", pid + "-title")}
 </div>
 </div>
 <div class="panel-body" id="${pid}-body">
 <pre class="exercise-prompt" data-role="final-prompt"></pre>
+${setupMarkup(pid)}
 <section class="panel" id="${pid}-function">
 <div class="panel-head">
 <h3 id="${pid}-function-title">Simulation</h3>
@@ -268,7 +314,7 @@ ${collapseButton(pid + "-function-body", pid + "-function-title")}
 <label class="sr-only" for="${pid}-code">Final exercise code</label>
 <textarea id="${pid}-code" data-role="final-code" spellcheck="false"></textarea>
 <div class="exercise-footer">
-<span>Run the 2D cavity simulation. Use <code>cholesky(Symmetric(A))</code> or your tiled Cholesky.</span>
+<span>Runs <code>simulate!</code>, then Setup and Use, on the chosen Target and Processes. Use <code>cholesky(Symmetric(A))</code> or your tiled Cholesky.</span>
 <div class="exercise-actions">
 <button type="button" data-role="final-reset">Reset code</button>
 <button class="primary" type="button" data-role="final-run" disabled>Run final exercise <span>↗</span></button>
@@ -439,8 +485,8 @@ function createExercisePanel(demo) {
     demo: demo[0], el,
     code: role("exercise-code"), run: role("exercise-run"),
     reset: role("exercise-reset"), target: role("exercise-target"),
-    strict: role("exercise-strict"), prompt: role("exercise-prompt"),
-    primer: role("exercise-primer"), primerReset: role("exercise-primer-reset"),
+    mode: role("exercise-mode"), prompt: role("exercise-prompt"),
+    setup: role("exercise-setup"), setupReset: role("exercise-setup-reset"),
     output: role("output"), clear: role("clear"),
     metrics: role("metrics"), history: role("history"), timeline: role("timeline"),
     summary: role("summary"), moves: role("moves"), zoom: role("zoom"),
@@ -448,31 +494,15 @@ function createExercisePanel(demo) {
   };
   panel.timeline.owner = panel;
   panel.prompt.textContent = exercise.prompt;
-  panel.primer.value = exercisePrimer ?? config.exercise_primer ?? "";
-  panel.primer.oninput = () => {
-    exercisePrimer = panel.primer.value;
-    saveExercisePrimer();
-    syncExercisePrimerEditors(panel.primer);
-  };
-  panel.primerReset.onclick = () => {
-    exercisePrimer = config.exercise_primer ?? "";
-    saveExercisePrimer();
-    syncExercisePrimerEditors();
-  };
-  panel.target.value = exercise.target;
-  panel.strict.checked = exercise.strict;
+  wireSetup(panel, panel.demo, config.exercise_setups ?? {}, exercise);
   panel.code.value = exerciseCode ?? config.exercise_template ?? "";
   panel.code.oninput = () => {
     exerciseCode = panel.code.value;
     saveExerciseCode();
     syncExerciseEditors(panel.code);
   };
-  panel.code.onkeydown = event => {
-    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
-      event.preventDefault();
-      if (!panel.run.disabled) panel.run.click();
-    }
-  };
+  runOnCtrlEnter(panel.code, panel.run);
+  runOnCtrlEnter(panel.setup, panel.run);
   panel.reset.onclick = () => {
     exerciseCode = config.exercise_template ?? "";
     saveExerciseCode();
@@ -480,7 +510,7 @@ function createExercisePanel(demo) {
   };
   panel.run.onclick = () => post("/api/run", {
     op: "exercise", demo: panel.demo, target: panel.target.value,
-    strict: panel.strict.checked, code: panel.code.value,
+    mode: panel.mode.value, code: panel.code.value, setup: panel.setup.value,
   });
   panel.clear.onclick = () => panel.output.replaceChildren();
   panel.moves.onchange = panel.zoom.oninput = () => draw(panel);
@@ -506,7 +536,8 @@ function createFinalExercisePanel() {
   const panel = {
     demo: "final", el,
     code: role("final-code"), run: role("final-run"), reset: role("final-reset"),
-    prompt: role("final-prompt"),
+    prompt: role("final-prompt"), target: role("exercise-target"), mode: role("exercise-mode"),
+    setup: role("exercise-setup"), setupReset: role("exercise-setup-reset"),
     output: role("output"), clear: role("clear"),
     visual: role("visual"), visualControls: role("visual-controls"),
     metrics: role("metrics"), history: role("history"), timeline: role("timeline"),
@@ -530,6 +561,9 @@ function createFinalExercisePanel() {
     label.append(input, document.createTextNode(` ${item.label}`));
     panel.visualControls.append(label);
   }
+  wireSetup(panel, "final", exercise.setups ?? {}, exercise);
+  runOnCtrlEnter(panel.code, panel.run);
+  runOnCtrlEnter(panel.setup, panel.run);
   panel.code.value = finalCode ?? exercise.template ?? "";
   let saveTimer = null;
   const pushFinalFile = () => {
@@ -582,7 +616,8 @@ function createFinalExercisePanel() {
         : "No visualization selected.";
     }
     post("/api/run", {
-      op: "eval", mode: "single", demo: "final", code: panel.code.value, visuals,
+      op: "eval", mode: panel.mode.value, demo: "final", code: panel.code.value,
+      setup: panel.setup.value, visuals,
     });
   };
   panel.clear.onclick = () => panel.output.replaceChildren();
@@ -925,7 +960,7 @@ function showFinal() {
   showSection("final");
   selectedDemo = null;
   $("demo-title").textContent = config.final_exercise?.title || "Final Exercise";
-  $("layout-label").textContent = "2D INCOMPRESSIBLE FLOW";
+  $("layout-label").textContent = "GRAY-SCOTT REACTION-DIFFUSION";
   for (const button of document.querySelectorAll("#demos button")) {
     button.classList.toggle("active", button.dataset.final === "1");
   }
@@ -1194,10 +1229,9 @@ async function init() {
       saveExerciseCode();
     }
   } catch (e) {}
-  exercisePrimer = config.exercise_primer ?? "";
   try {
-    const saved = localStorage.getItem(EXERCISE_PRIMER_KEY);
-    if (saved !== null) exercisePrimer = saved;
+    const saved = JSON.parse(localStorage.getItem(EXERCISE_SETUP_KEY) || "{}");
+    if (saved && typeof saved === "object" && !Array.isArray(saved)) setupStore = saved;
   } catch (e) {}
   finalCode = config.final_exercise?.template ?? "";
   try {

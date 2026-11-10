@@ -48,15 +48,38 @@ SECTIONS = [
     ("julia", "Julia basics", ["00_julia"]),
     ("cpu", "CPU", ["01_tasks", "02_datadeps"]),
 ]
-# Proposed hands-on exercise for the demos that use it. The console shows the
-# prompt and a shared code editor in each relevant demo section.
+# One Exercise panel per section. Each one runs the shared Function editor
+# (my_cholesky!) and then its own Setup and Use code, which chooses the
+# hardware and calls the function. `target` and `mode` are the section's
+# starting choices; the attendee can change both.
+TARGETS = {"cpu": "CPU", "gpu": "GPU", "gpus": "All GPUs", "mixed": "Mixed"}
+MODES = {"single": "One process", "mpi": "Two MPI ranks"}
+
 EXERCISES = {
+    "00_julia": dict(
+        target="cpu", mode="single",
+        prompt=textwrap.dedent("""\
+            Exercise: the serial starting point
+
+            The Function editor holds exercise/my_cholesky.jl: a serial,
+            tile-by-tile Cholesky factorization. Setup and Use builds a test
+            matrix, tiles it into a DArray, calls my_cholesky! on the grid of
+            tiles, and checks the factor.
+
+            Read both, then press Run exercise. It fails: each T[i, j] is a
+            Dagger handle to a tile, and the serial code calls BLAS on it
+            directly. The CPU section turns the function into a Dagger
+            program; Setup and Use stays the same.
+
+            Target and Processes choose where the code runs. Changing them
+            loads the matching Setup and Use.
+            Full handout: exercise/README.md""")),
     "02_datadeps": dict(
-        target="cpu", strict=False, gpus="1",
+        target="cpu", mode="single",
         prompt=textwrap.dedent("""\
             Exercise: parallel tiled Cholesky (CPU)
 
-            The editor starts from the serial, tile-by-tile Cholesky
+            The Function editor starts from the serial, tile-by-tile Cholesky
             factorization in exercise/my_cholesky.jl. Make it parallel
             without changing the algorithm or the loop structure.
 
@@ -78,72 +101,189 @@ EXERCISES = {
             - Under MPI every rank must build the same graph; do not branch
               on rank.
 
-            Run the exercise below. Done when every line says PASS.
+            Run exercise runs the Function, then Setup and Use. Done when it
+            prints PASS.
             Full handout: exercise/README.md""")),
     "03_gpu": dict(
-        target="gpu", strict=False, gpus="1",
+        target="gpu", mode="single",
         prompt=textwrap.dedent("""\
             Exercise: same code, on the GPU
 
-            No code changes. The exercise/my_cholesky.jl function you wrote
-            for the CPU must run unchanged on an AMD GPU. Dagger maps the
-            spawned BLAS/LAPACK calls to rocBLAS/rocSOLVER when a task lands on
-            the GPU.
+            No changes to the Function. The my_cholesky! you wrote in
+            exercise/my_cholesky.jl for the CPU must run unchanged on an AMD
+            GPU. Setup and Use now uses the
+            GPU scope, Dagger.scope(rocm_gpu=1); Dagger maps the spawned
+            BLAS/LAPACK calls to rocBLAS/rocSOLVER when a task lands on the
+            GPU.
 
-            Keep the shared editor content, set Target to GPU, and run.
             If the GPU run fails inside your own helper, spawn the BLAS/LAPACK
             call itself so Dagger can substitute the GPU implementation.
 
             Full handout: exercise/README.md""")),
     "05_multigpu": dict(
-        target="gpu", strict=False, gpus="all",
+        target="gpus", mode="single",
         prompt=textwrap.dedent("""\
-            Exercise: stretch goals
+            Exercise: every GPU, or CPU and GPU together
 
-            The same code can use every visible GPU or a mix of CPU and GPU.
-            - Keep Target on GPU to use all visible GPUs in this section.
-            - Switch Target to Mixed to let Dagger place tasks on both CPU and
+            No changes to the Function. Setup and Use now uses every visible
+            GPU, Dagger.scope(rocm_gpus=:).
+            - Run it as it is, then compare the timeline with one GPU.
+            - Set Target to Mixed to let Dagger place tasks on both CPU and
               GPU. Is it faster? Why or why not?
-            - Use the REPL or the terminal harness to sweep tile sizes and
-              compare builtin and vendor implementations.
+            - Try other matrix and tile sizes (n and bs) in Setup and Use.
             - Look at solution/my_cholesky.jl only after you finish.
+
+            Full handout: exercise/README.md""")),
+    "06_multinode": dict(
+        target="cpu", mode="mpi",
+        prompt=textwrap.dedent("""\
+            Exercise: same code, on MPI ranks (CPU)
+
+            No changes to the Function. Processes is now Two MPI ranks:
+            every rank runs the same Function and Setup and Use, and Dagger
+            spreads the tiles and their tasks across the ranks. The test
+            matrix is seeded, so every rank builds the same one, and only
+            rank 0 prints.
+
+            Your my_cholesky! from exercise/my_cholesky.jl is correct under
+            MPI only if every In/InOut annotation is right: a tile written
+            on another rank without InOut loses its update.
+
+            Full handout: exercise/README.md""")),
+    "07_multinode_multigpu": dict(
+        target="gpu", mode="mpi",
+        prompt=textwrap.dedent("""\
+            Exercise: MPI ranks and GPUs together
+
+            No changes to the Function. Two MPI ranks, each placing tasks on
+            its GPU: the same my_cholesky! from exercise/my_cholesky.jl, the
+            same Setup and Use, with Target GPU and Processes Two MPI ranks.
+            Compare the timeline with the CPU run in the previous section.
 
             Full handout: exercise/README.md""")),
 }
 
 
-EXERCISE_PRIMER = textwrap.dedent("""\
-    # Walkthrough: create, distribute, and call the Cholesky exercise.
-    # Fill in the missing pieces, then compare with the harness.
+def _imports(target, mode):
+    lines = ["using Dagger, LinearAlgebra, Random"]
+    if target != "cpu":
+        lines.append("using AMDGPU")
+    if mode == "mpi":
+        lines += ["using MPI", "",
+                  "rank = MPI.Comm_rank(MPI.COMM_WORLD)   # only rank 0 prints"]
+    return lines
 
-    using Dagger, LinearAlgebra
-    import LinearAlgebra: BLAS, LAPACK
 
-    n, bs = 1024, 256
-    A = rand(n, n); A = A + A'; A[diagind(A)] .+= 2n
+def _on_every_rank(mode):
+    return ", on every MPI rank." if mode == "mpi" else "."
 
-    # 1. Choose a scope for the selected target.
-    #    CPU:   Dagger.scope(worker=1)
-    #    GPU:   Dagger.scope(rocm_gpu=1)
-    #    MPI:   Dagger.scope(mpi_ranks=:)
-    #    Mixed: Dagger.UnionScope(cpu, gpu)
-    scope = ???
 
-    Dagger.with_options(scope=scope) do
-        # 2. Tile A into a DArray with bs x bs blocks.
-        DA = DArray(A, ???)
+def _scope_lines(target, mode):
+    """The scope line(s) for a target, as in harness/common.jl."""
+    where = {"cpu": "the CPU threads", "gpu": "one GPU",
+             "gpus": "every visible GPU", "mixed": "the CPU threads and one GPU"}[target]
+    if mode == "mpi":
+        where = where.replace("the CPU threads", "every rank's CPU threads")
+        where += "" if target == "cpu" else " per rank"
+    lines = [f"# (1) Where the tasks run: {where}."]
+    if mode == "mpi" and target in ("cpu", "mixed"):
+        lines.append("#     Constrain the MPI ranks to their CPUs; GPUs are opt-in.")
+        cpu = "Dagger.constrain(Dagger.scope(mpi_ranks=:), Dagger.DefaultScope())"
+    else:
+        cpu = "Dagger.scope(worker=1)"
+    gpu = "Dagger.scope(rocm_gpus=:)" if target == "gpus" else "Dagger.scope(rocm_gpu=1)"
+    if target == "cpu":
+        lines.append(f"scope = {cpu}")
+    elif target in ("gpu", "gpus"):
+        lines.append(f"scope = {gpu}")
+    else:
+        lines += [f"cpu = {cpu}", f"gpu = {gpu}", "scope = Dagger.UnionScope(cpu, gpu)"]
+    return lines
 
-        # 3. Call my_cholesky! on the grid of tiles.
-        my_cholesky!(???)
 
-        # 4. Collect and check the factor.
-        L = collect(???)
-        println("collected ", size(L))
-    end
+def _say(mode, expression):
+    """Print once: on rank 0 under MPI."""
+    if mode == "mpi":
+        return f"rank == 0 && println({expression})"
+    return f"println({expression})"
 
-    # The Run exercise button performs this setup in the harness.
-""")
 
+def exercise_setup(target, mode):
+    """Runnable Setup and Use for the Cholesky exercise."""
+    n, bs = (1024, 256) if target == "cpu" else (2048, 512)
+    lines = ["# Setup and Use: where the tasks run, the test matrix, the call to",
+             "# my_cholesky!, and the check. Run exercise runs the Function first,",
+             "# then this code" + _on_every_rank(mode),
+             ""] + _imports(target, mode)
+    lines += ["",
+              "BLAS.set_num_threads(1)   # Dagger runs one tile operation per thread",
+              ""]
+    lines += _scope_lines(target, mode)
+    lines += ["",
+              "# (2) A symmetric positive-definite test matrix. It is seeded, so every",
+              "#     MPI rank builds the same one.",
+              f"n, bs = {n}, {bs}",
+              "A = rand(Xoshiro(1234), n, n)",
+              "A = A + A'",
+              "A[diagind(A)] .+= 2n",
+              "",
+              "# (3) Tile A, factor the tiles in place, and gather the lower factor L.",
+              "L = Dagger.with_options(scope=scope) do",
+              "    DA = DArray(A, Blocks(bs, bs))",
+              "    my_cholesky!(DA.chunks)",
+              "    LowerTriangular(collect(DA))",
+              "end",
+              "",
+              "# (4) Check A = L * L' with a scaled residual; it passes below 16.",
+              "x = rand(Xoshiro(7), n)",
+              "residual = norm(A * x - L * (L' * x), Inf) / (norm(A, Inf) * norm(x, Inf) * n * eps())",
+              'status = residual < 16 ? "PASS" : "FAIL"',
+              _say(mode, '"$status: n = $n, tiles of $bs, residual ", round(residual; sigdigits=3)'),
+              'residual < 16 || error("my_cholesky! returned a wrong factor")']
+    return "\n".join(lines) + "\n"
+
+
+def final_setup(target, mode):
+    """Runnable Setup and Use for the final exercise."""
+    lines = ["# Setup and Use: where the tasks run, the parameters, the initial fields,",
+             "# the call to simulate!, and the check. Run final exercise runs the",
+             "# Simulation first, then this code" + _on_every_rank(mode),
+             "# The Visualization panel then draws u and v.",
+             ""] + _imports(target, mode)
+    lines += [""] + _scope_lines(target, mode)
+    lines += ["",
+              "# (2) Parameters: grid size, time step, diffusion rates, feed and kill rates.",
+              "n, dt = 256, 1.0",
+              "Du, Dv = 0.16, 0.08",
+              "F, k = 0.055, 0.062",
+              "nsteps = 3600",
+              "",
+              "# (3) Initial fields: substrate u = 1 and a little activator v, plus 14",
+              "#     seeded squares where the reaction starts. The seed makes every MPI",
+              "#     rank start from the same fields.",
+              "Random.seed!(42)",
+              "u = ones(n, n)",
+              "v = 0.01 .* rand(n, n)",
+              "for _ in 1:14",
+              "    cx, cy = rand(6:n-5, 2)",
+              "    v[cx-3:cx+3, cy-3:cy+3] .= 1.0",
+              "    u[cx-3:cx+3, cy-3:cy+3] .= 0.5",
+              "end",
+              "",
+              "# (4) Run the simulation where the scope says; it updates u and v in place.",
+              "Dagger.with_options(scope=scope) do",
+              "    simulate!(u, v, (; n, dt, Du, Dv, F, k), nsteps)",
+              "end",
+              "",
+              "# (5) Check and report: both fields must stay finite.",
+              'all(isfinite, u) && all(isfinite, v) || error("the simulation blew up")',
+              _say(mode, '"u range: ", extrema(u), " v range: ", extrema(v)')]
+    return "\n".join(lines) + "\n"
+
+
+def setup_templates(build):
+    """Every Setup and Use variant, keyed "target/mode" for the console."""
+    return {f"{target}/{mode}": build(target, mode) for target in TARGETS for mode in MODES}
 
 
 FINAL_VISUALS = [
@@ -179,60 +319,53 @@ FINAL_EXERCISE = dict(
         cholesky(Symmetric(A)) and reuse the factors every step. The
         1D systems are small; the parallel work is the line solves.
 
-        Fill in L, Fu, Fv, and the two half steps, then run. The
+        Fill in L, Fu, Fv, and the two half steps of simulate!,
+        updating u and v in place. Setup and Use sets the parameters
+        and the initial fields, calls simulate!(u, v, p, nsteps) where
+        the scope says, and checks the result; Target and Processes
+        choose the hardware and whether it runs on MPI ranks. The
         Visualization panel draws substrate u and activator v side by
         side and animates the sampled time steps; no plotting code
         belongs in your script.
     """),
     template=textwrap.dedent("""\
         # Final exercise: Gray-Scott reaction-diffusion on a periodic grid.
-        # Fill in the missing pieces, then run. Select the fields to draw
-        # in the Visualization panel; the console plots them after the run.
+        # Fill in simulate! below. Setup and Use sets the parameters and the
+        # initial fields, calls simulate!, and checks the result.
 
-        using Dagger, LinearAlgebra, Random
+        using Dagger, LinearAlgebra
 
-        # Setup: parameters, fields, and the constant operators.
-        n = 256
-        dt = 1.0
-        Du, Dv = 0.16, 0.08
-        F, k = 0.055, 0.062
-        nsteps = 3600
+        # Advance the substrate u and the activator v by nsteps ADI time steps,
+        # in place. p holds the parameters from Setup and Use: n, dt, Du, Dv, F, k.
+        function simulate!(u, v, p, nsteps)
+            (; n, dt, Du, Dv, F, k) = p
 
-        Random.seed!(42)
-        u = ones(n, n)
-        v = 0.01 .* rand(n, n)
-        for _ in 1:14
-            cx, cy = rand(6:n-5, 2)
-            v[cx-3:cx+3, cy-3:cy+3] .= 1.0
-            u[cx-3:cx+3, cy-3:cy+3] .= 0.5
+            # 1. Build the 1D periodic Laplacian L: diagonal -2, neighbour
+            #    entries +1, and the first/last rows wrap around.
+            L = ???
+
+            # 2. Factor the implicit operators A_u = I - (dt/2) Du L and
+            #    A_v = I - (dt/2) Dv L with Cholesky. They are SPD and
+            #    constant, so one factorization serves every time step.
+            Fu = ???
+            Fv = ???
+
+            # 3. Time loop with ADI splitting. Each column/row solve is
+            #    independent; this is the loop to spawn as Dagger tasks.
+            ru = similar(u)
+            rv = similar(v)
+            for step in 1:nsteps
+                # First half step: y explicit (u * L), x implicit (Fu).
+                # TODO
+
+                # Second half step: x explicit (L * u), y implicit (Fv).
+                # TODO
+            end
+            return u, v
         end
-
-        # 1. Build the 1D periodic Laplacian L: diagonal -2, neighbour
-        #    entries +1, and the first/last rows wrap around.
-        L = ???
-
-        # 2. Factor the implicit operators A_u = I - (dt/2) Du L and
-        #    A_v = I - (dt/2) Dv L with Cholesky. They are SPD and
-        #    constant, so one factorization serves every time step.
-        Fu = ???
-        Fv = ???
-
-        # Algorithm: time loop with ADI splitting. Each column/row
-        # solve is independent; this is the loop to spawn as Dagger tasks.
-        ru = similar(u)
-        rv = similar(v)
-        for step in 1:nsteps
-            # First half step: y explicit (u * L), x implicit (Fu).
-            # TODO
-
-            # Second half step: x explicit (L * u), y implicit (Fv).
-            # TODO
-        end
-
-        # Use: report the final fields; the console animates them.
-        println("u range: ", extrema(u), " v range: ", extrema(v))
     """),
 )
+
 
 FINAL_WORKSPACE = ROOT / "results" / "final-exercise"
 FINAL_FILE = FINAL_WORKSPACE / "final_exercise.jl"
@@ -241,6 +374,12 @@ FINAL_README = FINAL_WORKSPACE / "README.md"
 
 def ensure_final_workspace():
     FINAL_WORKSPACE.mkdir(parents=True, exist_ok=True)
+    # Older consoles kept the whole script, setup included, in this file. Setup
+    # and Use is now separate, so keep that copy aside and start from simulate!.
+    for path, old_layout in ((FINAL_FILE, "# Setup: parameters, fields, and the constant operators."),
+                             (FINAL_README, "Fill in L, Fu, Fv, and the two half steps, then run.")):
+        if path.exists() and old_layout in path.read_text():
+            path.replace(path.with_name(path.stem + ".old" + path.suffix))
     if not FINAL_FILE.exists():
         FINAL_FILE.write_text(FINAL_EXERCISE["template"])
     if not FINAL_README.exists():
@@ -269,10 +408,10 @@ def exercises():
     if unknown:
         raise ValueError(f"Unknown demos in EXERCISES: {sorted(unknown)}")
     for demo, exercise in EXERCISES.items():
-        if exercise["target"] not in ("cpu", "gpu", "mixed"):
+        if exercise["target"] not in TARGETS:
             raise ValueError(f"Unknown exercise target for {demo}")
-        if exercise["gpus"] not in ("1", "all"):
-            raise ValueError(f"Unknown exercise GPU selection for {demo}")
+        if exercise["mode"] not in MODES:
+            raise ValueError(f"Unknown exercise layout for {demo}")
     return {demo: dict(exercise) for demo, exercise in EXERCISES.items()}
 
 
@@ -935,18 +1074,17 @@ class Console:
                 if exercise is None:
                     raise ValueError("This demo has no exercise")
                 target = str(command.get("target") or exercise["target"])
-                if target not in ("cpu", "gpu", "mixed"):
+                if target not in TARGETS:
                     raise ValueError("Unknown exercise target")
-                if not isinstance(command.get("code"), str) or not command["code"].strip():
-                    raise ValueError("Write Julia code for the exercise first")
-                command["mode"] = demo[2]
+                layout = str(command.get("mode") or exercise["mode"])
+                if layout not in MODES:
+                    raise ValueError("Unknown exercise layout")
+                for field, what in (("code", "the function"), ("setup", "Setup and Use")):
+                    if not isinstance(command.get(field), str) or not command[field].strip():
+                        raise ValueError(f"Write Julia code for {what} first")
+                command["mode"] = layout
                 command["target"] = target
-                command["strict"] = bool(command.get("strict", exercise["strict"]))
-                command["gpus"] = exercise["gpus"]
-                command["sizes"] = {"cpu": "1024", "gpu": "2048", "mixed": "2048"}[target]
-                command["bs"] = 256 if target == "cpu" else 512
-                command["trials"] = 1
-                command["label"] = f"Exercise · {target.upper()}"
+                command["label"] = f"Exercise · {TARGETS[target]} · {MODES[layout]}"
             elif command.get("op") == "eval":
                 if command.get("mode") not in ("single", "mpi"):
                     raise ValueError("Unknown REPL layout")
@@ -956,7 +1094,10 @@ class Console:
                         and command["demo"] != "final":
                     raise ValueError("Unknown demo")
                 if command.get("demo") == "final":
-                    command["label"] = "Final Exercise"
+                    setup = command.get("setup")
+                    if not isinstance(setup, str) or not setup.strip():
+                        raise ValueError("Write Julia code for Setup and Use first")
+                    command["label"] = f"Final Exercise · {MODES[command['mode']]}"
                     visuals = command.get("visuals", [])
                     if not isinstance(visuals, list) or any(v not in FINAL_VISUAL_IDS for v in visuals):
                         raise ValueError("Unknown visualization")
@@ -1026,8 +1167,11 @@ def handler_for(console):
             elif url.path == "/api/config":
                 self.reply(dict(token=console.token, demos=DEMOS, sections=section_layout(),
                                 exercises=exercises(), exercise_template=exercise_template(),
-                                exercise_primer=EXERCISE_PRIMER,
-                                final_exercise=dict(FINAL_EXERCISE, visuals=FINAL_VISUALS),
+                                exercise_setups=setup_templates(exercise_setup),
+                                targets=TARGETS, modes=MODES,
+                                final_exercise=dict(FINAL_EXERCISE, visuals=FINAL_VISUALS,
+                                                    target="cpu", mode="single",
+                                                    setups=setup_templates(final_setup)),
                                 final_workspace=str(FINAL_WORKSPACE),
                                 host=console.args.ssh_host,
                                 remote_root=console.args.remote_root, time=console.args.time))

@@ -556,6 +556,42 @@ class ConsoleTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, err)
         self.assertEqual(len(json.loads(report.decode()[len(app.PREFIX):])["payload"]), 250000)
 
+    def test_layout_switch_quits_the_idle_worker_instead_of_killing_its_step(self):
+        # A stand-in for srun: it exits quietly on quit, and prints srun's
+        # cancellation chatter if it is killed instead.
+        child = ("import signal, sys\n"
+                 "def killed(*_):\n"
+                 "    print('srun: forcing job termination', flush=True); sys.exit(143)\n"
+                 "signal.signal(signal.SIGTERM, killed)\n"
+                 "print('@@SC26@@{\"kind\":\"worker_ready\",\"mode\":\"single\"}', flush=True)\n"
+                 "for line in sys.stdin:\n"
+                 "    if 'quit' in line: sys.exit(0)\n")
+        spec = importlib.util.spec_from_file_location("agent", BASE / "host/remote_agent.py")
+        agent = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(agent)
+        events = []
+        agent.emit = lambda kind, **fields: events.append(dict(kind=kind, **fields))
+        agent.worker = subprocess.Popen(["python3", "-c", child], stdin=subprocess.PIPE,
+                                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                        universal_newlines=True, bufsize=1, start_new_session=True)
+        agent.mode = "single"
+        proc = agent.worker
+        relay = threading.Thread(target=agent.relay, args=(proc,), daemon=True)
+        relay.start()
+        try:
+            self.assertTrue(agent.ready.wait(5))
+            agent.close_worker(graceful=True)
+            relay.join(5)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait()
+        text = "".join(e.get("text", "") for e in events if e["kind"] == "output")
+        self.assertNotIn("forcing job termination", text)
+        exit_event = [e for e in events if e["kind"] == "worker_exit"][-1]
+        self.assertEqual(exit_event["returncode"], 0)
+        self.assertTrue(exit_event["expected"])
+
     def test_batched_commands_do_not_wait_for_more_stdin(self):
         import os
         with tempfile.TemporaryDirectory() as directory:

@@ -53,12 +53,21 @@ def relay(proc):
     ready.set()  # Wake a pending command on early initialization failure.
 
 
-def close_worker():
+def close_worker(graceful=False):
     global worker, mode
     proc, worker, mode = worker, None, None
     if proc is None:
         return
     proc.closing = True
+    if graceful and proc.poll() is None:
+        # An idle worker reads quit and exits, so srun ends its step quietly
+        # instead of printing "forcing job termination ... CANCELLED".
+        try:
+            proc.stdin.write('{"op":"quit"}\n')
+            proc.stdin.flush()
+            proc.wait(timeout=20)
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            pass
     if proc.poll() is None:
         # Also handles a running expression that cannot consume a quit command.
         os.killpg(proc.pid, signal.SIGTERM)
@@ -76,7 +85,7 @@ def start_worker(wanted):
         raise ValueError("Unknown worker layout")
     if worker is not None and worker.poll() is None and mode == wanted:
         return
-    close_worker()
+    close_worker(graceful=True)  # Switching layouts: the old worker is idle.
     if stopping.is_set():
         raise RuntimeError("Session is stopping")
     mode = wanted

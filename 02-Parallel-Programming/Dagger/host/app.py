@@ -191,6 +191,7 @@ FINAL_EXERCISE = dict(
 
         using Dagger, LinearAlgebra, Random
 
+        # Setup: parameters, fields, and the constant operators.
         n = 256
         dt = 1.0
         Du, Dv = 0.16, 0.08
@@ -216,8 +217,8 @@ FINAL_EXERCISE = dict(
         Fu = ???
         Fv = ???
 
-        # 3. Time loop with ADI splitting. Each column/row solve is
-        #    independent; this is the loop to spawn as Dagger tasks.
+        # Algorithm: time loop with ADI splitting. Each column/row
+        # solve is independent; this is the loop to spawn as Dagger tasks.
         ru = similar(u)
         rv = similar(v)
         for step in 1:nsteps
@@ -228,6 +229,7 @@ FINAL_EXERCISE = dict(
             # TODO
         end
 
+        # Use: report the final fields; the console animates them.
         println("u range: ", extrema(u), " v range: ", extrema(v))
     """),
 )

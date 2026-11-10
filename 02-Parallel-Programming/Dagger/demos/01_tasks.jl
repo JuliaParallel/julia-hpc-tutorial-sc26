@@ -1,15 +1,20 @@
 # Demo 1: tasks. `Dagger.@spawn` returns right away; the work runs on some
 # thread. Passing one task's result into another builds a dependency graph.
 #   julia --project -t 4 demos/01_tasks.jl
+# source-begin
+# Setup: the task API.
 using Dagger
+# source-end
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
 # source-begin
+# Algorithm: a helper that reports which thread ran it.
 whereami() = (sleep(0.1); Threads.threadid())
 # source-end
 
 function run_demo()
     DemoPresentation.present(; title="01 Tasks and dependencies", files=[@__FILE__], demo=splitext(basename(@__FILE__))[1]) do
         # source-begin
+        # Setup and use: launch tasks, then fetch the results.
         a = Dagger.@spawn rand(2000, 2000)
         b = Dagger.@spawn rand(2000, 2000)
         c = Dagger.@spawn a * b          # waits for a and b -- no explicit sync

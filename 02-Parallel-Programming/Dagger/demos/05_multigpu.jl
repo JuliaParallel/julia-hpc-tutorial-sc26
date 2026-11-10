@@ -5,6 +5,7 @@
 #   bash frontier/launch.sh 4 demos/05_multigpu.jl --mpi
 const DEMO_SOURCE_FILE = @__FILE__
 # source-begin
+# Setup: choose the hardware layout.
 const DEMO_USE_GPU = true
 const DEMO_USE_MPI = "--mpi" in ARGS
 const DEMO_MIN_RANKS = 1

@@ -1,9 +1,13 @@
 # Demo 0: the Julia features used throughout the Dagger sections.
 #   julia --project -t 4 demos/00_julia.jl
+# source-begin
+# Setup: packages used by the examples.
 using Dagger, LinearAlgebra
+# source-end
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
 
 # source-begin
+# Algorithm: helpers used by the examples below.
 # A function can mutate its argument; the trailing ! is only a convention.
 scale!(A::AbstractMatrix, alpha) = (A .*= alpha; A)
 
@@ -19,6 +23,7 @@ with_column(f, A) = f(@view A[:, 1])
 function run_demo()
     DemoPresentation.present(; title="00 Julia basics", files=[@__FILE__], demo=splitext(basename(@__FILE__))[1]) do
         # source-begin
+        # Setup and use: build a small array, then exercise each feature.
         A = reshape(collect(1.0:12.0), 3, 4)
         println("size(A) = ", size(A), ", describe(A) = ", describe(A))
         println("describe(3.5) = ", describe(3.5))

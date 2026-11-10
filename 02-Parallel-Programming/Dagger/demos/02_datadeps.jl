@@ -1,9 +1,13 @@
 # Demo 2: Datadeps. Tasks may mutate their arguments; you declare how
 # (In / Out / InOut) and Dagger orders and parallelizes the tasks for you.
 #   julia --project -t 4 demos/02_datadeps.jl
+# source-begin
+# Setup: the Datadeps API.
 using Dagger
+# source-end
 
 # source-begin
+# Algorithm: small tile operations; the ! means they mutate their argument.
 add!(X, Y) = (X .+= Y; nothing)
 double!(X) = (X .*= 2; nothing)
 
@@ -13,6 +17,7 @@ isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "present
 function run_demo()
     DemoPresentation.present(; title="02 Mutable data and tiles", files=[@__FILE__], demo=splitext(basename(@__FILE__))[1]) do
         # source-begin
+        # Setup and use: build arrays, declare the writes, then check the result.
         A = rand(1000); B = rand(1000); C = zeros(1000)
         B0 = copy(B)
         Dagger.spawn_datadeps() do

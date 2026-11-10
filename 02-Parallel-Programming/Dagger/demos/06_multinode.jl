@@ -1,30 +1,33 @@
-# One CPU matrix product across MPI ranks, on one or several nodes.
-# Odo tutorial: two ranks on the existing node. bash frontier/multinode.sh cpu
+# Demo 6: one CPU matrix product across MPI ranks, on one or several nodes.
+# C = A * B is split into block rows; each row runs on a different rank.
+#
+# Odo tutorial: two ranks on the existing node.
+#   bash frontier/multinode.sh cpu
 
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
 
 # source-begin
-# Setup: MPI, rank identity, and one BLAS thread per process.
 using Dagger, MPI, Random, LinearAlgebra
 
+# Every rank runs this same program; `rank` says which one we are.
 Dagger.accelerate!(:mpi)
 const rank = MPI.Comm_rank(MPI.COMM_WORLD)
 const ranks = MPI.Comm_size(MPI.COMM_WORLD)
 ranks >= 2 || error("This demo needs at least two MPI ranks")
-BLAS.set_num_threads(1)
-# source-end
+BLAS.set_num_threads(1)   # one BLAS thread per process
 
-# source-begin
-# Algorithm: each rank computes one output tile row.
+# Where a task ran: host, process and MPI rank.
 function task_location()
     return (; host=gethostname(), pid=getpid(), rank)
 end
 
+# One output tile: C[i] <- A[i] * B, then report where it ran.   (mul!)
 function multiply_and_report!(C, A, B)
     mul!(C, A, B)
     return task_location()
 end
 
+# Spawn one `multiply_and_report!` per block row, pinned to its own rank.
 function tiled_matmul!(DC, DA, DB, scopes)
     tasks = []
     Dagger.spawn_datadeps() do
@@ -37,6 +40,7 @@ function tiled_matmul!(DC, DA, DB, scopes)
     return fetch.(tasks)
 end
 
+# Build A (one block row per scope), B and C as tiled DArrays; run the product.
 function matrix_product(scopes, target)
     bs = 512
     A = rand(Xoshiro(1), bs * length(scopes), bs)
@@ -46,24 +50,25 @@ function matrix_product(scopes, target)
         DB = DArray(B, Blocks(bs, bs))
         DC = DArray(zeros(size(A, 1), size(B, 2)), Blocks(bs, bs))
         reports = tiled_matmul!(DC, DA, DB, scopes)
-        result = collect(DC)
-        return reports, result, A, B
+        return reports, collect(DC), A, B
     end
 end
-# source-end
 
-# source-begin
-# Setup and use: run across ranks and report where the output tiles ran.
 function run_product()
+    # (1) One scope per rank, and one scope that spans all of them.
     scopes = [Dagger.constrain(Dagger.scope(mpi_rank=r), Dagger.DefaultScope())
               for r in 0:ranks-1]
     target = Dagger.constrain(Dagger.scope(mpi_ranks=:), Dagger.DefaultScope())
+
+    # (2) Run the product tiled across the ranks.
     reports, result, A, B = matrix_product(scopes, target)
 
+    # (3) Verify the result, and that every rank took part.
     @assert result ≈ A * B
     processes = length(Set((r.host, r.pid) for r in reports))
     @assert processes == ranks "Some MPI ranks did not participate in the matrix product"
 
+    # (4) Report where each output tile ran (rank 0 prints).
     if rank == 0
         println("One matrix product: A$(size(A)) * B$(size(B))")
         for (i, report) in enumerate(reports)

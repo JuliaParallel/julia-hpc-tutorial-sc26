@@ -148,7 +148,6 @@ bash frontier/launch.sh 1 demos/05_multigpu.jl --gpus=4 # one product, four GPUs
 SC26_GPUS_PER_TASK=2 bash frontier/run.sh 1 --impl=solution --target=gpu --gpus=all
 bash frontier/launch.sh 2 demos/06_multinode.jl
 bash frontier/run.sh 2 --impl=solution --mpi --strict
-bash frontier/launch.sh 4 demos/05_multigpu.jl --mpi
 bash frontier/run.sh 4 --impl=solution --mpi --strict --target=gpu
 ```
 
@@ -158,13 +157,12 @@ each row on a different GPU, and checks the assembled result. `--gpus=4` selects
 four devices; `--gpus=all` selects all visible devices. The output reports which
 GPU computed each output tile, plus the number of GPUs, nodes, and processes.
 An internal check uses hostname and PCI address to ensure distinct physical
-devices participated, including under MPI. No manual device masks are needed.
+devices participated. No manual device masks are needed.
 
-The optional four-rank launch uses four GPUs on one node, one per rank, for the
-same matrix product. The slides introduce single GPU, single-process multi-GPU,
-multi-node MPI, then multi-node MPI with multiple GPUs per server. The MPI
-demos below use two ranks on the same node, so both presenter and attendees
-keep their existing allocations.
+The slides introduce single GPU, single-process multi-GPU, multi-node MPI, then
+multi-node MPI with multiple GPUs per server. The MPI demos below use two ranks
+on the same node, so both presenter and attendees keep their existing
+allocations.
 
 ### MPI demos on the workshop allocation
 
@@ -183,9 +181,9 @@ rank, the launcher uses `per_task:N` binding to expose the requested count;
 see the [Slurm launch reference](https://slurm.schedmd.com/srun.html).
 
 The entry scripts are `demos/06_multinode.jl` and
-`demos/07_multinode_multigpu.jl`. Both reuse the matrix-product implementation
-behind `05_multigpu.jl`, verify the assembled `C = A * B`, and report the actual
-hosts and processes that computed output tiles. They require at least two MPI
+`demos/07_multinode_multigpu.jl`. Each is a self-contained program with its own
+setup, matrix-product algorithm, and verification; they report the actual hosts
+and processes that computed output tiles. They require at least two MPI
 ranks, regardless of whether those ranks share a host. The GPU version also
 requires two GPUs per rank and checks that all four physical devices differ.
 Successful workshop output reports one node and two Julia processes, with zero

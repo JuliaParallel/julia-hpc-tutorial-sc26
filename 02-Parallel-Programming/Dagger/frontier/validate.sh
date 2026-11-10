@@ -42,7 +42,6 @@ check multigpu bash frontier/run.sh 1 "${small[@]}" --target=gpu --gpus=all
 check mixed bash frontier/run.sh 1 "${small[@]}" --target=mixed
 check mpi-cpu bash frontier/run.sh 2 "${small[@]}" --mpi --strict
 check mpi-gpu bash frontier/run.sh 2 "${small[@]}" --mpi --strict --target=gpu
-check mpi-four-rank-demo bash frontier/launch.sh 4 demos/05_multigpu.jl --mpi
 check mpi-four-rank-cpu bash frontier/run.sh 4 "${small[@]}" --mpi --strict
 check mpi-four-rank-gpu bash frontier/run.sh 4 "${small[@]}" --mpi --strict --target=gpu
 check mpi-matrix-cpu bash frontier/multinode.sh cpu

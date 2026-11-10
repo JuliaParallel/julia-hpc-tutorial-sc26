@@ -81,7 +81,7 @@ def start_worker(wanted):
         raise RuntimeError("Session is stopping")
     mode = wanted
     env = dict(os.environ, SC26_NODES="1", SC26_GPUS_PER_TASK="2" if wanted == "mpi" else "4",
-               SC26_PORTAL="1", SC26_DEMO_LOAD_ONLY="1", JULIA_PKG_OFFLINE="true")
+               SC26_PORTAL="1", JULIA_PKG_OFFLINE="true")
     args = ["bash", str(ROOT / "frontier/launch.sh"), "2" if wanted == "mpi" else "1",
             "--startup-file=no", str(ROOT / "host/worker.jl")]
     if wanted == "mpi":

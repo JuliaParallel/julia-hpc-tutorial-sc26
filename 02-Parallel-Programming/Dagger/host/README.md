@@ -60,11 +60,12 @@ evaluation to the next, and every timeline includes compilation. A CPU demo
 takes about 10–20 seconds, a GPU demo somewhat longer, and the final
 exercise about a minute on the CPU.
 
-Two MPI ranks run inside one Slurm task that holds both ranks' CPUs and GPUs;
-MPICH's own `mpiexec` starts them (`andromeda/mpirun.jl`), and
-`andromeda/rank.sh` keeps one GPU visible per rank. This needs no PMI support
-from Slurm. `SC26_MPI_LAUNCH=srun` makes `srun --mpi=pmi2` start one task per
-rank instead.
+Two MPI ranks are two Slurm tasks of one job, started by `srun --mpi=pmi2`
+(MPICH speaks PMI-2; it refuses PMIx), and Slurm binds each rank's CPUs and
+GPU. `SC26_MPI_LAUNCH=mpiexec` instead runs one task that holds both ranks'
+CPUs and GPUs, with MPICH's own `mpiexec` starting the ranks inside it
+(`andromeda/mpirun.jl`; `andromeda/rank.sh` keeps one GPU visible per rank).
+`--launcher local` always uses that second way.
 
 Your andromeda account needs a Slurm association (`sacctmgr show assoc
 user=$USER`): with `AccountingStorageEnforce=associations`, a user without

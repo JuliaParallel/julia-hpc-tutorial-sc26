@@ -243,11 +243,16 @@ def cancel(final=False):
             emit("cancelled")
         return
     run["cancelled"] = True
-    stop(run["proc"])
-    # If srun was killed before it could cancel, make sure the job ends too.
+    # Cancel the job through Slurm first, so it ends as CANCELLED and srun
+    # exits by itself; then make sure the launcher is gone.
     if os.environ.get("SC26_LAUNCHER", "slurm") != "local":
         subprocess.run(["scancel", "--name", run["name"], "--user", os.environ.get("USER", "")],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        try:
+            run["proc"].wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            pass
+    stop(run["proc"])
     if not final:
         emit("cancelled", run=run["id"])
 

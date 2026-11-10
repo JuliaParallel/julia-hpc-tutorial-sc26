@@ -15,7 +15,7 @@ Open **http://127.0.0.1:8767**; the console immediately requests one node and
 precompiles the Julia environment, so **Run demo** is fast once the page says
 it is ready. Pass `--no-auto-allocate` to wait for **Connect & allocate**
 instead. Requires
-Python 3.10+ and OpenSSH with connection multiplexing locally; no Python
+Python 3.9+ and OpenSSH with connection multiplexing locally; no Python
 packages, local Julia, Node, or internet-hosted web assets are needed. Odo's
 Python 3.6 runs only the coordinator.
 

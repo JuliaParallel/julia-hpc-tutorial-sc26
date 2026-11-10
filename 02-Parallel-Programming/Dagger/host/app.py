@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local tutorial console. Python 3.10+, OpenSSH; no Python packages required."""
+"""Local tutorial console. Python 3.9+, OpenSSH; no Python packages required."""
 import argparse
 import atexit
 import codecs

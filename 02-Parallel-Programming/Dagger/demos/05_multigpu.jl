@@ -9,10 +9,7 @@ isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "present
 using Dagger, Random, LinearAlgebra, AMDGPU
 
 AMDGPU.functional() || error("No functional AMD GPU")
-# source-end
 
-# source-begin
-# Algorithm: one BLAS call per output tile, each pinned to a different GPU.
 function gpu_count()
     options = filter(arg -> startswith(arg, "--gpus="), ARGS)
     length(options) <= 1 || error("Specify --gpus only once")
@@ -23,6 +20,10 @@ function gpu_count()
     return count
 end
 
+# source-end
+
+# source-begin
+# Algorithm: one BLAS call per output tile, each pinned to a different GPU.
 function task_location()
     device = AMDGPU.device()
     properties = AMDGPU.HIP.properties(device)

@@ -986,12 +986,11 @@ function ansi(parent, text) {
 function showSources(pane, sources, label="Selected demo") {
   pane.sourceLabel.textContent = label;
   pane.source.replaceChildren();
-  for (const source of sources) {
-    const heading = document.createElement("h4"), pre = document.createElement("pre");
-    heading.textContent = source.file;
-    ansi(pre, source.ansi || source.code);
-    pane.source.append(heading, pre);
-  }
+  if (!sources.length) return;
+  const pre = document.createElement("pre");
+  // One self-contained block: setup, algorithm, and use in reading order.
+  ansi(pre, sources.map(source => source.ansi || source.code).join("\n\n"));
+  pane.source.append(pre);
 }
 async function loadSource(pane) {
   const version = ++pane.version;

@@ -2,6 +2,7 @@
 # Odo tutorial: two ranks on the existing node. bash frontier/multinode.sh gpu
 const DEMO_SOURCE_FILE = @__FILE__
 # source-begin
+# Setup: choose the hardware layout.
 const DEMO_USE_GPU = true
 const DEMO_USE_MPI = true
 const DEMO_MIN_RANKS = 2

@@ -1,9 +1,13 @@
 # Demo 3: the SAME Datadeps code on an AMD GPU. Only the scope changes.
 # Dagger moves the tiles to the GPU, and swaps BLAS -> rocBLAS for you.
 #   julia --project -t 4 demos/03_gpu.jl
+# source-begin
+# Setup: GPU and array packages.
 using Dagger, AMDGPU, LinearAlgebra
+# source-end
 
 # source-begin
+# Algorithm: the same tile operation as the CPU demo.
 double!(X) = (X .*= 2; nothing)
 # source-end
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
@@ -11,6 +15,7 @@ isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "present
 function run_demo()
     DemoPresentation.present(; title="03 Single GPU", files=[@__FILE__], demo=splitext(basename(@__FILE__))[1]) do
         # source-begin
+        # Setup and use: choose the GPU scope, tile the array, and run it.
         gpu = Dagger.scope(rocm_gpu=1)
 
         Dagger.with_options(scope=gpu) do

@@ -5,6 +5,7 @@
 
 using Dagger, LinearAlgebra, Random
 
+# Setup: parameters, fields, and the constant operators.
 n = 256
 dt = 1.0
 Du, Dv = 0.16, 0.08
@@ -33,6 +34,7 @@ end
 Fu = cholesky(Symmetric(Matrix{Float64}(I, n, n) - (dt / 2) * Du * L))
 Fv = cholesky(Symmetric(Matrix{Float64}(I, n, n) - (dt / 2) * Dv * L))
 
+# Algorithm: two ADI half steps per time step.
 ru = similar(u)
 rv = similar(v)
 for step in 1:nsteps
@@ -57,4 +59,5 @@ for step in 1:nsteps
     end
 end
 
+# Use: report the final fields; the console animates them.
 println("u range: ", extrema(u), " v range: ", extrema(v))

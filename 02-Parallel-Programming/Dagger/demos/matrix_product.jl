@@ -1,4 +1,6 @@
 # Shared tiled C = A * B demo. MPI placement may use one or several nodes.
+# source-begin
+# Setup: imports and rank-dependent configuration.
 using Dagger, Random, LinearAlgebra
 if DEMO_USE_GPU
     using AMDGPU
@@ -11,6 +13,7 @@ end
 const rank = DEMO_USE_MPI ? MPI.Comm_rank(MPI.COMM_WORLD) : 0
 const ranks = DEMO_USE_MPI ? MPI.Comm_size(MPI.COMM_WORLD) : 1
 BLAS.set_num_threads(1)
+# source-end
 
 # Record where the actual matrix-multiplication task executes. For GPU work,
 # synchronize before reporting and use PCI addresses to distinguish devices
@@ -93,6 +96,8 @@ function demonstrate()
              Dagger.constrain(Dagger.scope(mpi_ranks=:), Dagger.DefaultScope())
     reports, result, A, B = matrix_product(scopes, target)
     # source-end
+    # source-begin
+    # Use: check the product and report where the output tiles ran.
     @assert result ≈ A * B
     nodes = length(Set(r.host for r in reports))
     processes = length(Set((r.host, r.pid) for r in reports))
@@ -114,6 +119,7 @@ function demonstrate()
         println("PASS: C ≈ A * B")
         println("GPUs: $(length(identities)) | nodes: $nodes | Julia processes: $processes")
     end
+    # source-end
 end
 
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))

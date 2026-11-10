@@ -978,7 +978,6 @@ function activate(demoId, {scroll = true, expand = true} = {}) {
   showSection(sectionId);
   selectedDemo = demoId;
   syncExerciseEditors();
-  syncExercisePrimerEditors();
   try { localStorage.setItem(ACTIVE_KEY, demoId); } catch (e) {}
   if (expand) expandAncestors(pane.el);
   // A newly visible timeline had no measurable width while hidden.

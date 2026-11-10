@@ -48,32 +48,14 @@ SECTIONS = [
     ("julia", "Julia basics", ["00_julia"]),
     ("cpu", "CPU", ["01_tasks", "02_datadeps"]),
 ]
-# One Exercise panel per section. Each one runs the shared Function editor
-# (my_cholesky!) and then its own Setup and Use code, which chooses the
-# hardware and calls the function. `target` and `mode` are the section's
-# starting choices; the attendee can change both.
+# One Exercise panel per section after Julia basics. Each one runs the shared
+# Function editor (my_cholesky!) and then its own Setup and Use code, which
+# chooses the hardware and calls the function. `target` and `mode` are the
+# section's starting choices; the attendee can change both.
 TARGETS = {"cpu": "CPU", "gpu": "GPU", "gpus": "All GPUs", "mixed": "Mixed"}
 MODES = {"single": "One process", "mpi": "Two MPI ranks"}
 
 EXERCISES = {
-    "00_julia": dict(
-        target="cpu", mode="single",
-        prompt=textwrap.dedent("""\
-            Exercise: the serial starting point
-
-            The Function editor holds exercise/my_cholesky.jl: a serial,
-            tile-by-tile Cholesky factorization. Setup and Use builds a test
-            matrix, tiles it into a DArray, calls my_cholesky! on the grid of
-            tiles, and checks the factor.
-
-            Read both, then press Run exercise. It fails: each T[i, j] is a
-            Dagger handle to a tile, and the serial code calls BLAS on it
-            directly. The CPU section turns the function into a Dagger
-            program; Setup and Use stays the same.
-
-            Target and Processes choose where the code runs. Changing them
-            loads the matching Setup and Use.
-            Full handout: exercise/README.md""")),
     "02_datadeps": dict(
         target="cpu", mode="single",
         prompt=textwrap.dedent("""\

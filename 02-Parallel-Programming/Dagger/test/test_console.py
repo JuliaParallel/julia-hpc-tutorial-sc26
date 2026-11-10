@@ -70,11 +70,13 @@ class ConsoleTests(unittest.TestCase):
         self.assertEqual(layout[2]["demos"], ["03_gpu"])
         self.assertEqual(layout[2]["title"], "Single GPU")
 
-    def test_every_section_has_an_exercise(self):
+    def test_every_section_after_julia_basics_has_an_exercise(self):
         exercises = app.exercises()
         sections = app.section_layout()
         for section in sections:
-            self.assertEqual(sum(demo in exercises for demo in section["demos"]), 1,
+            # Julia basics has no exercise; every later section has one.
+            expected = 0 if section["id"] == "julia" else 1
+            self.assertEqual(sum(demo in exercises for demo in section["demos"]), expected,
                              section["id"])
         for demo, exercise in exercises.items():
             self.assertIn(demo, {entry[0] for entry in app.DEMOS})

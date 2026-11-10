@@ -194,8 +194,8 @@ remembered per browser. Within a console the Algorithm and Julia REPL panes
 collapse independently, keeping their width and shrinking vertically to the
 title bar; on narrow screens they stack.
 
-Every section page shows two sibling panels: **Demo** and a collapsible
-**Exercise** panel. The Exercise panel's head has two controls: **Target**
+Every section page after Julia basics shows two sibling panels: **Demo** and
+a collapsible **Exercise** panel. The Exercise panel's head has two controls: **Target**
 (CPU, GPU, All GPUs, or Mixed) and **Processes** (One process or Two MPI
 ranks). Each section starts on its own choice, for example GPU in Single GPU
 and Two MPI ranks in the MPI sections. Inside the panel are the section's

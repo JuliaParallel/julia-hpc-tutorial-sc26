@@ -988,7 +988,9 @@ function activate(demoId, {scroll = true, expand = true} = {}) {
     if (changedPage) window.scrollTo({top: 0, behavior: "smooth"});
     else pane.el.scrollIntoView({behavior: "smooth", block: "start"});
   }
-  $("demo-title").textContent = pane.title;
+  // The heading names the section, so both CPU demos show "CPU".
+  const section = config.sections.find(entry => entry.id === sectionId);
+  $("demo-title").textContent = section?.title ?? pane.title;
   $("layout-label").textContent = layoutLabel(pane.layout);
   for (const button of document.querySelectorAll("#demos button")) {
     button.classList.toggle("active", button.dataset.demo === demoId);

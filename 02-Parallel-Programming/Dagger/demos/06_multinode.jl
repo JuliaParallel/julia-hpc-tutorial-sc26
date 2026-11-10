@@ -7,82 +7,65 @@
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
 
 # source-begin
-using Dagger, MPI, Random, LinearAlgebra
+using Dagger, MPI, LinearAlgebra, Random
 
 # Every rank runs this same program; `rank` says which one we are.
 Dagger.accelerate!(:mpi)
 const rank = MPI.Comm_rank(MPI.COMM_WORLD)
 const ranks = MPI.Comm_size(MPI.COMM_WORLD)
-ranks >= 2 || error("This demo needs at least two MPI ranks")
 BLAS.set_num_threads(1)   # one BLAS thread per process
 
-# Where a task ran: host, process and MPI rank.
-function task_location()
-    return (; host=gethostname(), pid=getpid(), rank)
-end
-
-# One output tile: C[i] <- A[i] * B, then report where it ran.   (mul!)
-function multiply_and_report!(C, A, B)
-    mul!(C, A, B)
-    return task_location()
-end
-
-# Spawn one `multiply_and_report!` per block row, pinned to its own rank.
-function tiled_matmul!(DC, DA, DB, scopes)
-    tasks = []
-    Dagger.spawn_datadeps() do
-        for (i, placement) in enumerate(scopes)
-            task = Dagger.@spawn scope=placement multiply_and_report!(
-                Out(DC.chunks[i, 1]), In(DA.chunks[i, 1]), In(DB.chunks[1, 1]))
-            push!(tasks, task)
-        end
-    end
-    return fetch.(tasks)
-end
-
-# Build A (one block row per scope), B and C as tiled DArrays; run the product.
-function matrix_product(scopes, target)
-    bs = 512
-    A = rand(Xoshiro(1), bs * length(scopes), bs)
-    B = rand(Xoshiro(2), bs, bs)
-    Dagger.with_options(scope=target) do
-        DA = DArray(A, Blocks(bs, bs))
-        DB = DArray(B, Blocks(bs, bs))
-        DC = DArray(zeros(size(A, 1), size(B, 2)), Blocks(bs, bs))
-        reports = tiled_matmul!(DC, DA, DB, scopes)
-        return reports, collect(DC), A, B
-    end
-end
-
 function run_product()
+    bs = 512
+
     # (1) One scope per rank, and one scope that spans all of them.
     scopes = [Dagger.constrain(Dagger.scope(mpi_rank=r), Dagger.DefaultScope())
               for r in 0:ranks-1]
-    target = Dagger.constrain(Dagger.scope(mpi_ranks=:), Dagger.DefaultScope())
+    all_ranks = Dagger.constrain(Dagger.scope(mpi_ranks=:), Dagger.DefaultScope())
 
-    # (2) Run the product tiled across the ranks.
-    reports, result, A, B = matrix_product(scopes, target)
+    # (2) A holds one tile per rank; B is a single tile.
+    A = rand(Xoshiro(1), bs * ranks, bs)
+    B = rand(Xoshiro(2), bs, bs)
 
-    # (3) Verify the result, and that every rank took part.
-    @assert result ≈ A * B
-    processes = length(Set((r.host, r.pid) for r in reports))
-    @assert processes == ranks "Some MPI ranks did not participate in the matrix product"
+    C = Dagger.with_options(scope=all_ranks) do
+        DA = DArray(A, Blocks(bs, bs))
+        DB = DArray(B, Blocks(bs, bs))
+        DC = DArray(zeros(bs * ranks, bs), Blocks(bs, bs))
 
-    # (4) Report where each output tile ran (rank 0 prints).
-    if rank == 0
-        println("One matrix product: A$(size(A)) * B$(size(B))")
-        for (i, report) in enumerate(reports)
-            println("  output tile row $i -> rank $(report.rank) on $(report.host)")
+        # (3) C[i] <- A[i] * B, with tile i pinned to rank i-1.
+        Dagger.spawn_datadeps() do
+            for (i, owner) in enumerate(scopes)
+                Dagger.@spawn scope=owner mul!(Out(DC.chunks[i, 1]), In(DA.chunks[i, 1]), In(DB.chunks[1, 1]))
+            end
         end
-        println("PASS: C ≈ A * B")
-        println("nodes: $(length(Set(r.host for r in reports))) | Julia processes: $processes")
+        collect(DC)
     end
+
+    @assert C ≈ A * B
+    rank == 0 && println("PASS: C ≈ A * B on $ranks ranks")
+    return scopes
 end
 # source-end
 
+# ---- Not shown to attendees: input check and placement check. ----
+
+ranks >= 2 || error("This demo needs at least two MPI ranks")
+
+# The Julia process a task runs in.
+process_identity() = (gethostname(), getpid())
+
+# Every scope must land on its own Julia process.
+function check_placement(scopes)
+    processes = Set(fetch(Dagger.@spawn scope=s process_identity()) for s in scopes)
+    @assert length(processes) == ranks "Some MPI ranks did not participate"
+    rank == 0 && println("distinct processes used: ", length(processes))
+end
+
 function run_demo()
-    DemoPresentation.present(run_product; title="06 MPI matrix product",
-                             files=[@__FILE__], demo="06_multinode", mpi=MPI)
+    DemoPresentation.present(; title="06 MPI matrix product", files=[@__FILE__],
+                             demo="06_multinode", mpi=MPI) do
+        check_placement(run_product())
+    end
 end
 if abspath(PROGRAM_FILE) == @__FILE__
     run_demo()

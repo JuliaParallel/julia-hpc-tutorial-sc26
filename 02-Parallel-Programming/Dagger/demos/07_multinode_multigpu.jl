@@ -79,10 +79,13 @@ function run_product()
     if rank == 0
         println("One matrix product: A$(size(A)) * B$(size(B))")
         for (i, report) in enumerate(reports)
-            println("  output tile row $i -> rank $(report.rank), GPU $(report.gpu) on $(report.host)")
+            println("  output tile row $i -> rank $(report.rank), " *
+                    "GPU $(report.gpu) on $(report.host)")
         end
         println("PASS: C ≈ A * B")
-        println("GPUs: $(length(identities)) | nodes: $(length(Set(r.host for r in reports))) | Julia processes: $processes")
+        println("GPUs: $(length(identities)) | " *
+                "nodes: $(length(Set(r.host for r in reports))) | " *
+                "Julia processes: $processes")
     end
 end
 # source-end

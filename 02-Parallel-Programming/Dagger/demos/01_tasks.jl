@@ -2,6 +2,7 @@
 # thread. Passing one task's result into another builds a dependency graph.
 #
 #   julia --project -t 4 demos/01_tasks.jl
+#   bash andromeda/launch.sh 1 0 demos/01_tasks.jl
 
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
 

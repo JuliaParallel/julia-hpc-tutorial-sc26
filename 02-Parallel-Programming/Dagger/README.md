@@ -6,6 +6,38 @@ Cholesky factorization with Dagger's Datadeps, then run the same function on
 CPU threads, an AMD GPU, and MPI ranks. The session guide is in
 [`PLAN.md`](PLAN.md); the student handout is [`exercise/README.md`](exercise/README.md).
 
+## Dry run on andromeda (branch `fda/dry-run`)
+
+This branch rehearses the course on **andromeda** (ICMC/USP,
+`andromeda.lasdpc.icmc.usp.br`, SSH port 21200, SSH keys): one Slurm node
+with 48 cores and two NVIDIA A30 GPUs. What differs from the Odo course:
+
+- **CUDA instead of AMDGPU.** `Project.toml` depends on CUDA.jl; the GPU
+  demos, the harness and the exercises use `Dagger.scope(cuda_gpu=1)` /
+  `cuda_gpus=:`, and Dagger maps BLAS/LAPACK to cuBLAS/cuSOLVER. The
+  multi-GPU demo uses both GPUs, and the MPI + GPU demo one GPU per rank.
+- **No allocation.** The web console submits every demo, exercise, final
+  exercise and REPL evaluation as its own Slurm job with the CPUs and GPUs
+  that run needs (`andromeda/launch.sh`); nothing is held between runs. See
+  [host/README.md](host/README.md). Your account needs a Slurm association on
+  andromeda.
+- **A Stencils section** (07, before the Final Exercise): `demos/08_stencil.jl`
+  shows `@stencil`, `@neighbors` and `Wrap()` on a tiled image, on the CPU and
+  a GPU, and the exercise turns serial heat diffusion
+  (`exercise/serial_heat.jl`) into `my_heat!` with `@stencil`
+  (`exercise/my_stencil.jl`, solution in `solution/my_stencil.jl`).
+- **The final exercise uses both exercises.** Gray-Scott with ADI splitting:
+  a stencil for the explicit terms, Cholesky solves for the implicit ones, on
+  DArrays split into column panels (`solution/final_exercise.jl`).
+- **Highlighted editors** in the console: every code editor colours Julia
+  as you type.
+
+Start it with `python3 host/app.py`, or with the installer:
+`curl -fsSL https://fda-tome.github.io/sc26/install.sh | SC26_REF=heads/fda/dry-run SC26_HOME=~/sc26-dry-run sh`.
+From a terminal on andromeda, `bash andromeda/prepare.sh` installs Julia
+1.13.1 and the packages, and `bash andromeda/launch.sh RANKS GPUS file.jl` or
+`bash andromeda/run.sh RANKS GPUS [harness options]` submits one job.
+
 ## Slides (Quarto)
 
 The [Dagger slide deck](presentations/dagger/index.qmd) builds on the preceding

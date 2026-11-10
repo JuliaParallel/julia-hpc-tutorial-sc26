@@ -1,5 +1,5 @@
 [deps]
-AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 Dagger = "d58978e5-989f-55fb-8d15-ea34adc7bf54"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
@@ -14,11 +14,10 @@ UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
 tree_sitter_julia_jll = "52be201e-a5e9-5cfe-8bf2-2dc4b062171c"
 
 [sources]
-AMDGPU = {url = "https://github.com/JuliaGPU/AMDGPU.jl", rev = "482cd054172541a0ef5e4626f6c3505fc3ae7972"}
 Dagger = {rev = "master", url = "https://github.com/JuliaParallel/Dagger.jl"}
 
 [compat]
-AMDGPU = "2"
+CUDA = "5"
 Dagger = "0.22.7"
 Highlights = "0.6.3"
 JSON3 = "1"

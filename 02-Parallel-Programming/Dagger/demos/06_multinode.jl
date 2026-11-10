@@ -1,8 +1,8 @@
 # Demo 6: one CPU matrix product across MPI ranks, on one or several nodes.
 # C = A * B is split into block rows; each row runs on a different rank.
 #
-# Odo tutorial: two ranks on the existing node.
-#   bash frontier/multinode.sh cpu
+# andromeda: two ranks on its one node.
+#   bash andromeda/launch.sh 2 0 demos/06_multinode.jl
 
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
 

@@ -1,6 +1,7 @@
 # Demo 0: the Julia features used throughout the Dagger sections.
 #
 #   julia --project -t 4 demos/00_julia.jl
+#   bash andromeda/launch.sh 1 0 demos/00_julia.jl
 
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
 

@@ -116,6 +116,29 @@ For a warm session, `TutorialSession.plot()` draws the chart in your SSH
 terminal. The instructor can also export PNG/SVG charts and browser task
 timelines; see the [visual feedback workflow](../README.md#fast-feedback-and-plots-over-ssh).
 
+## Stencils: heat diffusion (`exercise/my_stencil.jl`)
+
+The console's **Stencils** section has a second, shorter exercise. The plate
+`u` is a periodic DArray split into tiles; one explicit step of the heat
+equation is `u <- u + dt * D * laplacian(u)`, and
+`exercise/serial_heat.jl` does it with plain loops.
+
+1. Write `laplacian(nb)` for a 3 x 3 neighbourhood: `nb[2, 2]` is the point,
+   `nb[1, 2]`/`nb[3, 2]` its neighbours along the first index and
+   `nb[2, 1]`/`nb[2, 3]` along the second.
+2. Make each time step one `@stencil` block of two statements: `scratch[idx]`
+   from `@neighbors(u[idx], 1, Wrap())`, then `u[idx] = scratch[idx]`.
+
+A statement must not read the neighbours of the array it writes; that is what
+`scratch` is for. Dagger runs one task per tile and copies the halos between
+neighbouring tiles. Setup and Use checks the result against the same steps
+with `circshift` and prints `PASS`. Then run it unchanged on a GPU and on two
+MPI ranks. The final exercise uses the same `@stencil` and `@neighbors` for
+its explicit terms. Reference: `solution/my_stencil.jl`.
+
+On the andromeda dry run the GPU is an NVIDIA A30, so Dagger swaps BLAS for
+cuBLAS/cuSOLVER where this handout says rocBLAS/rocSOLVER.
+
 ## Stretch goals
 
 - **Tune the tile size:** `--bs=512`, `--bs=1024`, `--bs=4096` on the GPU. Why is there a sweet spot?

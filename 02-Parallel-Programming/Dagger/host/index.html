@@ -10,15 +10,15 @@
 <body>
 <header>
 <div>
-<span class="eyebrow">JULIA HPC / SC26</span>
+<span class="eyebrow">JULIA HPC / SC26 · DRY RUN ON ANDROMEDA</span>
 <h1>Dagger lab<span class="dot">.</span>
 </h1>
 </div>
 <div class="connection">
 <span id="status">Disconnected</span>
 <button id="cancel" disabled>Cancel run</button>
-<button id="connect" class="primary">Connect & allocate</button>
-<button id="disconnect" disabled>Release node</button>
+<button id="connect" class="primary">Connect</button>
+<button id="disconnect" disabled>Disconnect</button>
 </div>
 </header>
 <div class="layout">
@@ -43,10 +43,10 @@
 </button>
 </div>
 <div class="section-body" id="side-workspace-body">
-<p>One node. Your own session.</p>
+<p>One Slurm job per run. Nothing held in between.</p>
 <small id="remote">
 </small>
-<p class="muted">“Multi-node” demos use two ranks on this node due to Odo resource limits. The same code works across nodes.</p>
+<p class="muted">andromeda is one node with two NVIDIA A30 GPUs. “Multi-node” demos use two MPI ranks on it, one GPU each; the same code works across nodes.</p>
 </div>
 </section>
 </aside>
@@ -64,12 +64,13 @@
 </div>
 </main>
 </div>
-<footer>The webpage and plots run on your computer. Julia runs on Odo. Release your node when finished.</footer>
+<footer>The webpage and plots run on your computer. Julia runs on andromeda, one Slurm job per run.</footer>
 <div id="task-tooltip" role="tooltip" hidden></div>
 <script src="/xterm.js"></script>
 <script src="/addon-fit.js"></script>
 <script src="/timeline.js"></script>
 <script src="/ansi.js"></script>
+<script src="/highlight.js"></script>
 <script src="/visuals.js"></script>
 <script src="/app.js">
 </script>

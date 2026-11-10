@@ -9,7 +9,7 @@
 #
 # The four tile operations have descriptive names so the code reads like the
 # picture in README.md. They are `const` aliases, not wrapper functions: on the
-# GPU, Dagger replaces BLAS/LAPACK with rocBLAS/rocSOLVER only when the spawned
+# GPU, Dagger replaces BLAS/LAPACK with cuBLAS/cuSOLVER only when the spawned
 # function *is* the BLAS/LAPACK function. An alias is that same function under
 # another name, so it still gets the GPU version; a hand-written wrapper would
 # not be swapped, and the GPU run would fail trying to call CPU BLAS on device

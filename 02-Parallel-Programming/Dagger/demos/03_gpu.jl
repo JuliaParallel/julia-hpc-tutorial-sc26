@@ -1,19 +1,20 @@
-# Demo 3: the SAME Datadeps code on an AMD GPU. Only the scope changes:
-# Dagger moves the tiles to the GPU and swaps BLAS for rocBLAS for you.
+# Demo 3: the SAME Datadeps code on an NVIDIA GPU. Only the scope changes:
+# Dagger moves the tiles to the GPU and swaps BLAS for cuBLAS for you.
 #
 #   julia --project -t 4 demos/03_gpu.jl
+#   bash andromeda/launch.sh 1 1 demos/03_gpu.jl
 
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
 
 # source-begin
-using Dagger, AMDGPU, LinearAlgebra
+using Dagger, CUDA, LinearAlgebra
 
 # The same tile operation as the CPU demo.
 double!(X) = (X .*= 2; nothing)
 
 function run_gpu()
     # (1) Choose the GPU scope: every task spawned inside runs on one GPU.
-    gpu = Dagger.scope(rocm_gpu=1)
+    gpu = Dagger.scope(cuda_gpu=1)
 
     Dagger.with_options(scope=gpu) do
         # (2) Tile the array and double every tile; this is demo 2, unchanged.

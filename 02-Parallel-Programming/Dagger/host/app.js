@@ -10,12 +10,15 @@ const exercisePanels = [];        // section-level Exercise panels
 const exerciseByDemo = new Map(); // demo id -> Exercise panel
 const COLLAPSE_KEY = "sc26-console-collapsed";
 const ACTIVE_KEY = "sc26-console-active";
-const EXERCISE_CODE_KEY = "sc26-exercise-code";
+// One Function per exercise kind: the Cholesky sections share my_cholesky!,
+// the Stencils section has my_heat!.
+const EXERCISE_CODE_KEYS = {cholesky: "sc26-exercise-code", stencil: "sc26-exercise-code-stencil"};
 // v2: the final exercise moved its setup into Setup and Use (simulate!).
-const EXERCISE_SETUP_KEY = "sc26-exercise-setup";
-const FINAL_CODE_KEY = "sc26-final-code-v2";
+// v3: the dry run's simulate! uses stencils and column panels.
+const EXERCISE_SETUP_KEY = "sc26-exercise-setup-v3";
+const FINAL_CODE_KEY = "sc26-final-code-v3";
 let collapsedState = {};
-let exerciseCode = null;
+const exerciseCodes = {};        // kind -> code shared by that kind's Function editors
 let setupStore = {};             // panel id -> {target, mode, code}
 let finalCode = null;
 let finalMtime = 0;
@@ -28,12 +31,16 @@ try {
 function saveCollapsed() {
   try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(collapsedState)); } catch (e) {}
 }
-function saveExerciseCode() {
-  try { localStorage.setItem(EXERCISE_CODE_KEY, exerciseCode ?? ""); } catch (e) {}
+function exerciseKey(kind) {
+  return EXERCISE_CODE_KEYS[kind] ?? `sc26-exercise-code-${kind}`;
+}
+function saveExerciseCode(kind) {
+  try { localStorage.setItem(exerciseKey(kind), exerciseCodes[kind] ?? ""); } catch (e) {}
 }
 function syncExerciseEditors(except) {
   for (const editor of document.querySelectorAll('[data-role="exercise-code"]')) {
-    if (editor !== except) editor.value = exerciseCode ?? "";
+    const kind = editor.dataset.kind;
+    if (editor !== except && editor.value !== (exerciseCodes[kind] ?? "")) editor.value = exerciseCodes[kind] ?? "";
   }
 }
 function saveSetups() {
@@ -106,8 +113,14 @@ function expandAncestors(element) {
 function demoById(id) {
   return config.demos.find(demo => demo[0] === id);
 }
-function layoutLabel(layout) {
-  return layout === "mpi" ? "TWO MPI RANKS / ONE ODO NODE" : "ONE JULIA PROCESS";
+function gpuLabel(gpus, layout) {
+  if (!gpus) return "no GPU";
+  if (layout === "mpi") return `${gpus / 2} GPU per rank`;
+  return gpus === 1 ? "1 GPU" : `${gpus} GPUs`;
+}
+function layoutLabel(layout, gpus = 0) {
+  const who = layout === "mpi" ? "TWO MPI RANKS / ONE ANDROMEDA NODE" : "ONE JULIA PROCESS";
+  return `${who} · ${gpuLabel(gpus, layout).toUpperCase()} · ONE SLURM JOB PER RUN`;
 }
 
 function collapseButton(target, label) {
@@ -175,7 +188,7 @@ ${collapseButton(pid + "-timeline-body", pid + "-timeline-title")}
 <span>Transfer arrows: source → destination rank</span>
 <span>Hover a task for details · seconds from logging start</span>
 </div>
-<p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Run again to see a warm session.</p>
+<p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Every run is a fresh Julia in its own Slurm job, so each timeline includes compilation.</p>
 <div class="summary" data-role="summary">
 </div>
 </div>
@@ -274,9 +287,9 @@ ${collapseButton(pid + "-function-body", pid + "-function-title")}
 </div>
 <div class="panel-body" id="${pid}-function-body">
 <label class="sr-only" for="${pid}-code">Exercise code</label>
-<textarea id="${pid}-code" data-role="exercise-code" spellcheck="false"></textarea>
+<textarea id="${pid}-code" data-role="exercise-code" data-kind="${exercise.kind}" spellcheck="false"></textarea>
 <div class="exercise-footer">
-<span>Runs this function, then Setup and Use, on the chosen Target and Processes. The function is shared by every section; output and timeline appear below.</span>
+<span>Runs this function, then Setup and Use, on the chosen Target and Processes, as one Slurm job. ${exercise.kind === "stencil" ? "This function belongs to the Stencils section" : "The function is shared by every Cholesky section"}; output and timeline appear below.</span>
 <div class="exercise-actions">
 <button type="button" data-role="exercise-reset">Reset code</button>
 <button class="primary" type="button" data-role="exercise-run" disabled>Run exercise <span>↗</span></button>
@@ -314,7 +327,7 @@ ${collapseButton(pid + "-function-body", pid + "-function-title")}
 <label class="sr-only" for="${pid}-code">Final exercise code</label>
 <textarea id="${pid}-code" data-role="final-code" spellcheck="false"></textarea>
 <div class="exercise-footer">
-<span>Runs <code>simulate!</code>, then Setup and Use, on the chosen Target and Processes. Use <code>cholesky(Symmetric(A))</code> or your tiled Cholesky.</span>
+<span>Runs <code>simulate!</code>, then Setup and Use, on the chosen Target and Processes, as one Slurm job: a stencil for the explicit terms, <code>cholesky(Symmetric(A))</code> for the implicit ones.</span>
 <div class="exercise-actions">
 <button type="button" data-role="final-reset">Reset code</button>
 <button class="primary" type="button" data-role="final-run" disabled>Run final exercise <span>↗</span></button>
@@ -330,19 +343,14 @@ ${analysisMarkup(pid, {visual: true})}
 function paneMarkup(demo, heading = demo[1]) {
   const [id, , layout] = demo;
   const pid = `pane-${id}`;
-  const gpus = id === "05_multigpu" ? `
-<label class="gpu-control">GPUs <select data-role="gpus" aria-label="GPUs">
-<option>2</option>
-<option>4</option>
-</select>
-</label>` : "";
+  const gpus = config.demo_gpus?.[id] ?? 0;
   const collapse = collapseButton;
   return `
 <section class="panel pane" id="${pid}" data-demo="${id}">
 <div class="panel-head">
 <h3 id="${pid}-title">${heading}</h3>
 <div class="panel-tools">
-<span class="tag">${layout === "mpi" ? "Two MPI ranks" : "One Julia process"}</span>${gpus}
+<span class="tag">${layout === "mpi" ? "Two MPI ranks" : "One Julia process"} · ${gpuLabel(gpus, layout)}</span>
 <button class="primary" data-role="run" disabled>Run demo <span>↗</span></button>
 ${collapse(pid + "-body", pid + "-title")}
 </div>
@@ -375,7 +383,7 @@ ${collapse(pid + "-repl-body", pid + "-repl-title")}
 </div>
 </div>
 <div class="panel-body" id="${pid}-repl-body">
-<p class="hint">Variables persist in this layout. Switching layouts or cancelling resets Julia. MPI runs your expression on every rank; keep work uniform.</p>
+<p class="hint">Each evaluation is a fresh Julia in its own Slurm job, with this section's GPUs; variables do not carry over to the next one. MPI runs your expression on every rank; keep work uniform.</p>
 <label class="sr-only" for="${pid}-code">Julia expression</label>
 <textarea id="${pid}-code" data-role="code" spellcheck="false">a = Dagger.@spawn sum(1:1_000_000)
 fetch(a)</textarea>
@@ -428,7 +436,7 @@ ${collapse(pid + "-timeline-body", pid + "-timeline-title")}
 <span>Transfer arrows: source → destination rank</span>
 <span>Hover a task for details · seconds from logging start</span>
 </div>
-<p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Run again to see a warm session.</p>
+<p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Every run is a fresh Julia in its own Slurm job, so each timeline includes compilation.</p>
 <div class="summary" data-role="summary">
 </div>
 </div>
@@ -446,14 +454,15 @@ function createPane(demo, heading) {
     id: demo[0], title: demo[1], layout: demo[2], el,
     source: role("source"), sourceLabel: role("source-label"),
     mode: role("mode"), code: role("code"), eval: role("eval"), run: role("run"),
-    gpus: role("gpus"), output: role("output"), clear: role("clear"),
+    output: role("output"), clear: role("clear"),
     metrics: role("metrics"), history: role("history"), timeline: role("timeline"),
     summary: role("summary"), moves: role("moves"), zoom: role("zoom"),
     download: role("download"), traces: [], activeTrace: null, version: 0,
   };
   pane.mode.value = demo[2];
   pane.timeline.owner = pane;
-  pane.run.onclick = () => post("/api/run", {op: "demo", demo: pane.id, gpus: pane.gpus?.value});
+  enhanceEditor(pane.code);
+  pane.run.onclick = () => post("/api/run", {op: "demo", demo: pane.id});
   pane.eval.onclick = () => post("/api/run", {op: "eval", code: pane.code.value, mode: pane.mode.value, demo: pane.id});
   pane.code.onkeydown = event => {
     if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
@@ -481,8 +490,10 @@ function createExercisePanel(demo) {
   const el = holder.firstElementChild;
   const role = name => el.querySelector(`[data-role="${name}"]`);
   const exercise = config.exercises[demo[0]];
+  const kind = exercise.kind;
+  const template = () => config.exercise_templates?.[kind] ?? "";
   const panel = {
-    demo: demo[0], el,
+    demo: demo[0], kind, el,
     code: role("exercise-code"), run: role("exercise-run"),
     reset: role("exercise-reset"), target: role("exercise-target"),
     mode: role("exercise-mode"), prompt: role("exercise-prompt"),
@@ -494,18 +505,20 @@ function createExercisePanel(demo) {
   };
   panel.timeline.owner = panel;
   panel.prompt.textContent = exercise.prompt;
-  wireSetup(panel, panel.demo, config.exercise_setups ?? {}, exercise);
-  panel.code.value = exerciseCode ?? config.exercise_template ?? "";
+  enhanceEditor(panel.code);
+  enhanceEditor(panel.setup);
+  wireSetup(panel, panel.demo, config.exercise_setups?.[kind] ?? {}, exercise);
+  panel.code.value = exerciseCodes[kind] ?? template();
   panel.code.oninput = () => {
-    exerciseCode = panel.code.value;
-    saveExerciseCode();
+    exerciseCodes[kind] = panel.code.value;
+    saveExerciseCode(kind);
     syncExerciseEditors(panel.code);
   };
   runOnCtrlEnter(panel.code, panel.run);
   runOnCtrlEnter(panel.setup, panel.run);
   panel.reset.onclick = () => {
-    exerciseCode = config.exercise_template ?? "";
-    saveExerciseCode();
+    exerciseCodes[kind] = template();
+    saveExerciseCode(kind);
     syncExerciseEditors();
   };
   panel.run.onclick = () => post("/api/run", {
@@ -561,6 +574,8 @@ function createFinalExercisePanel() {
     label.append(input, document.createTextNode(` ${item.label}`));
     panel.visualControls.append(label);
   }
+  enhanceEditor(panel.code);
+  enhanceEditor(panel.setup);
   wireSetup(panel, "final", exercise.setups ?? {}, exercise);
   runOnCtrlEnter(panel.code, panel.run);
   runOnCtrlEnter(panel.setup, panel.run);
@@ -616,8 +631,8 @@ function createFinalExercisePanel() {
         : "No visualization selected.";
     }
     post("/api/run", {
-      op: "eval", mode: panel.mode.value, demo: "final", code: panel.code.value,
-      setup: panel.setup.value, visuals,
+      op: "eval", mode: panel.mode.value, target: panel.target.value, demo: "final",
+      code: panel.code.value, setup: panel.setup.value, visuals,
     });
   };
   panel.clear.onclick = () => panel.output.replaceChildren();
@@ -960,7 +975,7 @@ function showFinal() {
   showSection("final");
   selectedDemo = null;
   $("demo-title").textContent = config.final_exercise?.title || "Final Exercise";
-  $("layout-label").textContent = "GRAY-SCOTT REACTION-DIFFUSION";
+  $("layout-label").textContent = "GRAY-SCOTT · STENCILS + CHOLESKY · ONE SLURM JOB PER RUN";
   for (const button of document.querySelectorAll("#demos button")) {
     button.classList.toggle("active", button.dataset.final === "1");
   }
@@ -991,7 +1006,7 @@ function activate(demoId, {scroll = true, expand = true} = {}) {
   // The heading names the section, so both CPU demos show "CPU".
   const section = config.sections.find(entry => entry.id === sectionId);
   $("demo-title").textContent = section?.title ?? pane.title;
-  $("layout-label").textContent = layoutLabel(pane.layout);
+  $("layout-label").textContent = layoutLabel(pane.layout, config.demo_gpus?.[demoId] ?? 0);
   for (const button of document.querySelectorAll("#demos button")) {
     button.classList.toggle("active", button.dataset.demo === demoId);
   }
@@ -1051,7 +1066,7 @@ function controls() {
   $("connect").disabled = state.connecting || state.connected;
   $("disconnect").disabled = !state.connected && !state.connecting;
   $("cancel").disabled = !state.busy;
-  const ready = Boolean(state.job) && !state.busy;
+  const ready = Boolean(state.ready) && !state.busy;
   for (const pane of panes.values()) pane.run.disabled = pane.eval.disabled = !ready;
   for (const exercise of exercisePanels) exercise.run.disabled = !ready;
   if (finalPanel) finalPanel.run.disabled = !ready;
@@ -1219,17 +1234,18 @@ async function poll() {
 }
 async function init() {
   config = await(await fetch("/api/config")).json();
-  const template = config.exercise_template ?? "";
-  exerciseCode = template;
-  try {
-    const saved = localStorage.getItem(EXERCISE_CODE_KEY);
-    if (saved !== null && withoutComments(saved) !== withoutComments(template)) {
-      exerciseCode = saved;
-    } else if (saved !== null) {
-      // The saved copy was only an older template, possibly with comments.
-      saveExerciseCode();
-    }
-  } catch (e) {}
+  for (const [kind, template] of Object.entries(config.exercise_templates ?? {})) {
+    exerciseCodes[kind] = template;
+    try {
+      const saved = localStorage.getItem(exerciseKey(kind));
+      if (saved !== null && withoutComments(saved) !== withoutComments(template)) {
+        exerciseCodes[kind] = saved;
+      } else if (saved !== null) {
+        // The saved copy was only an older template, possibly with comments.
+        saveExerciseCode(kind);
+      }
+    } catch (e) {}
+  }
   try {
     const saved = JSON.parse(localStorage.getItem(EXERCISE_SETUP_KEY) || "{}");
     if (saved && typeof saved === "object" && !Array.isArray(saved)) setupStore = saved;
@@ -1259,6 +1275,7 @@ async function init() {
     }
   } catch (e) {}
   $("remote").textContent = `${config.host}:${config.remote_root}`;
+  document.title = `Dagger · Tutorial console · ${config.cluster ?? "dry run"}`;
   buildSidebar();
   buildConsoles();
   initCollapsible();

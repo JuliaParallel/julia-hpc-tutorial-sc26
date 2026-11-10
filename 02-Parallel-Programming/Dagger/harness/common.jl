@@ -1,7 +1,7 @@
 # Shared pieces of the eval/benchmark harness: options, test matrices,
 # tiling, validation, timing, and CSV output. Included by run.jl.
 #
-# `USE_MPI` and `USE_GPU` must be defined (and MPI/AMDGPU loaded) before
+# `USE_MPI` and `USE_GPU` must be defined (and MPI/CUDA loaded) before
 # this file is included.
 
 using Dagger
@@ -59,7 +59,7 @@ function parse_options(args)
     o.impl in ("student", "solution", "builtin", "vendor") ||
         error("--impl must be student, solution, builtin, or vendor")
     o.target in ("cpu", "gpu", "mixed") || error("--target must be cpu, gpu, or mixed")
-    o.target != "cpu" && !USE_GPU && error("--target=$(o.target) needs AMDGPU")
+    o.target != "cpu" && !USE_GPU && error("--target=$(o.target) needs CUDA")
     o.impl == "vendor" && USE_MPI && error("--impl=vendor is a single-process baseline; drop --mpi")
     o.gpus in ("1", "all") || error("--gpus must be 1 or all")
     o.trials > 0 || error("--trials must be positive")
@@ -86,12 +86,12 @@ say(args...) = myrank() == 0 && println(args...)
 # Where tasks may run
 
 function target_scope(target, gpus="1")
-    # MPI rank scopes include GPU processors once AMDGPU is loaded. Constrain
+    # MPI rank scopes include GPU processors once CUDA is loaded. Constrain
     # the CPU side explicitly so a warm MPI session can switch targets safely.
     cpu = USE_MPI ? Dagger.constrain(Dagger.scope(mpi_ranks=:), Dagger.DefaultScope()) :
                    Dagger.scope(worker=1)
     target == "cpu" && return cpu
-    gpu = gpus == "all" ? Dagger.scope(rocm_gpus=:) : Dagger.scope(rocm_gpu=1)
+    gpu = gpus == "all" ? Dagger.scope(cuda_gpus=:) : Dagger.scope(cuda_gpu=1)
     target == "gpu" && return gpu
     return Dagger.UnionScope(cpu, gpu)
 end
@@ -203,11 +203,11 @@ function run_vendor(A, o)
         BLAS.set_num_threads(1)
         return t, B
     else
-        dA = AMDGPU.ROCArray(A)
-        AMDGPU.synchronize()
+        dA = CUDA.CuArray(A)
+        CUDA.synchronize()
         t = @elapsed begin
-            AMDGPU.rocSOLVER.potrf!('L', dA)
-            AMDGPU.synchronize()
+            CUDA.CUSOLVER.potrf!('L', dA)
+            CUDA.synchronize()
         end
         return t, Array(dA)
     end
@@ -243,7 +243,7 @@ function record!(o, n, trial, t, resid)
         fresh && println(io, CSV_HEADER)
         # Keep the existing CSV schema, but distinguish all-device runs in plots.
         target_label = o.target != "cpu" && o.gpus == "all" ?
-                       "$(o.target)-$(length(AMDGPU.devices()))gpus" : o.target
+                       "$(o.target)-$(length(CUDA.devices()))gpus" : o.target
         nodes = parse(Int, get(ENV, "SLURM_STEP_NUM_NODES", "1"))
         nodes > 1 && (target_label *= "-$(nodes)nodes")
         println(io, join((Dates.format(now(), "yyyy-mm-ddTHH:MM:SS"), o.label, o.impl,

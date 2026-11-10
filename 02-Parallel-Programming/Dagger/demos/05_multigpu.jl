@@ -1,21 +1,21 @@
 # Demo 5: one matrix product, one Julia process, several GPUs on one node.
 # C = A * B is split into block rows; each row runs on a different GPU.
 #
-#   bash frontier/launch.sh 1 demos/05_multigpu.jl
-#   bash frontier/launch.sh 1 demos/05_multigpu.jl --gpus=4
+#   bash andromeda/launch.sh 1 2 demos/05_multigpu.jl
+#   bash andromeda/launch.sh 1 1 demos/05_multigpu.jl --gpus=1
 
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
 
 # source-begin
-using Dagger, LinearAlgebra, Random, AMDGPU
+using Dagger, LinearAlgebra, Random, CUDA
 
 function run_product()
     ngpus = gpu_count()
     bs = 512
 
     # (1) One scope per GPU, and one scope that spans all of them.
-    scopes = [Dagger.scope(rocm_gpu=g) for g in 1:ngpus]
-    all_gpus = Dagger.scope(rocm_gpus=1:ngpus)
+    scopes = [Dagger.scope(cuda_gpu=g) for g in 1:ngpus]
+    all_gpus = Dagger.scope(cuda_gpus=1:ngpus)
 
     # (2) A holds one tile per GPU; B is a single tile.
     A = rand(Xoshiro(1), bs * ngpus, bs)
@@ -43,26 +43,21 @@ end
 
 # ---- Not shown to attendees: argument parsing and placement check. ----
 
-AMDGPU.functional() || error("No functional AMD GPU")
+CUDA.functional() || error("No functional NVIDIA GPU")
 
 # Number of GPUs to use: `--gpus=N` or `--gpus=all` (default 2).
 function gpu_count()
     options = filter(arg -> startswith(arg, "--gpus="), ARGS)
     length(options) <= 1 || error("Specify --gpus only once")
     value = isempty(options) ? "2" : split(only(options), '='; limit=2)[2]
-    count = value == "all" ? length(AMDGPU.devices()) : parse(Int, value)
-    1 <= count <= length(AMDGPU.devices()) ||
-        error("Requested $count GPUs, visible $(length(AMDGPU.devices()))")
+    count = value == "all" ? length(CUDA.devices()) : parse(Int, value)
+    1 <= count <= length(CUDA.devices()) ||
+        error("Requested $count GPUs, visible $(length(CUDA.devices()))")
     return count
 end
 
-# The physical device a task runs on, by host and PCI address.
-function device_identity()
-    p = AMDGPU.HIP.properties(AMDGPU.device())
-    return (gethostname(), join((string(p.pciDomainID; base=16, pad=4),
-                                 string(p.pciBusID; base=16, pad=2),
-                                 string(p.pciDeviceID; base=16, pad=2)), ':'))
-end
+# The physical device a task runs on, by host and device UUID.
+device_identity() = (gethostname(), string(CUDA.uuid(CUDA.device())))
 
 # Every scope must land on its own physical GPU.
 function check_placement(scopes)

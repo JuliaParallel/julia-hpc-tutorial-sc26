@@ -10,7 +10,7 @@
 #       student  -> exercise/my_cholesky.jl
 #       solution -> solution/my_cholesky.jl
 #       builtin  -> Dagger's own DArray Cholesky
-#       vendor   -> one LAPACK (CPU) or rocSOLVER (GPU) call on the whole matrix
+#       vendor   -> one LAPACK (CPU) or cuSOLVER (GPU) call on the whole matrix
 #   --file=path/to/file.jl    load my_cholesky! from here instead
 #   --target=cpu|gpu|mixed    where Dagger may run tasks (default: cpu)
 #   --sizes=2048,4096         matrix sizes N (default depends on target)
@@ -36,7 +36,7 @@ if USE_MPI
     using MPI
 end
 if USE_GPU
-    using AMDGPU
+    using CUDA
 end
 using Dagger
 
@@ -51,8 +51,8 @@ function main(args)
 
     say("== Dagger Cholesky harness ==")
     say("impl=$(o.impl)  target=$(o.target)  gpus=$(o.gpus)  ranks=$(nranks())  threads/rank=$(Threads.nthreads())  bs=$(o.bs)", o.strict ? "  STRICT" : "")
-    o.target != "cpu" && say("GPU: ", AMDGPU.device(), "  functional=", AMDGPU.functional(),
-                            "  visible devices/rank=", length(AMDGPU.devices()))
+    o.target != "cpu" && say("GPU: ", CUDA.name(CUDA.device()), "  functional=", CUDA.functional(),
+                            "  visible devices/rank=", length(CUDA.devices()))
 
     run! = make_runner(o)
 

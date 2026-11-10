@@ -42,22 +42,47 @@ DEMOS = [
     ("05_multigpu", "Multiple GPUs", "single"),
     ("06_multinode", "Multi-node · CPU MPI", "mpi"),
     ("07_multinode_multigpu", "Multi-node + multi-GPU", "mpi"),
+    ("08_stencil", "Stencils", "single"),
 ]
 # Demos that share one page section. Everything else gets its own section.
 SECTIONS = [
     ("julia", "Julia basics", ["00_julia"]),
     ("cpu", "CPU", ["01_tasks", "02_datadeps"]),
 ]
-# One Exercise panel per section after Julia basics. Each one runs the shared
-# Function editor (my_cholesky!) and then its own Setup and Use code, which
-# chooses the hardware and calls the function. `target` and `mode` are the
+# Every run is its own Slurm job on andromeda's one node (two NVIDIA A30s).
+# A demo's job gets these GPUs (MPI demos: in total, one per rank); the
+# others get none. A REPL evaluation gets its section demo's GPUs.
+CLUSTER_GPUS = 2
+DEMO_GPUS = {"03_gpu": 1, "05_multigpu": 2, "07_multinode_multigpu": 2, "08_stencil": 1}
+# One Exercise panel per section after Julia basics. Each one runs a Function
+# editor and then its own Setup and Use code, which chooses the hardware and
+# calls the function. The Cholesky sections share one Function (my_cholesky!);
+# the Stencils section has its own (my_heat!). `target` and `mode` are the
 # section's starting choices; the attendee can change both.
 TARGETS = {"cpu": "CPU", "gpu": "GPU", "gpus": "All GPUs", "mixed": "Mixed"}
 MODES = {"single": "One process", "mpi": "Two MPI ranks"}
+# GPUs a run's Slurm job gets for each Target. Under MPI every GPU target
+# gives each of the two ranks its own GPU.
+TARGET_GPUS = {"cpu": 0, "gpu": 1, "gpus": CLUSTER_GPUS, "mixed": 1}
+
+
+def run_gpus(target, mode):
+    """GPUs for an exercise or final-exercise run with this Target and Processes."""
+    if TARGET_GPUS[target] == 0:
+        return 0
+    return CLUSTER_GPUS if mode == "mpi" else TARGET_GPUS[target]
+
+
+def eval_gpus(demo, mode):
+    """GPUs for a REPL evaluation: those of the section's demo."""
+    gpus = DEMO_GPUS.get(demo, 0)
+    # Two ranks share the GPUs evenly, so one GPU becomes one per rank.
+    return CLUSTER_GPUS if mode == "mpi" and gpus else gpus
+
 
 EXERCISES = {
     "02_datadeps": dict(
-        target="cpu", mode="single",
+        kind="cholesky", target="cpu", mode="single",
         prompt=textwrap.dedent("""\
             Exercise: parallel tiled Cholesky (CPU)
 
@@ -78,7 +103,7 @@ EXERCISES = {
             Rules:
             - Spawn the BLAS/LAPACK call itself (the aliases are those calls),
               not a helper that calls it. Dagger replaces BLAS with
-              rocBLAS/rocSOLVER on GPU tasks.
+              cuBLAS/cuSOLVER on GPU tasks.
             - Do not use fetch or wait inside the Datadeps region.
             - Under MPI every rank must build the same graph; do not branch
               on rank.
@@ -87,28 +112,27 @@ EXERCISES = {
             prints PASS.
             Full handout: exercise/README.md""")),
     "03_gpu": dict(
-        target="gpu", mode="single",
+        kind="cholesky", target="gpu", mode="single",
         prompt=textwrap.dedent("""\
             Exercise: same code, on the GPU
 
             No changes to the Function. The my_cholesky! you wrote in
-            exercise/my_cholesky.jl for the CPU must run unchanged on an AMD
-            GPU. Setup and Use now uses the
-            GPU scope, Dagger.scope(rocm_gpu=1); Dagger maps the spawned
-            BLAS/LAPACK calls to rocBLAS/rocSOLVER when a task lands on the
-            GPU.
+            exercise/my_cholesky.jl for the CPU must run unchanged on an
+            NVIDIA GPU. Setup and Use now uses the GPU scope,
+            Dagger.scope(cuda_gpu=1); Dagger maps the spawned BLAS/LAPACK
+            calls to cuBLAS/cuSOLVER when a task lands on the GPU.
 
             If the GPU run fails inside your own helper, spawn the BLAS/LAPACK
             call itself so Dagger can substitute the GPU implementation.
 
             Full handout: exercise/README.md""")),
     "05_multigpu": dict(
-        target="gpus", mode="single",
+        kind="cholesky", target="gpus", mode="single",
         prompt=textwrap.dedent("""\
             Exercise: every GPU, or CPU and GPU together
 
-            No changes to the Function. Setup and Use now uses every visible
-            GPU, Dagger.scope(rocm_gpus=:).
+            No changes to the Function. Setup and Use now uses both of
+            andromeda's GPUs, Dagger.scope(cuda_gpus=:).
             - Run it as it is, then compare the timeline with one GPU.
             - Set Target to Mixed to let Dagger place tasks on both CPU and
               GPU. Is it faster? Why or why not?
@@ -117,7 +141,7 @@ EXERCISES = {
 
             Full handout: exercise/README.md""")),
     "06_multinode": dict(
-        target="cpu", mode="mpi",
+        kind="cholesky", target="cpu", mode="mpi",
         prompt=textwrap.dedent("""\
             Exercise: same code, on MPI ranks (CPU)
 
@@ -133,7 +157,7 @@ EXERCISES = {
 
             Full handout: exercise/README.md""")),
     "07_multinode_multigpu": dict(
-        target="gpu", mode="mpi",
+        kind="cholesky", target="gpu", mode="mpi",
         prompt=textwrap.dedent("""\
             Exercise: MPI ranks and GPUs together
 
@@ -143,13 +167,46 @@ EXERCISES = {
             Compare the timeline with the CPU run in the previous section.
 
             Full handout: exercise/README.md""")),
+    "08_stencil": dict(
+        kind="stencil", target="cpu", mode="single",
+        prompt=textwrap.dedent("""\
+            Exercise: heat diffusion with stencils
+
+            The Function editor starts from exercise/my_stencil.jl: the
+            temperature u of a periodic plate, a DArray split into tiles,
+            and an empty time loop. One explicit step of the heat equation
+            is
+                u <- u + dt * D * laplacian(u)
+            and exercise/serial_heat.jl does it with plain loops.
+
+            1. Write laplacian(nb), the 5-point Laplacian of a 3 x 3
+               neighbourhood: the four nearest neighbours minus 4 times the
+               point itself, nb[2, 2].
+            2. Make each time step one @stencil block of two statements:
+               scratch[idx] gets the new temperature, read from
+               @neighbors(u[idx], 1, Wrap()); then u[idx] gets scratch[idx].
+            3. Return u.
+
+            Rules:
+            - A statement must not read the neighbours of the array it
+              writes; that is what scratch is for.
+            - Wrap() makes the plate periodic. Dagger reads the neighbours
+              across tile edges for you; do not copy halos yourself.
+            - Under MPI every rank runs the same code.
+
+            Run exercise runs the Function, then Setup and Use, which checks
+            u against the same steps in plain Julia. Done when it prints
+            PASS. Then set Target to GPU, and Processes to Two MPI ranks:
+            the same function, unchanged. The final exercise uses this
+            stencil for its explicit terms.
+            Full handout: exercise/README.md""")),
 }
 
 
-def _imports(target, mode):
-    lines = ["using Dagger, LinearAlgebra, Random"]
+def _imports(target, mode, packages="using Dagger, LinearAlgebra, Random"):
+    lines = [packages]
     if target != "cpu":
-        lines.append("using AMDGPU")
+        lines.append("using CUDA")
     if mode == "mpi":
         lines += ["using MPI", "",
                   "rank = MPI.Comm_rank(MPI.COMM_WORLD)   # only rank 0 prints"]
@@ -163,9 +220,10 @@ def _on_every_rank(mode):
 def _scope_lines(target, mode):
     """The scope line(s) for a target, as in harness/common.jl."""
     where = {"cpu": "the CPU threads", "gpu": "one GPU",
-             "gpus": "every visible GPU", "mixed": "the CPU threads and one GPU"}[target]
+             "gpus": "both GPUs", "mixed": "the CPU threads and one GPU"}[target]
     if mode == "mpi":
         where = where.replace("the CPU threads", "every rank's CPU threads")
+        where = where.replace("both GPUs", "every visible GPU")
         where += "" if target == "cpu" else " per rank"
     lines = [f"# (1) Where the tasks run: {where}."]
     if mode == "mpi" and target in ("cpu", "mixed"):
@@ -173,7 +231,7 @@ def _scope_lines(target, mode):
         cpu = "Dagger.constrain(Dagger.scope(mpi_ranks=:), Dagger.DefaultScope())"
     else:
         cpu = "Dagger.scope(worker=1)"
-    gpu = "Dagger.scope(rocm_gpus=:)" if target == "gpus" else "Dagger.scope(rocm_gpu=1)"
+    gpu = "Dagger.scope(cuda_gpus=:)" if target == "gpus" else "Dagger.scope(cuda_gpu=1)"
     if target == "cpu":
         lines.append(f"scope = {cpu}")
     elif target in ("gpu", "gpus"):
@@ -225,6 +283,47 @@ def exercise_setup(target, mode):
     return "\n".join(lines) + "\n"
 
 
+def stencil_setup(target, mode):
+    """Runnable Setup and Use for the stencil exercise."""
+    lines = ["# Setup and Use: where the tasks run, the plate, the call to my_heat!,",
+             "# and the check. Run exercise runs the Function first, then this code"
+             + _on_every_rank(mode),
+             ""] + _imports(target, mode, "using Dagger, Random")
+    lines += [""] + _scope_lines(target, mode)
+    lines += ["",
+              "# (2) A periodic 512 x 512 plate: cold, with 24 seeded hot squares. The",
+              "#     seed makes every MPI rank build the same plate.",
+              "n, bs = 512, 128",
+              "D, dt, nsteps = 0.2, 1.0, 100",
+              "u0 = zeros(n, n)",
+              "rng = Xoshiro(2026)",
+              "for _ in 1:24",
+              "    i, j = rand(rng, 1:n-7, 2)",
+              "    u0[i:i+7, j:j+7] .= 1.0",
+              "end",
+              "",
+              "# (3) Tile the plate, run my_heat! where the scope says, and gather u.",
+              "u = Dagger.with_options(scope=scope) do",
+              "    U = DArray(u0, Blocks(bs, bs))",
+              "    my_heat!(U, similar(U), D, dt, nsteps)",
+              "    collect(U)",
+              "end",
+              "",
+              "# (4) Check u against the same steps in plain Julia, with circshift on the",
+              "#     whole plate. A periodic plate also keeps its total heat.",
+              "ref = copy(u0)",
+              "for _ in 1:nsteps",
+              "    ref .+= dt * D .* (circshift(ref, (1, 0)) .+ circshift(ref, (-1, 0)) .+",
+              "                       circshift(ref, (0, 1)) .+ circshift(ref, (0, -1)) .- 4 .* ref)",
+              "end",
+              "err = maximum(abs, u - ref)",
+              'status = err < 1e-10 ? "PASS" : "FAIL"',
+              _say(mode, '"$status: $nsteps steps, tiles of $bs, max error ", err, '
+                         '", total heat ", round(sum(u); digits=6), " of ", sum(u0)'),
+              'err < 1e-10 || error("my_heat! does not match the serial steps")']
+    return "\n".join(lines) + "\n"
+
+
 def final_setup(target, mode):
     """Runnable Setup and Use for the final exercise."""
     lines = ["# Setup and Use: where the tasks run, the parameters, the initial fields,",
@@ -232,13 +331,16 @@ def final_setup(target, mode):
              "# Simulation first, then this code" + _on_every_rank(mode),
              "# The Visualization panel then draws u and v.",
              ""] + _imports(target, mode)
-    lines += [""] + _scope_lines(target, mode)
+    lines += ["",
+              "BLAS.set_num_threads(1)   # Dagger runs one solve per thread",
+              ""]
+    lines += _scope_lines(target, mode)
     lines += ["",
               "# (2) Parameters: grid size, time step, diffusion rates, feed and kill rates.",
-              "n, dt = 256, 1.0",
+              "n, dt = 256, 2.0",
               "Du, Dv = 0.16, 0.08",
               "F, k = 0.055, 0.062",
-              "nsteps = 3600",
+              "nsteps = 1800",
               "",
               "# (3) Initial fields: substrate u = 1 and a little activator v, plus 14",
               "#     seeded squares where the reaction starts. The seed makes every MPI",
@@ -252,9 +354,13 @@ def final_setup(target, mode):
               "    u[cx-3:cx+3, cy-3:cy+3] .= 0.5",
               "end",
               "",
-              "# (4) Run the simulation where the scope says; it updates u and v in place.",
-              "Dagger.with_options(scope=scope) do",
-              "    simulate!(u, v, (; n, dt, Du, Dv, F, k), nsteps)",
+              "# (4) Split u and v into two panels of whole columns, run the simulation",
+              "#     where the scope says, and gather the fields.",
+              "u, v = Dagger.with_options(scope=scope) do",
+              "    U = DArray(u, Blocks(n, n ÷ 2))",
+              "    V = DArray(v, Blocks(n, n ÷ 2))",
+              "    simulate!(U, V, (; n, dt, Du, Dv, F, k), nsteps)",
+              "    collect(U), collect(V)",
               "end",
               "",
               "# (5) Check and report: both fields must stay finite.",
@@ -283,64 +389,103 @@ FINAL_EXERCISE = dict(
             du/dt = Du laplacian(u) - u v^2 + F (1 - u)
             dv/dt = Dv laplacian(v) + u v^2 - (F + k) v
 
-        The feed and kill rates F = 0.055 and k = 0.062 produce a
-        labyrinth of spots and stripes. Use ADI splitting: each time
-        step is two half steps. In the first, x is implicit and y is
-        explicit; in the second, y is implicit and x is explicit.
-        Each half step solves one independent 1D system per column
-        or row, which is exactly the loop to parallelize with Dagger.
-        For the first half step,
-            rhs = u + dt/2 * (Du * (u * L) + reaction(u, v))
-        then solve with Fu for every column j; repeat for v with
-        Fv. The second half step uses L * u and solves rows i.
+        The feed and kill rates F = 0.055 and k = 0.062 grow a
+        labyrinth of spots and stripes. The simulation combines the two
+        earlier exercises: a stencil for the explicit terms, Cholesky
+        for the implicit ones.
 
-        The 1D periodic Laplacian L is symmetric. The two implicit
-        operators
-            A_u = I - (dt/2) Du L       A_v = I - (dt/2) Dv L
-        are symmetric positive definite, so factor each once with
-        cholesky(Symmetric(A)) and reuse the factors every step. The
-        1D systems are small; the parallel work is the line solves.
+        ADI splitting makes each time step two half steps. In the
+        first, y is explicit and x is implicit:
+            ru = u + dt/2 * (Du * d2y(u) + reaction(u, v))   a stencil
+            u  = A_u \\ ru, one column at a time            Cholesky
+        with A_u = I - (dt/2) Du L, where L is the 1D periodic
+        Laplacian; likewise for v with Dv. A_u and A_v are symmetric
+        positive definite and constant, so factor each once with
+        cholesky(Symmetric(A)) and reuse the factors every step.
 
-        Fill in L, Fu, Fv, and the two half steps of simulate!,
-        updating u and v in place. Setup and Use sets the parameters
-        and the initial fields, calls simulate!(u, v, p, nsteps) where
-        the scope says, and checks the result; Target and Processes
-        choose the hardware and whether it runs on MPI ranks. The
-        Visualization panel draws substrate u and activator v side by
-        side and animates the sampled time steps; no plotting code
-        belongs in your script.
+        Setup and Use splits u and v into panels of whole columns, so
+        each panel's solve is an independent task. The second half step
+        is the first with x and y swapped: half_step! ends by
+        transposing u and v, so calling it again treats y implicitly
+        with the same code.
+
+        Fill in d2y, half_step!, L, Cu, Cv, and the time loop of
+        simulate!, updating u and v in place. Setup and Use sets the
+        parameters and the initial fields, calls
+        simulate!(u, v, p, nsteps) where the scope says, and checks the
+        result; Target and Processes choose the hardware and whether it
+        runs on MPI ranks. Every run is a fresh Julia in its own Slurm
+        job; on the CPU it takes about a minute. The Visualization panel
+        draws substrate u and activator v side by side and animates the
+        sampled time steps; no plotting code belongs in your script.
     """),
     template=textwrap.dedent("""\
-        # Final exercise: Gray-Scott reaction-diffusion on a periodic grid.
-        # Fill in simulate! below. Setup and Use sets the parameters and the
-        # initial fields, calls simulate!, and checks the result.
+        # Final exercise: Gray-Scott reaction-diffusion on a periodic grid, with
+        # a stencil for the explicit terms and Cholesky for the implicit ones.
+        # Fill in the ??? and the TODOs. Setup and Use splits u and v into panels
+        # of whole columns, calls simulate!, and checks the result.
 
         using Dagger, LinearAlgebra
+        import Dagger: @stencil, Wrap
+        import LinearAlgebra: LAPACK
 
-        # Advance the substrate u and the activator v by nsteps ADI time steps,
-        # in place. p holds the parameters from Setup and Use: n, dt, Du, Dv, F, k.
+        # Second difference along y, the second index, of a 3 x 3 neighbourhood
+        # nb; nb[2, 2] is the point itself (as in the Stencils exercise).
+        d2y(nb) = ???
+
+        # solve_columns!('L', C, B) solves A X = B for every column of the panel
+        # B, in place, from the lower Cholesky factor C of A. It is LAPACK.potrs!
+        # under another name, so Dagger swaps in cuSOLVER when the task runs on
+        # a GPU.
+        const solve_columns! = LAPACK.potrs!
+
+        # Rows `to` of the panel dst <- the transpose of rows `from` of the panel src.
+        function transpose_block!(dst, src, from, to)
+            dst[to, :] .= transpose(view(src, from, :))
+            return nothing
+        end
+
+        # One ADI half step, from (u, v) back into (u, v), transposed.
+        function half_step!(u, v, ru, rv, Cu, Cv, p)
+            (; dt, Du, Dv, F, k) = p
+            # (a) Explicit along y, plus the reaction, as one @stencil block:
+            #       ru = u + dt/2 * (Du * d2y(u) - u v^2 + F (1 - u))
+            #       rv = v + dt/2 * (Dv * d2y(v) + u v^2 - (F + k) v)
+            #     where d2y(u) is d2y(@neighbors(u[idx], 1, Wrap())).
+            # TODO
+
+            # (b) Implicit along x: each panel of ru and rv holds whole columns,
+            #     so solve_columns! on one panel is an independent task.
+            # (c) Then u = ru' and v = rv': for every pair of panels (j, i),
+            #     transpose_block! writes rows block(i) of panel j of u from rows
+            #     block(j) of panel i of ru (the same for v and rv).
+            #     Spawn (b) and (c) in one Datadeps region, with In and InOut.
+            panels = size(u.chunks, 2)
+            width = size(u, 2) ÷ panels
+            block(i) = (i - 1) * width + 1:i * width
+            # TODO
+            return nothing
+        end
+
+        # Advance the substrate u and the activator v by nsteps ADI time steps, in
+        # place. p holds the parameters from Setup and Use: n, dt, Du, Dv, F, k.
         function simulate!(u, v, p, nsteps)
-            (; n, dt, Du, Dv, F, k) = p
+            (; n, dt, Du, Dv) = p
 
             # 1. Build the 1D periodic Laplacian L: diagonal -2, neighbour
             #    entries +1, and the first/last rows wrap around.
             L = ???
 
-            # 2. Factor the implicit operators A_u = I - (dt/2) Du L and
-            #    A_v = I - (dt/2) Dv L with Cholesky. They are SPD and
-            #    constant, so one factorization serves every time step.
-            Fu = ???
-            Fv = ???
+            # 2. Factor A_u = I - (dt/2) Du L and A_v = I - (dt/2) Dv L with
+            #    Cholesky. They are SPD and constant, so factor once and keep the
+            #    lower factors, as plain matrices, for every half step.
+            Cu = ???
+            Cv = ???
 
-            # 3. Time loop with ADI splitting. Each column/row solve is
-            #    independent; this is the loop to spawn as Dagger tasks.
-            ru = similar(u)
-            rv = similar(v)
+            # 3. Time loop: two half steps per time step. The transpose at the end
+            #    of a half step makes the next one treat y implicitly.
+            ru, rv = similar(u), similar(v)
             for step in 1:nsteps
-                # First half step: y explicit (u * L), x implicit (Fu).
-                # TODO
-
-                # Second half step: x explicit (L * u), y implicit (Fv).
                 # TODO
             end
             return u, v
@@ -369,6 +514,19 @@ def ensure_final_workspace():
                                 + "\n\nEdit only final_exercise.jl.\n")
 
 
+def set_aside_pre_stencil_workspace():
+    """The previous console's simulate! solved with Fu/Fv on plain matrices and
+    had no stencil; this Setup and Use passes it column panels. Keep such a
+    file aside once, at startup, and start from the stencil template."""
+    if FINAL_FILE.exists():
+        code = FINAL_FILE.read_text()
+        if "function simulate!" in code and "Fu" in code and "@stencil" not in code:
+            FINAL_FILE.replace(FINAL_FILE.with_name("final_exercise.pre-stencil.jl"))
+            if FINAL_README.exists() and "stencil" not in FINAL_README.read_text():
+                FINAL_README.replace(FINAL_README.with_name("README.pre-stencil.md"))
+    ensure_final_workspace()
+
+
 def final_file_state():
     ensure_final_workspace()
     return dict(code=FINAL_FILE.read_text(),
@@ -394,12 +552,30 @@ def exercises():
             raise ValueError(f"Unknown exercise target for {demo}")
         if exercise["mode"] not in MODES:
             raise ValueError(f"Unknown exercise layout for {demo}")
+        if exercise["kind"] not in EXERCISE_KINDS:
+            raise ValueError(f"Unknown exercise kind for {demo}")
     return {demo: dict(exercise) for demo, exercise in EXERCISES.items()}
 
 
-def exercise_template():
+# Each kind of exercise has its own Function file and Setup and Use builder.
+# Sections of the same kind share one Function editor.
+EXERCISE_KINDS = {
+    "cholesky": dict(file="my_cholesky.jl", setup=exercise_setup),
+    "stencil": dict(file="my_stencil.jl", setup=stencil_setup),
+}
+
+
+def exercise_template(kind="cholesky"):
     """Starting code shown in the exercise editor."""
-    return (ROOT / "exercise" / "my_cholesky.jl").read_text()
+    return (ROOT / "exercise" / EXERCISE_KINDS[kind]["file"]).read_text()
+
+
+def exercise_templates():
+    return {kind: exercise_template(kind) for kind in EXERCISE_KINDS}
+
+
+def exercise_setups():
+    return {kind: setup_templates(entry["setup"]) for kind, entry in EXERCISE_KINDS.items()}
 
 
 def section_layout():
@@ -454,7 +630,7 @@ def snapshot():
     """Upload course code only; results, credentials and preferences stay put."""
     stream = io.BytesIO()
     with tarfile.open(fileobj=stream, mode="w:gz") as archive:
-        for name in ("Project.toml", "demos", "harness", "frontier", "solution"):
+        for name in ("Project.toml", "demos", "harness", "andromeda", "solution"):
             archive.add(ROOT / name, arcname=name,
                         filter=lambda item: None if "__pycache__" in item.name else item)
         for name in ("worker.jl", "remote_agent.py", "final_visuals.jl"):
@@ -462,9 +638,19 @@ def snapshot():
     return stream.getvalue()
 
 
-ODO_HOSTNAME = "login1.odo.olcf.ornl.gov"
-MANAGED_BEGIN = "# >>> sc26-dagger console: managed host block >>>"
-MANAGED_END = "# <<< sc26-dagger console: managed host block <<<"
+# The dry run uses andromeda (ICMC/USP): one Slurm node with two NVIDIA A30s,
+# reached with SSH keys on a non-standard port.
+CLUSTER = "andromeda"
+CLUSTER_HOSTNAME = "andromeda.lasdpc.icmc.usp.br"
+CLUSTER_HOSTNAMES = (CLUSTER_HOSTNAME, "andromeda.icmc.usp.br")
+CLUSTER_PORT = 21200
+DEFAULT_REMOTE_ROOT = "sc26-dagger/portal"   # relative to the remote home
+# A run can print nothing for minutes. Probe every 30 s and give the network
+# five minutes before the connection, and the run with it, is given up.
+KEEPALIVE = ["-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=10"]
+# Distinct markers, so the Odo console's own managed block stays untouched.
+MANAGED_BEGIN = "# >>> sc26-dagger dry-run console: managed host block >>>"
+MANAGED_END = "# <<< sc26-dagger dry-run console: managed host block <<<"
 
 
 TERMINALS = {}
@@ -694,18 +880,24 @@ def close_all_terminals():
 atexit.register(close_all_terminals)
 
 
-def is_odo_hostname(hostname):
-    name = (hostname or "").lower().rstrip(".")
-    return name == ODO_HOSTNAME or name.endswith(".odo.olcf.ornl.gov")
+def is_cluster_hostname(hostname):
+    return (hostname or "").lower().rstrip(".") in CLUSTER_HOSTNAMES
 
 
-def default_remote_root(account, user):
-    return f"/gpfs/wolf2/olcf/{account}/scratch/{user}/sc26-dagger/portal"
+def valid_remote_root(root):
+    """An absolute path, or one relative to the remote home without `..`."""
+    if not root or root.startswith("-") or "\n" in root:
+        return False
+    return root.startswith("/") or ".." not in Path(root).parts
+
+
+def remote_root_label(root):
+    return root if root.startswith("/") else "~/" + root
 
 
 def managed_alias(user):
-    """A per-user alias that will not collide with a hand-written `Host odo`."""
-    return "sc26-odo-" + re.sub(r"[^A-Za-z0-9_.-]", "-", user)
+    """A per-user alias that will not collide with a hand-written `Host andromeda`."""
+    return "sc26-andromeda-" + re.sub(r"[^A-Za-z0-9_.-]", "-", user)
 
 
 def ssh_config_option(config_path):
@@ -735,6 +927,10 @@ def ssh_config_values(alias, config_path=None):
     return values
 
 
+def alias_reaches_cluster(values):
+    return is_cluster_hostname(values.get("hostname", "")) and values.get("port") == str(CLUSTER_PORT)
+
+
 def extract_managed_block(text):
     """Return (block, remaining lines); refuse to guess at a damaged block."""
     lines = text.splitlines()
@@ -755,7 +951,8 @@ def ssh_aliases(lines):
             yield from match.group(1).split()
 
 
-def write_managed_host(config_path, alias, user, control_path, server=ODO_HOSTNAME, alternative=None):
+def write_managed_host(config_path, alias, user, control_path, server=CLUSTER_HOSTNAME,
+                       port=CLUSTER_PORT, alternative=None):
     """Insert or update our own block; never touch hand-written Host sections.
 
     The block goes first because OpenSSH keeps the first value it obtains for
@@ -780,8 +977,10 @@ def write_managed_host(config_path, alias, user, control_path, server=ODO_HOSTNA
     block = [MANAGED_BEGIN,
              f"Host {alias}",
              f"    HostName {server}",
+             f"    Port {port}",
              f"    User {user}",
-             "    ServerAliveInterval 60",
+             "    ServerAliveInterval 30",
+             "    ServerAliveCountMax 10",
              "    ControlMaster auto",
              f"    ControlPath {socket}",
              "    ControlPersist 8h",
@@ -804,21 +1003,23 @@ def verify_managed_host(alias, user, config_path=None):
     values = ssh_config_values(alias, config_path)
     hostname = values.get("hostname", "").lower().rstrip(".")
     resolved = values.get("user", "")
-    if hostname != ODO_HOSTNAME or resolved != user:
+    port = values.get("port", "")
+    if not alias_reaches_cluster(values) or resolved != user:
         raise RuntimeError(
-            f"SSH alias {alias!r} resolves to {resolved or '?'}@{hostname or '?'}, not "
-            f"{user}@{ODO_HOSTNAME}. An earlier User/HostName entry or an Include is overriding it")
+            f"SSH alias {alias!r} resolves to {resolved or '?'}@{hostname or '?'}:{port or '?'}, not "
+            f"{user}@{CLUSTER_HOSTNAME}:{CLUSTER_PORT}. An earlier User/HostName/Port entry or an "
+            "Include is overriding it")
 
 
-def prompt_odo_user(default):
+def prompt_user(default):
     if not sys.stdin.isatty():
-        raise ValueError("No Odo username: pass --odo-user, set SC26_ODO_USER, "
+        raise ValueError(f"No {CLUSTER} username: pass --user, set SC26_USER, "
                          "or run the console from an interactive terminal")
     while True:
         try:
-            answer = input(f"OLCF/UCAMS username for Odo [{default}]: ").strip()
+            answer = input(f"Username on {CLUSTER} ({CLUSTER_HOSTNAME}) [{default}]: ").strip()
         except EOFError:
-            raise ValueError("No Odo username provided")
+            raise ValueError(f"No {CLUSTER} username provided")
         user = answer or default
         if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", user):
             return user
@@ -826,30 +1027,31 @@ def prompt_odo_user(default):
 
 
 def bootstrap_ssh(args):
-    """Resolve the Odo identity, create a managed alias when needed, return (user, alias).
+    """Resolve the cluster identity, create a managed alias when needed, return (user, alias).
 
     A usable hand-written alias is never modified. Otherwise the console owns one
-    explicitly marked block, so an attendee's `Host odo` keeps working unchanged.
+    explicitly marked block, so an attendee's `Host andromeda` keeps working unchanged.
     """
     local = getpass.getuser()
     config_path = Path(args.ssh_config).expanduser()
-    explicit = (args.odo_user or os.environ.get("SC26_ODO_USER", "")).strip()
+    explicit = (args.user or os.environ.get("SC26_USER", "")).strip()
     if explicit and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", explicit):
-        raise ValueError(f"Invalid Odo username: {explicit!r}")
-    preferred = args.ssh_host or "odo"
+        raise ValueError(f"Invalid {CLUSTER} username: {explicit!r}")
+    preferred = args.ssh_host or CLUSTER
     resolved = ssh_config_values(preferred, config_path)
-    hostname_ready = is_odo_hostname(resolved.get("hostname", ""))
+    ready = alias_reaches_cluster(resolved)
     resolved_user = resolved.get("user", "")
+    where = f"{CLUSTER_HOSTNAME}:{CLUSTER_PORT}"
     if explicit:
         user = explicit
-    elif hostname_ready and resolved_user and resolved_user != local:
+    elif ready and resolved_user and resolved_user != local:
         # An existing, working alias wins; do not rewrite the file.
-        print(f"Using existing SSH alias {preferred!r} as {resolved_user}@{ODO_HOSTNAME}", flush=True)
+        print(f"Using existing SSH alias {preferred!r} as {resolved_user}@{where}", flush=True)
         return resolved_user, preferred
     else:
-        user = prompt_odo_user(resolved_user or local)
-    if hostname_ready and resolved_user == user:
-        print(f"Using existing SSH alias {preferred!r} as {user}@{ODO_HOSTNAME}", flush=True)
+        user = prompt_user(resolved_user or local)
+    if ready and resolved_user == user:
+        print(f"Using existing SSH alias {preferred!r} as {user}@{where}", flush=True)
         return user, preferred
     alias = args.ssh_host or managed_alias(user)
     action = write_managed_host(config_path, alias, user, args.control_path,
@@ -860,7 +1062,8 @@ def bootstrap_ssh(args):
 
 
 def ensure_master(args):
-    """Open the multiplexed connection once, interactively if a password is needed."""
+    """Open the multiplexed connection once. andromeda takes SSH keys, so no
+    password is expected; a key passphrase can still be typed here."""
     socket_path = args.control_path
     socket_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     option = ssh_config_option(args.ssh_config)
@@ -870,20 +1073,24 @@ def ensure_master(args):
         print(f"Reusing the open SSH connection to {args.ssh_host}", flush=True)
         return True
     command = ["ssh"] + option + ["-S", str(socket_path),
-               "-o", "ControlMaster=auto", "-o", "ControlPersist=8h",
+               "-o", "ControlMaster=auto", "-o", "ControlPersist=8h"] + KEEPALIVE + [
                "-o", "ConnectTimeout=20", "-o", "RemoteCommand=none"]
     if sys.stdin.isatty():
         command += ["-o", "BatchMode=no"]
     else:
         command += ["-o", "BatchMode=yes"]
     command += ["-MNf", args.ssh_host]
-    print(f"Opening SSH connection to {args.ssh_host} (enter your OLCF password if asked)…",
-          flush=True)
+    print(f"Opening SSH connection to {args.ssh_host} with your SSH key…", flush=True)
     if subprocess.run(command).returncode == 0:
         return True
-    print("Could not open the SSH connection. Authenticate once, then reconnect the page:\n"
+    print("Could not open the SSH connection. Check that your key works, then reconnect the page:\n"
           + shlex.join(command), flush=True)
     return False
+
+
+def remote_path(root):
+    """A shell word for the workspace; relative paths start at the remote home."""
+    return shlex.quote(root)
 
 
 class Console:
@@ -894,6 +1101,7 @@ class Console:
         self.seq = 0
         self.process = None
         self.connecting = False
+        self.ready = False
         self.busy = False
         self.job = None
         self.mode = None
@@ -911,13 +1119,16 @@ class Console:
 
     def state(self, after=0):
         with self.lock:
-            return dict(status=self.status, job=self.job, mode=self.mode,
+            return dict(status=self.status, job=self.job, mode=self.mode, ready=self.ready,
                         connecting=self.connecting, busy=self.busy,
                         connected=self.process is not None and self.process.poll() is None,
                         events=[event for event in self.events if event["seq"] > after], seq=self.seq)
 
+    def ssh_options(self):
+        return ssh_config_option(getattr(self.args, "ssh_config", Path.home()/".ssh/config"))
+
     def ssh(self):
-        return ["ssh"] + ssh_config_option(getattr(self.args, "ssh_config", Path.home()/".ssh/config")) + [
+        return ["ssh"] + self.ssh_options() + [
                 "-T", "-o", "BatchMode=yes", "-o", "ConnectTimeout=20", "-o", "RemoteCommand=none",
                 "-S", str(self.args.control_path), self.args.ssh_host]
 
@@ -927,20 +1138,28 @@ class Console:
                 raise ValueError("Already connected or connecting")
             self.connecting = True
             self.stop_event.clear()
-            self.status = "Connecting to Odo…"
+            self.status = f"Connecting to {CLUSTER}…"
         threading.Thread(target=self._connect, daemon=True).start()
+
+    def remote_environment(self):
+        env = ["env", f"SC26_STEP_TIME={self.args.time}",
+               f"SC26_PARTITION={self.args.partition}",
+               f"SC26_LAUNCHER={getattr(self.args, 'launcher', 'slurm')}"]
+        for name, value in (("SC26_ACCOUNT", self.args.account),
+                            ("SC26_RESERVATION", self.args.reservation)):
+            if value:
+                env.append(f"{name}={value}")
+        return env
 
     def _connect(self):
         try:
             socket = self.args.control_path
             socket.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-            check = subprocess.run(["ssh"] + ssh_config_option(getattr(self.args, "ssh_config", Path.home()/".ssh/config"))
+            check = subprocess.run(["ssh"] + self.ssh_options()
                                    + ["-S", str(socket), "-O", "check", self.args.ssh_host],
                                    capture_output=True)
             if check.returncode:
-                helper = shutil.which("odo-connect") if self.args.ssh_host == "odo" else None
-                cmd = ([helper, str(socket)] if helper else
-                       ["ssh"] + ssh_config_option(getattr(self.args, "ssh_config", Path.home()/".ssh/config"))
+                cmd = (["ssh"] + self.ssh_options() + KEEPALIVE
                        + ["-o", "BatchMode=yes", "-o", "ConnectTimeout=20", "-o", "ControlMaster=auto",
                           "-o", "ControlPersist=8h", "-S", str(socket), "-MNf", self.args.ssh_host])
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
@@ -951,7 +1170,7 @@ class Console:
             if self.stop_event.is_set():
                 return
             # A dedicated, marked directory protects an attendee's existing checkout.
-            root = shlex.quote(self.args.remote_root)
+            root = remote_path(self.args.remote_root)
             script = (f"set -eu; mkdir -p {root}; cd {root}; "
                       'if [ ! -f .sc26-portal ]; then '
                       '[ -z "$(ls -A)" ] || { echo "Refusing to upload into a nonempty, unmarked directory" >&2; exit 1; }; '
@@ -962,12 +1181,11 @@ class Console:
                 raise RuntimeError(result.stderr.decode(errors="replace"))
             if self.stop_event.is_set():
                 return
-            self.status = "Preparing packages on the login node, then requesting one node…"
-            env = ["env", "SC26_NODES=1", f"SC26_TIME={self.args.time}", f"SC26_ACCOUNT={self.args.account}"]
-            if self.args.reservation:
-                env.append(f"SC26_RESERVATION={self.args.reservation}")
-            script = "source frontier/env.sh; bash frontier/prepare.sh </dev/null; exec python3 -u host/remote_agent.py"
-            command = f"cd {root} && " + shlex.join(env + ["bash", "-ec", script])
+            self.status = "Preparing Julia and packages on the login node…"
+            # prepare.sh downloads; the agent then compiles in a Slurm job and
+            # submits every later run as its own job. Nothing is held between runs.
+            script = "bash andromeda/prepare.sh </dev/null; exec python3 -u host/remote_agent.py"
+            command = f"cd {root} && " + shlex.join(self.remote_environment() + ["bash", "-ec", script])
             with self.lock:
                 if self.stop_event.is_set():
                     return
@@ -983,9 +1201,10 @@ class Console:
                 self.job = None
                 self.mode = None
                 self.connecting = False
+                self.ready = False
                 self.busy = False
                 if self.status != "Connection failed":
-                    self.status = "Disconnected · allocation released"
+                    self.status = "Disconnected"
 
     def _read(self, proc):
         for line in proc.stdout:
@@ -995,28 +1214,34 @@ class Console:
                 except ValueError:
                     self.emit("output", text=line, run=self.run_id)
                     continue
+                if event.get("kind") == "heartbeat":
+                    continue   # keeps the connection busy; nothing to show
                 with self.lock:
                     kind = event["kind"]
-                    if kind == "allocated":
-                        self.job = event["job"]
+                    if kind == "output" and not event.get("run"):
+                        event["run"] = self.run_id
+                    if kind == "ready":
+                        self.ready = True
                         self.connecting = False
-                        self.status = f"Ready · job {self.job} · {event['nodes']}"
+                        self.status = event.get("message") or "Ready · every run is its own Slurm job"
                     elif kind == "status":
                         self.status = event["message"]
+                    elif kind == "job":
+                        self.job = event.get("job")
                     elif kind == "worker_ready":
                         self.mode = event["mode"]
-                        self.status = "Running…"
+                        self.job = event.get("job") or self.job
+                        where = f" · job {self.job}" if self.job else ""
+                        self.status = f"Running{where}…"
                     elif kind in ("done", "cancelled"):
                         self.busy = False
-                        self.status = f"Ready · job {self.job}" if event.get("ok", True) else "Run failed · see output"
+                        self.job = None
+                        self.status = ("Ready · every run is its own Slurm job" if event.get("ok", True)
+                                       else "Run failed · see output")
                         if kind == "cancelled":
                             self.mode = None
                     elif kind == "worker_exit":
                         self.mode = None
-                        # A nonzero exit can be cancellation or an MPI abort.
-                        if event["returncode"] != 0 and not event.get("expected"):
-                            self.busy = False
-                            self.status = "Worker stopped · next run starts a new process"
                     self.emit(**event)
                     if kind in ("done", "cancelled"):
                         # Later coordinator chatter belongs to the next run.
@@ -1029,8 +1254,8 @@ class Console:
 
     def send(self, command):
         with self.lock:
-            if self.process is None or self.process.poll() is not None or not self.job:
-                raise ValueError("Allocate a node first")
+            if self.process is None or self.process.poll() is not None or not self.ready:
+                raise ValueError(f"Connect to {CLUSTER} first and wait until it is ready")
             self.process.stdin.write(json.dumps(command) + "\n")
             self.process.stdin.flush()
 
@@ -1043,11 +1268,9 @@ class Console:
                 if demo is None:
                     raise ValueError("Unknown demo")
                 command["mode"] = demo[2]
-                # The only demo option exposed by the console is GPU count.
-                gpus = str(command.pop("gpus", "2"))
-                if gpus not in ("2", "4"):
-                    raise ValueError("Choose two or four GPUs")
-                command["args"] = [f"--gpus={gpus}"] if demo[0] == "05_multigpu" else []
+                command["gpus"] = DEMO_GPUS.get(demo[0], 0)
+                command["args"] = []
+                command.setdefault("label", demo[1])
             elif command.get("op") == "exercise":
                 demo = next((d for d in DEMOS if d[0] == command.get("demo")), None)
                 if demo is None:
@@ -1066,6 +1289,7 @@ class Console:
                         raise ValueError(f"Write Julia code for {what} first")
                 command["mode"] = layout
                 command["target"] = target
+                command["gpus"] = run_gpus(target, layout)
                 command["label"] = f"Exercise · {TARGETS[target]} · {MODES[layout]}"
             elif command.get("op") == "eval":
                 if command.get("mode") not in ("single", "mpi"):
@@ -1079,21 +1303,28 @@ class Console:
                     setup = command.get("setup")
                     if not isinstance(setup, str) or not setup.strip():
                         raise ValueError("Write Julia code for Setup and Use first")
-                    command["label"] = f"Final Exercise · {MODES[command['mode']]}"
+                    target = str(command.get("target") or "cpu")
+                    if target not in TARGETS:
+                        raise ValueError("Unknown exercise target")
+                    command["target"] = target
+                    command["gpus"] = run_gpus(target, command["mode"])
+                    command["label"] = f"Final Exercise · {TARGETS[target]} · {MODES[command['mode']]}"
                     visuals = command.get("visuals", [])
                     if not isinstance(visuals, list) or any(v not in FINAL_VISUAL_IDS for v in visuals):
                         raise ValueError("Unknown visualization")
                     command["visuals"] = visuals
+                else:
+                    command["gpus"] = eval_gpus(command.get("demo"), command["mode"])
             else:
                 raise ValueError("Unknown operation")
             command["id"] = secrets.token_hex(8)
             self.send(command)
             self.busy = True
-            self.status = "Running…"
+            self.status = "Submitting to Slurm…"
             self.run_id = command["id"]
             self.emit("run", run=command["id"], demo=command.get("demo"),
                       label=command.get("label") or command.get("demo", "REPL"),
-                      mode=command["mode"], args=command.get("args", []),
+                      mode=command["mode"], gpus=command["gpus"], args=command.get("args", []),
                       exercise=command.get("op") == "exercise")
 
     def disconnect(self):
@@ -1116,8 +1347,14 @@ class Console:
                 proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 proc.kill()
-        # The remote agent's EOF/finally terminates its step and cancels only
-        # the holding job it submitted. Other terminal allocations stay intact.
+        # The remote agent's EOF/finally cancels the Slurm job of a run in
+        # progress. Nothing else is allocated.
+
+
+_JS, _CSS = "text/javascript; charset=utf-8", "text/css; charset=utf-8"
+STATIC_FILES = {"/": "text/html; charset=utf-8", "/app.js": _JS, "/ansi.js": _JS,
+                "/highlight.js": _JS, "/timeline.js": _JS, "/visuals.js": _JS,
+                "/style.css": _CSS, "/xterm.js": _JS, "/xterm.css": _CSS, "/addon-fit.js": _JS}
 
 
 def handler_for(console):
@@ -1148,15 +1385,16 @@ def handler_for(console):
                     self.reply(dict(error="Invalid cursor"), code=400)
             elif url.path == "/api/config":
                 self.reply(dict(token=console.token, demos=DEMOS, sections=section_layout(),
-                                exercises=exercises(), exercise_template=exercise_template(),
-                                exercise_setups=setup_templates(exercise_setup),
-                                targets=TARGETS, modes=MODES,
+                                exercises=exercises(), exercise_templates=exercise_templates(),
+                                exercise_setups=exercise_setups(),
+                                targets=TARGETS, modes=MODES, demo_gpus=DEMO_GPUS,
                                 final_exercise=dict(FINAL_EXERCISE, visuals=FINAL_VISUALS,
                                                     target="cpu", mode="single",
                                                     setups=setup_templates(final_setup)),
                                 final_workspace=str(FINAL_WORKSPACE),
-                                host=console.args.ssh_host,
-                                remote_root=console.args.remote_root, time=console.args.time))
+                                cluster=CLUSTER, host=console.args.ssh_host,
+                                remote_root=remote_root_label(console.args.remote_root),
+                                time=console.args.time))
             elif url.path == "/api/source":
                 try:
                     self.reply(demo_sources(parse_qs(url.query).get("demo", [""])[0]))
@@ -1180,18 +1418,9 @@ def handler_for(console):
                                                int(query.get("after", ["0"])[0])))
                 except (ValueError, TypeError) as exc:
                     self.reply(dict(error=str(exc)), code=400)
-            elif url.path in ("/", "/app.js", "/ansi.js", "/timeline.js", "/visuals.js", "/style.css",
-                              "/xterm.js", "/xterm.css", "/addon-fit.js"):
-                file = {"/":"index.html", "/app.js":"app.js", "/ansi.js":"ansi.js", "/timeline.js":"timeline.js",
-                        "/visuals.js":"visuals.js",
-                        "/style.css":"style.css", "/xterm.js":"xterm.js", "/xterm.css":"xterm.css",
-                        "/addon-fit.js":"addon-fit.js"}[url.path]
-                content_type = {"/":"text/html; charset=utf-8", "/app.js":"text/javascript; charset=utf-8",
-                                "/ansi.js":"text/javascript; charset=utf-8", "/timeline.js":"text/javascript; charset=utf-8",
-                                "/visuals.js":"text/javascript; charset=utf-8",
-                                "/style.css":"text/css; charset=utf-8", "/xterm.js":"text/javascript; charset=utf-8",
-                                "/xterm.css":"text/css; charset=utf-8", "/addon-fit.js":"text/javascript; charset=utf-8"}[url.path]
-                self.reply((ROOT / "host" / file).read_bytes(), content_type)
+            elif url.path in STATIC_FILES:
+                file = "index.html" if url.path == "/" else url.path[1:]
+                self.reply((ROOT / "host" / file).read_bytes(), STATIC_FILES[url.path])
             else:
                 self.reply(dict(error="Not found"), code=404)
 
@@ -1278,38 +1507,47 @@ def handler_for(console):
 
 
 def main():
-    ensure_final_workspace()
+    set_aside_pre_stencil_workspace()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="0.0.0.0", help="Listen address (default: all IPv4 interfaces)")
     parser.add_argument("--allow-host", action="append", default=[], help="Additional allowed browser hostname")
     parser.add_argument("--port", type=int, default=8767)
-    parser.add_argument("--ssh-host", help="SSH alias; reuse `odo` when it already points at Odo, "
-                                           "otherwise the console manages `sc26-odo-<user>`")
-    parser.add_argument("--odo-user", help="OLCF/UCAMS username (skips the prompt; also SC26_ODO_USER)")
+    parser.add_argument("--ssh-host", help=f"SSH alias; reuse `{CLUSTER}` when it already points at "
+                                           f"{CLUSTER_HOSTNAME}:{CLUSTER_PORT}, otherwise the console "
+                                           f"manages `sc26-{CLUSTER}-<user>`")
+    parser.add_argument("--user", help=f"Your {CLUSTER} username (skips the prompt; also SC26_USER)")
     parser.add_argument("--ssh-config", type=Path, default=Path.home() / ".ssh/config",
                         help="SSH config to read and update (default: ~/.ssh/config)")
-    parser.add_argument("--account", default=os.environ.get("SC26_ACCOUNT", "trn047"))
-    parser.add_argument("--remote-root", help="Dedicated portal directory, not an existing checkout")
-    parser.add_argument("--control-path", type=Path, default=Path.home() / ".ssh/control/sc26-portal")
-    parser.add_argument("--time", default="02:00:00")
+    parser.add_argument("--partition", default=os.environ.get("SC26_PARTITION", "gpu"),
+                        help="Slurm partition for every run (default: gpu)")
+    parser.add_argument("--account", default=os.environ.get("SC26_ACCOUNT", ""),
+                        help="Slurm account, if your association needs one")
+    parser.add_argument("--remote-root", default=DEFAULT_REMOTE_ROOT,
+                        help="Dedicated workspace, absolute or relative to the remote home "
+                             f"(default: ~/{DEFAULT_REMOTE_ROOT}); not an existing checkout")
+    parser.add_argument("--control-path", type=Path,
+                        default=Path.home() / f".ssh/control/sc26-{CLUSTER}")
+    parser.add_argument("--time", default="00:20:00", help="Slurm time limit of each run")
     parser.add_argument("--reservation", default="")
+    parser.add_argument("--launcher", choices=("slurm", "local"), default="slurm",
+                        help="local runs each command on the login node without Slurm: for "
+                             "testing only, while an account has no Slurm association")
     parser.add_argument("--no-auth", action="store_true",
                         help="Skip the startup SSH login; Connect then needs an existing connection")
-    parser.add_argument("--no-auto-allocate", action="store_true",
-                        help="Wait for Connect instead of allocating and warming Julia at startup")
+    parser.add_argument("--no-auto-connect", action="store_true",
+                        help="Wait for Connect instead of preparing Julia at startup")
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
     if args.ssh_host and (not re.fullmatch(r"[\w@.-]+", args.ssh_host) or args.ssh_host.startswith("-")):
         parser.error("Invalid SSH host alias")
+    if not valid_remote_root(args.remote_root):
+        parser.error("--remote-root must be absolute or relative to your remote home, without ..")
     args.control_path = args.control_path.expanduser().resolve()
     args.ssh_config = args.ssh_config.expanduser()
     try:
-        args.odo_user, args.ssh_host = bootstrap_ssh(args)
+        args.user, args.ssh_host = bootstrap_ssh(args)
     except (ValueError, RuntimeError, OSError) as exc:
         parser.error(str(exc))
-    args.remote_root = args.remote_root or default_remote_root(args.account, args.odo_user)
-    if not args.remote_root.startswith("/"):
-        parser.error("--remote-root must be an absolute path")
     authenticated = False if args.no_auth else ensure_master(args)
     console = Console(args)
     server = ThreadingHTTPServer((args.host, args.port), handler_for(console))
@@ -1326,7 +1564,7 @@ def main():
         except (ValueError, OSError, subprocess.TimeoutExpired):
             pass
     atexit.register(console.disconnect)
-    if authenticated and not args.no_auto_allocate:
+    if authenticated and not args.no_auto_connect:
         def _auto_connect():
             time.sleep(0.5)
             try:
@@ -1340,12 +1578,12 @@ def main():
     elif args.no_auth:
         connection_note = "\nSSH login skipped (--no-auth); Connect needs an existing connection"
     else:
-        connection_note = "\nSSH login failed; use Connect & allocate after fixing SSH"
-    print(f"Tutorial console: {url}\nOdo user: {args.odo_user} via {args.ssh_host}"
-          f"\nOdo workspace: {args.remote_root}{connection_note}"
-          + "\nCtrl-C releases the console's allocation.", flush=True)
-    if authenticated and not args.no_auto_allocate:
-        print("Allocating a node and precompiling Julia in the background…", flush=True)
+        connection_note = "\nSSH login failed; use Connect after fixing SSH"
+    print(f"Tutorial console: {url}\n{CLUSTER} user: {args.user} via {args.ssh_host}"
+          f"\n{CLUSTER} workspace: {remote_root_label(args.remote_root)}{connection_note}"
+          + "\nEvery run is its own Slurm job; Ctrl-C cancels a run in progress.", flush=True)
+    if authenticated and not args.no_auto_connect:
+        print("Preparing Julia and compiling packages in the background…", flush=True)
     if args.host == "0.0.0.0":
         for ip in tailscale_ips:
             print(f"Tailscale: http://{ip}:{args.port}", flush=True)

@@ -206,7 +206,11 @@ function present(f; title, files=String[], source=nothing, mpi=nothing, demo=not
             plot === nothing ? println("No completed compute/transfer events.") :
                 show(IOContext(stdout, :color=>color), MIME"text/plain"(), plot)
             println("\ncyan: compute · yellow: data movement · host task timings, including compilation")
-            println("Run again for a warm timeline. GPU lanes are host-side tasks, not kernel profiling.")
+            # A console run is a fresh Julia in its own Slurm job; in a terminal
+            # session, running again shows the warm timeline.
+            get(ENV, "SC26_PORTAL", "0") == "1" ?
+                println("Each console run is a fresh Julia, so these timings include compilation. GPU lanes are host-side tasks, not kernel profiling.") :
+                println("Run again for a warm timeline. GPU lanes are host-side tasks, not kernel profiling.")
             path = joinpath(@__DIR__, "..", "results", "demo-timelines",
                             "$(replace(title, r"[^\w-]+" => "-"))-$(Dates.format(now(), "yyyymmdd-HHMMSS-sss")).json")
             mkpath(dirname(path))

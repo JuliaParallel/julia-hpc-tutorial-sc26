@@ -2,6 +2,7 @@
 # (In / Out / InOut) and Dagger orders and parallelizes the tasks for you.
 #
 #   julia --project -t 4 demos/02_datadeps.jl
+#   bash andromeda/launch.sh 1 0 demos/02_datadeps.jl
 
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
 

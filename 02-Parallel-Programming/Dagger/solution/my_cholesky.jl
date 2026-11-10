@@ -3,7 +3,7 @@
 # only `spawn_datadeps`, `Dagger.@spawn`, and In/InOut were added.
 #
 # The four tile operations are `const` aliases of the BLAS/LAPACK functions.
-# Keep them as aliases: Dagger selects the rocBLAS/rocSOLVER version only when
+# Keep them as aliases: Dagger selects the cuBLAS/cuSOLVER version only when
 # the spawned function *is* the BLAS/LAPACK function.
 
 using Dagger

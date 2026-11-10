@@ -748,3 +748,72 @@ main {
   font:12px/1.6 monospace;
 }
 #task-tooltip strong {color:#6acde8;font-size:14px}
+
+/* Highlighted editors: the textarea's text is transparent and a coloured
+   copy of it sits behind, with identical font, padding and scrolling. */
+.code-editor {
+  position:relative;
+  width:calc(100% - 40px);
+  margin:15px 20px;
+  background:#0e1b24;
+  border:1px solid var(--border);
+  border-radius:6px
+}
+.exercise-panel .code-editor {
+  width:100%;
+  margin:0
+}
+.code-editor > textarea,
+.code-editor > .code-highlight {
+  display:block;
+  width:100%;
+  margin:0;
+  padding:14px;
+  border:0;
+  border-radius:6px;
+  font:12px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace;
+  letter-spacing:0;
+  tab-size:4;
+  white-space:pre;
+  overflow-wrap:normal;
+  word-break:normal
+}
+.code-editor.tight > textarea,
+.code-editor.tight > .code-highlight {
+  line-height:1.55
+}
+.code-editor > textarea {
+  position:relative;
+  z-index:1;
+  background:transparent;
+  color:transparent;
+  caret-color:var(--text);
+  overflow:auto
+}
+.code-editor > textarea::selection {
+  color:transparent;
+  background:#44475a
+}
+.code-editor > textarea:focus-visible {
+  outline-offset:0
+}
+.code-editor > .code-highlight {
+  position:absolute;
+  inset:0;
+  overflow:hidden;
+  pointer-events:none;
+  color:#f8f8f2
+}
+.code-highlight code {
+  font:inherit
+}
+.tok-kw {color:#ff5555}
+.tok-comment {color:#8b9ca8}
+.tok-string {color:#50fa7b}
+.tok-num {color:#f1fa8c}
+.tok-const {color:#ffffa5}
+.tok-macro {color:#ff79c6}
+.tok-call {color:#bd93f9}
+.tok-type {color:#8be9fd}
+.tok-symbol {color:#8be9fd}
+.tok-todo {color:#0e1b24;background:#ffbd75;border-radius:3px}

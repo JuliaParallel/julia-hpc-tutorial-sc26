@@ -376,6 +376,15 @@ class ConsoleTests(unittest.TestCase):
         output = [event for event in c.events if event["kind"] == "output"][-1]
         self.assertEqual(output["run"], run_id)
         self.assertIsNone(c.run_id)
+        # The coordinator relays the worker's lines as output events; they
+        # belong to the run that printed them, not to the selected pane.
+        c.busy = False
+        c.run(dict(op="exercise", demo="02_datadeps", code="x = 1", setup="y = 2"))
+        exercise_run = [event for event in c.events if event["kind"] == "run"][-1]["run"]
+        p = Mock(stdout=io.StringIO(app.PREFIX + json.dumps(dict(kind="output", text="PASS\n")) + "\n"))
+        p.wait.return_value = 0
+        c._read(p)
+        self.assertEqual([e for e in c.events if e["kind"] == "output"][-1]["run"], exercise_run)
         c.busy = False
         c.run(dict(op="eval", mode="single", code="1+1", demo="01_tasks"))
         evaluation = [event for event in c.events if event["kind"] == "run"][-1]

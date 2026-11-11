@@ -997,6 +997,11 @@ class Console:
                     continue
                 with self.lock:
                     kind = event["kind"]
+                    # The coordinator relays the worker's lines as output events
+                    # without a run; they belong to the run in progress, so the
+                    # console shows them in the panel that started it.
+                    if kind == "output" and not event.get("run"):
+                        event["run"] = self.run_id
                     if kind == "allocated":
                         self.job = event["job"]
                         self.connecting = False

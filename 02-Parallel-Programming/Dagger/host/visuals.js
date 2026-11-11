@@ -122,9 +122,11 @@ function visualColorbar(ctx, layout, colormap, min, max, dpr) {
   const {T, ph, w} = layout;
   const x = w - 78 * dpr, bar = 14 * dpr;
   const grad = ctx.createLinearGradient(0, T, 0, T + ph);
+  // The maximum is labelled at the top, so the gradient runs from the top
+  // colour (value max) down to the bottom colour (value min).
   for (let i = 0; i <= 10; i++) {
     const t = i / 10;
-    const [r, g, b] = visualColor(colormap, t);
+    const [r, g, b] = visualColor(colormap, 1 - t);
     grad.addColorStop(t, `rgb(${r}, ${g}, ${b})`);
   }
   ctx.fillStyle = grad;

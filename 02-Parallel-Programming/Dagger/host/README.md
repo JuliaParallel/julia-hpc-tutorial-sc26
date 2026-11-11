@@ -135,6 +135,12 @@ versions even when Dagger's `master` moves. Sessions under one account are
 kept apart by the console's own paths, not by the operating system: the same
 account can read every one of its folders.
 
+If the console cannot create the sessions directory, it says so: your project
+scratch directory (`/gpfs/wolf2/olcf/<account>/scratch/<odo-user>`) is created
+by OLCF for members of the project, so check `groups` on Odo. Pass `--account`
+for another project, or `--remote-root DIR/sessions` for another directory you
+can write on Odo; the package depot then lives in `DIR` too.
+
 Then the session prepares packages on the **login node** and submits its
 one-node holding job, and waits for that job to start before enabling Run.
 This is separate from your normal checkout and exercise edits.

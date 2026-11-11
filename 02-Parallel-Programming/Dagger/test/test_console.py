@@ -591,6 +591,20 @@ class ConsoleTests(unittest.TestCase):
             self.assertNotEqual(second.returncode, 0)
             self.assertIn(b"File exists", second.stderr)
             self.assertEqual(sorted(p.name for p in folder.iterdir()), [".sc26-session", "demos", "results"])
+            # A sessions directory the account cannot create says why.
+            blocked = Path(directory) / "blocked"
+            blocked.mkdir(mode=0o500)
+            try:
+                failed = subprocess.run(["bash", "-c", app.session_upload_script(str(blocked / "me/sc26-dagger/sessions"), "sc26-x")],
+                                        input=payload.getvalue(), capture_output=True)
+                self.assertNotEqual(failed.returncode, 0)
+                self.assertIn(b"cannot create its sessions folder", failed.stderr)
+                self.assertIn(b"--remote-root", failed.stderr)
+            finally:
+                blocked.chmod(0o700)
+        # The depot follows the sessions directory.
+        self.assertEqual(app.cache_root("/gpfs/wolf2/olcf/trn047/scratch/me/sc26-dagger/sessions/"),
+                         "/gpfs/wolf2/olcf/trn047/scratch/me/sc26-dagger")
 
     def test_large_report_survives_nonblocking_inherited_stdout(self):
         import os

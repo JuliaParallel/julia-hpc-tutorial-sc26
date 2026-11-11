@@ -453,6 +453,7 @@ function createPane(demo, heading) {
   };
   pane.mode.value = demo[2];
   pane.timeline.owner = pane;
+  enhanceEditor(pane.code);
   pane.run.onclick = () => post("/api/run", {op: "demo", demo: pane.id, gpus: pane.gpus?.value});
   pane.eval.onclick = () => post("/api/run", {op: "eval", code: pane.code.value, mode: pane.mode.value, demo: pane.id});
   pane.code.onkeydown = event => {
@@ -494,6 +495,8 @@ function createExercisePanel(demo) {
   };
   panel.timeline.owner = panel;
   panel.prompt.textContent = exercise.prompt;
+  enhanceEditor(panel.code);
+  enhanceEditor(panel.setup);
   wireSetup(panel, panel.demo, config.exercise_setups ?? {}, exercise);
   panel.code.value = exerciseCode ?? config.exercise_template ?? "";
   panel.code.oninput = () => {
@@ -561,6 +564,8 @@ function createFinalExercisePanel() {
     label.append(input, document.createTextNode(` ${item.label}`));
     panel.visualControls.append(label);
   }
+  enhanceEditor(panel.code);
+  enhanceEditor(panel.setup);
   wireSetup(panel, "final", exercise.setups ?? {}, exercise);
   runOnCtrlEnter(panel.code, panel.run);
   runOnCtrlEnter(panel.setup, panel.run);

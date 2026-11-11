@@ -11,10 +11,11 @@ host entry, opens the SSH connection, and then serves the page. See
 [Credentials](#credentials) for what it writes and how an existing `odo` entry
 is treated.
 
-Open **http://127.0.0.1:8767**; the console immediately requests one node and
-precompiles the Julia environment, so **Run demo** is fast once the page says
-it is ready. Pass `--no-auto-allocate` to wait for **Connect & allocate**
-instead. Requires
+Open **http://127.0.0.1:8767**; the console immediately prepares the Julia
+packages and compiles them in a short Slurm job, and enables the buttons once
+the page says it is ready. Nothing is allocated in between: every run is its
+own Slurm job (see [One Slurm job per run](#one-slurm-job-per-run)). Pass
+`--no-auto-connect` to wait for **Connect** instead. Requires
 Python 3.9+ and OpenSSH with connection multiplexing locally; no Python
 packages, local Julia, Node, or internet-hosted web assets are needed. Odo's
 Python 3.6 runs only the coordinator.
@@ -121,10 +122,10 @@ creates exactly that folder under
 folder is created with a plain `mkdir`, which fails rather than reuse a folder
 that already exists, and is readable only by your account. Everything the
 session does lives in it: the uploaded course code, its `Manifest.toml` and
-MPI preferences, the holding job's log, and the results and timelines. The
-same name is the name of the session's Slurm job (`sbatch -J`) and of its
-steps, so `squeue --me` shows which job belongs to which console, and
-Release or Ctrl-C cancels only that job by its ID. The page's sidebar shows
+MPI preferences, and the results and timelines. The same name is the name of
+every Slurm job the session submits (`-J`), so `squeue --me` shows which job
+belongs to which console, and Cancel, Disconnect or Ctrl-C cancels only that
+session's job. The page's sidebar shows
 the session's folder. A new Connect makes a new folder; earlier folders and
 their results stay until you delete them.
 
@@ -143,9 +144,9 @@ by OLCF for members of the project, so check `groups` on Odo. Pass `--account`
 for another project, or `--remote-root DIR/sessions` for another directory you
 can write on Odo; the package depot then lives in `DIR` too.
 
-Then the session prepares packages on the **login node** and submits its
-one-node holding job, and waits for that job to start before enabling Run.
-This is separate from your normal checkout and exercise edits.
+Then the session prepares packages on the **login node**, compiles them in a
+short job (`frontier/precompile.sh`, which runs `frontier/setup.sh`), and
+enables Run. This is separate from your normal checkout and exercise edits.
 
 Override your remote username/path, account, reservation, or time limit:
 
@@ -164,32 +165,38 @@ Other options: `--odo-user`, `--ssh-host`, `--ssh-config`, `--control-path`,
 `--account`, `--reservation`, `--time`, `--port`, `--no-auth`, and
 `--no-browser`. `python3 host/app.py --help` lists them.
 
-## What stays alive
+## One Slurm job per run
 
-The webpage and plot renderer run locally. A login-side Python coordinator
-owns one Slurm job; a sleeping batch script retains that allocation while
-`srun` steps perform the actual work. A Julia worker retains loaded packages,
-compiled demo methods, and REPL variables between commands in the same layout.
+The webpage and plot renderer run locally; a login-side Python coordinator
+runs on Odo. There is no holding job: every **Run demo**, **Run exercise**,
+**Run final exercise** and REPL **Evaluate** is submitted as its own Slurm job
+(`frontier/launch.sh` with `srun`, outside any allocation), named after the
+session, with your account, the reservation if you pass `--reservation`, and
+the time limit `--time` (default 20 minutes). The job ends with the run.
 
-- Single-process demos use one Julia process with four visible GPUs (the
-  multi-GPU algorithm selects two or four).
-- MPI demos use two ranks on that same node, with two GPUs available per rank.
-  CPU MPI tasks still run on CPU scopes.
-- Changing between those layouts stops the old step and starts a new worker.
-  REPL variables reset; plot history remains in the local console.
-- REPL expressions run in a persistent Julia module on Odo. Under MPI, the
-  expression runs on **every rank**. Use identical graph-building decisions
-  everywhere, just as in the demos. This is a Julia evaluator with multiline
-  input, not a full terminal REPL: terminal modes such as `]`, `?`, shell mode,
-  and interactive `readline` prompts are not supported.
+- Runs that use no GPU ask for one task with 7 CPUs and no GPU.
+- Runs that use GPUs see four GPUs in one process (the Multiple GPUs demo
+  selects two or four), or two GPUs per rank with two MPI ranks.
+- The status line follows the job: submitted, queued with its job ID while it
+  waits for a node, running, done. Its output streams into the Session output
+  of the panel that started it.
+- Every run is a fresh Julia: REPL variables do not carry over from one
+  evaluation to the next, and every timeline includes compilation. Under MPI
+  the expression runs on **every rank**; use identical graph-building
+  decisions everywhere, just as in the demos. This is a Julia evaluator with
+  multiline input, not a full terminal REPL: terminal modes such as `]`, `?`,
+  shell mode, and interactive `readline` prompts are not supported.
 
-**Cancel run** terminates the current step and clears its Julia workspace;
-the allocation remains available. **Release node**, local Ctrl-C, or SSH EOF
-terminates the worker and cancels only the job submitted by this console.
-Closing the browser tab leaves the local app and its allocation running;
-reopen the page to recover the session and its recent history. A machine or
-network failure that prevents remote cleanup may leave the holding job until
-its Slurm time limit; its job ID appears in the session output/status.
+**Cancel run** cancels the run's job (`scancel` by the session's name).
+**Disconnect**, local Ctrl-C, or a lost connection does the same for a run in
+progress; nothing else is held. The coordinator writes a heartbeat every 30
+seconds, so it notices a lost connection and cancels its run. Closing the
+browser tab leaves the local app running; reopen the page to recover the
+session and its recent history.
+
+The terminal workflow is unchanged: inside an allocation from
+`frontier/allocate.sh`, `frontier/launch.sh` still runs steps of that
+allocation.
 
 ## Source and plots
 
@@ -312,6 +319,6 @@ node test/ansi.cjs  # optional developer checks; Node is not needed to use the a
 node test/timeline.cjs
 ```
 
-These check the local protocol, allocation cleanup, HTTP command boundary,
+These check the local protocol, the per-run job lifecycle, HTTP command boundary,
 source extraction, event timing and UnicodePlots backend without Odo. Live
 CPU/GPU/MPI validation is recorded in `../PLAN.md`.

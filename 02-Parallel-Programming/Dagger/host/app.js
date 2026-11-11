@@ -107,7 +107,8 @@ function demoById(id) {
   return config.demos.find(demo => demo[0] === id);
 }
 function layoutLabel(layout) {
-  return layout === "mpi" ? "TWO MPI RANKS / ONE ODO NODE" : "ONE JULIA PROCESS";
+  const who = layout === "mpi" ? "TWO MPI RANKS / ONE ODO NODE" : "ONE JULIA PROCESS";
+  return `${who} · ONE SLURM JOB PER RUN`;
 }
 
 function collapseButton(target, label) {
@@ -175,7 +176,7 @@ ${collapseButton(pid + "-timeline-body", pid + "-timeline-title")}
 <span>Transfer arrows: source → destination rank</span>
 <span>Hover a task for details · seconds from logging start</span>
 </div>
-<p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Run again to see a warm session.</p>
+<p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Every run is a fresh Julia in its own Slurm job, so each timeline includes compilation.</p>
 <div class="summary" data-role="summary">
 </div>
 </div>
@@ -375,7 +376,7 @@ ${collapse(pid + "-repl-body", pid + "-repl-title")}
 </div>
 </div>
 <div class="panel-body" id="${pid}-repl-body">
-<p class="hint">Variables persist in this layout. Switching layouts or cancelling resets Julia. MPI runs your expression on every rank; keep work uniform.</p>
+<p class="hint">Each evaluation is a fresh Julia in its own Slurm job, with this section's GPUs; variables do not carry over to the next one. MPI runs your expression on every rank; keep work uniform.</p>
 <label class="sr-only" for="${pid}-code">Julia expression</label>
 <textarea id="${pid}-code" data-role="code" spellcheck="false">a = Dagger.@spawn sum(1:1_000_000)
 fetch(a)</textarea>
@@ -428,7 +429,7 @@ ${collapse(pid + "-timeline-body", pid + "-timeline-title")}
 <span>Transfer arrows: source → destination rank</span>
 <span>Hover a task for details · seconds from logging start</span>
 </div>
-<p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Run again to see a warm session.</p>
+<p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Every run is a fresh Julia in its own Slurm job, so each timeline includes compilation.</p>
 <div class="summary" data-role="summary">
 </div>
 </div>
@@ -621,8 +622,8 @@ function createFinalExercisePanel() {
         : "No visualization selected.";
     }
     post("/api/run", {
-      op: "eval", mode: panel.mode.value, demo: "final", code: panel.code.value,
-      setup: panel.setup.value, visuals,
+      op: "eval", mode: panel.mode.value, target: panel.target.value, demo: "final",
+      code: panel.code.value, setup: panel.setup.value, visuals,
     });
   };
   panel.clear.onclick = () => panel.output.replaceChildren();
@@ -965,7 +966,7 @@ function showFinal() {
   showSection("final");
   selectedDemo = null;
   $("demo-title").textContent = config.final_exercise?.title || "Final Exercise";
-  $("layout-label").textContent = "GRAY-SCOTT REACTION-DIFFUSION";
+  $("layout-label").textContent = "GRAY-SCOTT REACTION-DIFFUSION · ONE SLURM JOB PER RUN";
   for (const button of document.querySelectorAll("#demos button")) {
     button.classList.toggle("active", button.dataset.final === "1");
   }
@@ -1058,7 +1059,7 @@ function controls() {
   $("connect").disabled = state.connecting || state.connected;
   $("disconnect").disabled = !state.connected && !state.connecting;
   $("cancel").disabled = !state.busy;
-  const ready = Boolean(state.job) && !state.busy;
+  const ready = Boolean(state.ready) && !state.busy;
   for (const pane of panes.values()) pane.run.disabled = pane.eval.disabled = !ready;
   for (const exercise of exercisePanels) exercise.run.disabled = !ready;
   if (finalPanel) finalPanel.run.disabled = !ready;

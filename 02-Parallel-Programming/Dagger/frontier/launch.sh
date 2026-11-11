@@ -1,9 +1,12 @@
 #!/bin/bash
-# Launch Julia in an existing allocation, including from its login-node shell:
-# SLURM_JOB_ID=123 SC26_NODES=1 bash frontier/launch.sh 4 demos/06_multinode.jl
+# Launch Julia with srun. Inside an allocation it runs as one of its steps,
+# including from the allocation's login-node shell:
+#   SLURM_JOB_ID=123 SC26_NODES=1 bash frontier/launch.sh 4 demos/06_multinode.jl
+# Without one it submits a job of its own, which ends with the run; the web
+# console runs every demo, exercise and REPL evaluation this way:
+#   SC26_GPUS_PER_TASK=0 bash frontier/launch.sh 1 demos/01_tasks.jl
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
-: "${SLURM_JOB_ID:?Obtain an allocation with frontier/allocate.sh first}"
 np="${1:?Usage: launch.sh RANKS [Julia arguments]}"; shift
 nodes="${SC26_NODES:-1}"
 threads="${SC26_THREADS:-7}"
@@ -22,9 +25,21 @@ terminal=()
 if [[ "${SC26_PTY:-0}" == 1 ]]; then terminal+=(--pty); fi
 limit=()
 if [[ -n "${SC26_STEP_TIME:-}" ]]; then limit+=(--time="$SC26_STEP_TIME"); fi
+if [[ -n "${SLURM_JOB_ID:-}" ]]; then
+    where=(--jobid="$SLURM_JOB_ID" --exact)
+    gpus=(--gpus-per-task="$gpt" --gpu-bind="$bind")
+else
+    # A job of its own: the account, partition and reservation, a time limit,
+    # and only the GPUs this run asks for.
+    where=(-A "$SC26_ACCOUNT" -p "${SC26_PARTITION:-batch}")
+    if [[ -n "${SC26_RESERVATION:-}" ]]; then where+=(--reservation="$SC26_RESERVATION"); fi
+    if [[ -z "${SC26_STEP_TIME:-}" ]]; then limit+=(--time=00:20:00); fi
+    gpus=()
+    if (( gpt > 0 )); then gpus=(--gpus-per-task="$gpt" --gpu-bind="$bind"); fi
+fi
 # A console session names its steps after itself, like its job.
 if [[ -n "${SC26_SESSION:-}" ]]; then limit+=(--job-name="$SC26_SESSION"); fi
-exec srun --jobid="$SLURM_JOB_ID" --exact -N "$nodes" -n "$np" \
+exec srun "${where[@]}" -N "$nodes" -n "$np" \
     --ntasks-per-node="$rpn" -c "$threads" --threads-per-core=1 \
-    --gpus-per-task="$gpt" --gpu-bind="$bind" --cpu-bind=cores \
+    "${gpus[@]}" --cpu-bind=cores \
     --kill-on-bad-exit=1 "${terminal[@]}" "${limit[@]}" julia --project="$SC26_ROOT" -t "$threads" "$@"

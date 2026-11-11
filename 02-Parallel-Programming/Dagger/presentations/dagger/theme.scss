@@ -89,3 +89,8 @@ $presentation-slide-text-align: left;
 .reveal table td { border-bottom: 1px solid #314653; padding: .65em .5em; }
 .reveal .slide-background-content { background-image: radial-gradient(ellipse at 95% 5%, #203738 0%, transparent 55%); }
 @media print { .reveal .slide-background-content { background-image: none; } }
+.reveal .gs-key p { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; font-size: .56em; margin: 14px 0 0; color: #d3dfe6; }
+.reveal .gs-key span { display: block; padding: 10px 14px; border-radius: 10px; background: #1d2c38; line-height: 1.45; }
+.reveal .gs-key b { display: block; color: var(--mint); margin-bottom: 2px; }
+.reveal .gs-key code { font-size: .95em; }
+.reveal .gs-frames { max-height: 345px; margin-top: 14px; }

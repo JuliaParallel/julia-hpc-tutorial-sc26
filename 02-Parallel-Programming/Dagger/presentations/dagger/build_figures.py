@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "assets"
 MINT, VIOLET, AMBER = "#73e2bd", "#b8a0f5", "#ffc184"
 WHITE, MUTED, LINE, PANEL = "#edf3f5", "#adbdc9", "#415b6b", "#182530"
+KERNEL = {"P": MINT, "S": VIOLET, "U": AMBER, "G": "#8abdea"}   # the slides' kernel key
 
 
 class SVG:
@@ -218,32 +219,144 @@ def diagrams():
             s.text(x + 38, y + 50, key, 31, colors[key], "middle", 600)
     s.save()
 
-    s = SVG("panel.svg", 1130, 400, "Selected Cholesky dependencies for panel one and the next diagonal factor")
-    # Edges before nodes, so their endpoints never overlap labels.
-    for a, b in [((190, 195), (290, 90)), ((190, 195), (290, 290)),
-                 ((485, 90), (605, 65)), ((485, 90), (605, 190)),
-                 ((485, 290), (605, 190)), ((485, 290), (605, 315)),
-                 ((800, 65), (900, 65))]:
-        s.line(*a, *b, arrow=True)
-    s.box(10, 155, 180, 80, "P(1,1)", MINT)
-    s.box(295, 50, 185, 80, "S(2,1)", VIOLET)
-    s.box(295, 250, 185, 80, "S(3,1)", VIOLET)
-    s.box(610, 25, 185, 80, "U(2,2)", AMBER)
-    s.box(610, 150, 185, 80, "G(3,2)", "#8abdea")
-    s.box(610, 275, 185, 80, "U(3,3)", AMBER)
-    s.box(905, 25, 200, 80, "P(2,2)", MINT)
-    s.text(1005, 145, "next panel", 20, MINT, "middle")
-    s.text(10, 390, "Selected dependencies · P factor / S solve / U diagonal update / G off-diagonal update", 19, MUTED)
+    # Step k = 2 of a 5 x 5 tile grid: what each line of the loop nest writes
+    # and reads, next to the line itself.
+    s = SVG("cholesky-step.svg", 1180, 470,
+            "Step k equals 2 of a five by five tiled Cholesky: column 1 is finished; POTRF "
+            "factors tile 2,2; TRSM solves tiles 3,2 to 5,2; SYRK updates diagonal tiles 3,3 "
+            "to 5,5; GEMM updates tiles 4,3, 5,3 and 5,4. GEMM of tile 5,3 reads tiles 5,2 and 3,2.")
+    k, size, step, left, top = 2, 62, 72, 46, 50
+    centre = lambda m, n: (left + (n - 1) * step + size / 2, top + (m - 1) * step + size / 2)
+    for j in range(1, 6):
+        s.text(left + (j - 1) * step + size / 2, top - 14, "k = 2" if j == k else j, 17,
+               MINT if j == k else MUTED, "middle", 600 if j == k else 400)
+        s.text(left - 16, top + (j - 1) * step + size / 2 + 6, j, 17, MUTED, "middle")
+    for m in range(1, 6):
+        for n in range(1, 6):
+            x, y = left + (n - 1) * step, top + (m - 1) * step
+            if n > m:
+                s.rect(x, y, size, size, fill="#14202a", stroke="#253a48", radius=10)
+                continue
+            if n < k:
+                s.rect(x, y, size, size, fill="#1b2a35", stroke="#2c4250", radius=10)
+                s.text(x + size / 2, y + 41, "L", 24, "#6d8291", "middle", 600)
+                continue
+            key = "P" if m == n == k else "S" if n == k else "U" if m == n else "G"
+            s.rect(x, y, size, size, stroke=KERNEL[key], radius=10)
+            s.text(x + size / 2, y + 42, key, 28, KERNEL[key], "middle", 600)
+    # G(5,3) reads S(5,2) and S(3,2).
+    for source in ((5, 2), (3, 2)):
+        (x1, y1), (x2, y2) = centre(*source), centre(5, 3)
+        length = math.hypot(x2 - x1, y2 - y1)
+        ux, uy = (x2 - x1) / length, (y2 - y1) / length
+        s.line(round(x1 + ux * 22, 1), round(y1 + uy * 22, 1), round(x2 - ux * 26, 1),
+               round(y2 - uy * 26, 1), KERNEL["G"], arrow=True, width=2.5)
+    s.text(left, top + 5 * step + 22, "G(5,3) reads S(5,2) and S(3,2)", 17, KERNEL["G"])
+    legend = [
+        ("P", "T[k,k] = chol(T[k,k])", "factor the diagonal tile"),
+        ("S", "T[m,k] = T[m,k] / T[k,k]'", "each tile below it: reads T[k,k]"),
+        ("U", "T[n,n] -= T[n,k] * T[n,k]'", "each later diagonal tile: reads T[n,k]"),
+        ("G", "T[m,n] -= T[m,k] * T[n,k]'", "each tile below that: reads T[m,k], T[n,k]"),
+    ]
+    for i, (key, code, what) in enumerate(legend):
+        y = 58 + i * 92
+        s.rect(470, y, 50, 50, stroke=KERNEL[key], radius=9)
+        s.text(495, y + 35, key, 26, KERNEL[key], "middle", 600)
+        s.parts.append(
+            f'<text x="545" y="{y + 21}" fill="{WHITE}" font-size="22" '
+            f'font-family="DejaVu Sans Mono, monospace">{escape(code)}</text>')
+        s.text(545, y + 48, what, 18, MUTED)
+    s.text(470, 448, "L = finished columns of the factor. Step k + 1 works on column k + 1.", 18, MUTED)
+    s.save()
+    gray_scott_adi()
+
+
+def gray_scott_adi():
+    """One ADI time step of the final exercise: column solves, then row solves."""
+    s = SVG("gray-scott-adi.svg", 1180, 430,
+            "One ADI time step on the n by n grid of u. First half step: the explicit part u "
+            "times L couples neighbours along y, then every column is solved with the Cholesky "
+            "factor, n independent solves. Second half step: the explicit part L times u couples "
+            "neighbours along x, then every row is solved, again n independent solves.")
+    size, top = 260, 92
+    for x, title, explicit, color in ((150, "first half step", "explicit: u · L (along y)", MINT),
+                                      (770, "second half step", "explicit: L · u (along x)", AMBER)):
+        s.text(x + size / 2, top - 52, title, 24, color, "middle", 600)
+        s.text(x + size / 2, top - 20, explicit, 19, MUTED, "middle")
+        s.rect(x, top, size, size, stroke=LINE, radius=10)
+    for k in range(8):   # column solves: vertical arrows
+        cx = 150 + 20 + k * 31
+        s.line(cx, top + 16, cx, top + size - 16, MINT, arrow=True, width=2.2)
+    for k in range(8):   # row solves: horizontal arrows
+        cy = top + 20 + k * 31
+        s.line(770 + 16, cy, 770 + size - 16, cy, AMBER, arrow=True, width=2.2)
+    s.text(150 + size / 2, top + size + 36, "implicit along x: every column", 20, WHITE, "middle")
+    s.text(150 + size / 2, top + size + 64, "u[:, j] = Fu \\ ru[:, j]", 20, MINT, "middle")
+    s.text(770 + size / 2, top + size + 36, "implicit along y: every row", 20, WHITE, "middle")
+    s.text(770 + size / 2, top + size + 64, "u[i, :] = Fu \\ ru[i, :]", 20, AMBER, "middle")
+    s.line(150 + size + 40, top + size / 2, 770 - 40, top + size / 2, arrow=True, width=2.5)
+    s.text(590, top + size / 2 - 16, "all columns done", 18, MUTED, "middle")
+    s.text(590, top + size / 2 + 34, "then the rows", 18, MUTED, "middle")
     s.save()
 
-    s = SVG("feedback.svg", 1120, 150, "Edit, run the benchmark, check PASS, and view a plot")
-    for i, (label, color) in enumerate([
-        ("Edit", MINT), ("Run warm", VIOLET), ("Check PASS", MINT), ("Plot", AMBER),
-    ]):
-        x = 10 + i * 282
-        s.box(x, 20, 240, 90, label, color)
-        if i < 3:
-            s.line(x + 248, 65, x + 273, 65, arrow=True)
+
+MAGMA = [(0, 0, 4), (40, 11, 84), (101, 21, 110), (159, 42, 99), (212, 72, 66),
+         (245, 125, 21), (250, 193, 39), (252, 255, 164)]   # as in host/visuals.js
+
+
+def magma(t):
+    t = min(1.0, max(0.0, t)) * (len(MAGMA) - 1)
+    i = min(len(MAGMA) - 2, int(t))
+    f = t - i
+    return bytes(round(a + (b - a) * f) for a, b in zip(MAGMA[i], MAGMA[i + 1]))
+
+
+def png(width, height, rows):
+    """A truecolor PNG from rows of RGB bytes, with the standard library."""
+    import struct
+    import zlib
+    def chunk(kind, data):
+        return (struct.pack(">I", len(data)) + kind + data
+                + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff))
+    raw = b"".join(b"\x00" + row for row in rows)
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
+
+
+def gray_scott():
+    """Three frames of the activator v from data/gray-scott-v.bin
+    (gray_scott_data.jl), drawn as the console draws them."""
+    import base64
+    n, scale = 256, 2
+    data = (ROOT / "data" / "gray-scott-v.bin").read_bytes()
+    colours = [magma(i / 255) for i in range(256)]
+    captions = [("t = 200", "the seeded squares react"), ("t = 1000", "spots grow and split"),
+                ("t = 6000", "a labyrinth, for F = 0.055, k = 0.062")]
+    size = n * scale
+    s = SVG("gray-scott.svg", 3 * size + 2 * 40, size + 90,
+            "The activator v of the final exercise at t = 200, 1000 and 6000: fourteen seeded "
+            "squares become spots, the spots split, and they fill the grid with a labyrinth of stripes.")
+    for frame, (time_label, what) in enumerate(captions):
+        v = data[frame * n * n:(frame + 1) * n * n]
+        rows = []
+        for py in range(size):
+            # x is the first index, y the second one, upwards, as in the console.
+            fy = (size - 1 - py) / scale
+            j0 = int(fy); ty = fy - j0; j1 = (j0 + 1) % n
+            row = bytearray()
+            for px in range(size):
+                fx = px / scale
+                i0 = int(fx); tx = fx - i0; i1 = (i0 + 1) % n
+                value = ((v[i0 + j0 * n] * (1 - tx) + v[i1 + j0 * n] * tx) * (1 - ty)
+                         + (v[i0 + j1 * n] * (1 - tx) + v[i1 + j1 * n] * tx) * ty)
+                row += colours[round(value)]
+            rows.append(bytes(row))
+        image = base64.b64encode(png(size, size, rows)).decode()
+        x = frame * (size + 40)
+        s.parts.append(f'<image x="{x}" y="0" width="{size}" height="{size}" '
+                       f'href="data:image/png;base64,{image}"/>')
+        s.text(x + size / 2, size + 42, time_label, 30, WHITE, "middle", 600)
+        s.text(x + size / 2, size + 78, what, 26, MUTED, "middle")
     s.save()
 
 
@@ -324,6 +437,7 @@ def timeline():
 if __name__ == "__main__":
     OUT.mkdir(exist_ok=True)
     diagrams()
+    gray_scott()
     benchmarks()
     timeline()
-    print(f"Wrote 13 SVG figures to {OUT}")
+    print(f"Wrote 16 SVG figures to {OUT}")

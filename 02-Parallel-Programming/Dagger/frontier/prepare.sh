@@ -8,6 +8,20 @@ if [[ "$(hostname -s)" != login* ]]; then
 fi
 source "$(dirname "$0")/env.sh"
 mkdir -p "$SC26_DEPOT"
+# Console sessions each have their own folder but share the package depot.
+# Prepare one session at a time, and start every session from the manifest
+# the last one resolved, so they all use the same package versions.
+seed="$SC26_CACHE_ROOT/session-Manifest.toml"
+if [[ -n "${SC26_SESSION:-}" ]]; then
+    exec 9>"$SC26_CACHE_ROOT/prepare.lock"
+    if ! flock -n 9; then
+        echo "Another console session is preparing packages; waiting for it…"
+        flock 9
+    fi
+    if [[ ! -f "$SC26_ROOT/Manifest.toml" && -f "$seed" ]]; then
+        cp "$seed" "$SC26_ROOT/Manifest.toml"
+    fi
+fi
 export JULIA_PKG_OFFLINE=false
 export JULIA_PKG_PRECOMPILE_AUTO=0
 julia --project="$SC26_ROOT" -e '
@@ -34,3 +48,6 @@ julia --project="$SC26_ROOT" -e '
     using MPIPreferences
     MPIPreferences.use_system_binary(; vendor="cray", mpiexec="srun")
 '
+if [[ -n "${SC26_SESSION:-}" ]]; then
+    cp "$SC26_ROOT/Manifest.toml" "$seed.$SC26_SESSION" && mv "$seed.$SC26_SESSION" "$seed"
+fi

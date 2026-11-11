@@ -700,7 +700,24 @@ def is_odo_hostname(hostname):
 
 
 def default_remote_root(account, user):
-    return f"/gpfs/wolf2/olcf/{account}/scratch/{user}/sc26-dagger/portal"
+    """Where the console's sessions live; each Connect makes its own folder here."""
+    return f"/gpfs/wolf2/olcf/{account}/scratch/{user}/sc26-dagger/sessions"
+
+
+def new_session_name():
+    """A unique name for one connection: its folder on Odo and its Slurm job name.
+
+    Many consoles can share one set of SSH credentials, so the name combines
+    the time with random bits, and the folder is created with a plain mkdir,
+    which fails rather than reuse a folder that already exists."""
+    return "sc26-" + time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(3)
+
+
+def session_upload_script(base, name):
+    """Create this session's own folder and unpack the course code into it."""
+    base, name = shlex.quote(base), shlex.quote(name)
+    return (f"set -eu; umask 077; mkdir -p {base}; cd {base}; mkdir {name}; cd {name}; "
+            "touch .sc26-session; tar -xzf -")
 
 
 def managed_alias(user):
@@ -899,6 +916,8 @@ class Console:
         self.mode = None
         self.status = "Disconnected"
         self.run_id = None
+        self.session = None       # this connection's name: its folder and its job name
+        self.session_dir = None
         self.token = secrets.token_urlsafe(32)
         self.stop_event = threading.Event()
 
@@ -912,6 +931,7 @@ class Console:
     def state(self, after=0):
         with self.lock:
             return dict(status=self.status, job=self.job, mode=self.mode,
+                        session=self.session, remote_dir=self.session_dir,
                         connecting=self.connecting, busy=self.busy,
                         connected=self.process is not None and self.process.poll() is None,
                         events=[event for event in self.events if event["seq"] > after], seq=self.seq)
@@ -950,20 +970,29 @@ class Console:
                                        "\n" + result.stderr)
             if self.stop_event.is_set():
                 return
-            # A dedicated, marked directory protects an attendee's existing checkout.
-            root = shlex.quote(self.args.remote_root)
-            script = (f"set -eu; mkdir -p {root}; cd {root}; "
-                      'if [ ! -f .sc26-portal ]; then '
-                      '[ -z "$(ls -A)" ] || { echo "Refusing to upload into a nonempty, unmarked directory" >&2; exit 1; }; '
-                      'touch .sc26-portal; fi; tar -xzf -')
+            # Every connection gets its own new folder: the code, its manifest,
+            # its logs and its results live there, and nowhere else. Its name
+            # is also the name of the job this session submits.
             self.status = "Uploading tutorial code…"
-            result = subprocess.run(self.ssh() + [script], input=snapshot(), capture_output=True, timeout=120)
+            payload = snapshot()
+            for _ in range(3):
+                name = new_session_name()
+                result = subprocess.run(self.ssh() + [session_upload_script(self.args.remote_root, name)],
+                                        input=payload, capture_output=True, timeout=120)
+                if result.returncode == 0 or b"File exists" not in result.stderr:
+                    break
             if result.returncode:
                 raise RuntimeError(result.stderr.decode(errors="replace"))
+            with self.lock:
+                self.session = name
+                self.session_dir = self.args.remote_root.rstrip("/") + "/" + name
+            self.emit("session", session=name, remote_dir=self.session_dir)
+            root = shlex.quote(self.session_dir)
             if self.stop_event.is_set():
                 return
             self.status = "Preparing packages on the login node, then requesting one node…"
-            env = ["env", "SC26_NODES=1", f"SC26_TIME={self.args.time}", f"SC26_ACCOUNT={self.args.account}"]
+            env = ["env", f"SC26_SESSION={name}", "SC26_NODES=1", f"SC26_TIME={self.args.time}",
+                   f"SC26_ACCOUNT={self.args.account}"]
             if self.args.reservation:
                 env.append(f"SC26_RESERVATION={self.args.reservation}")
             script = "source frontier/env.sh; bash frontier/prepare.sh </dev/null; exec python3 -u host/remote_agent.py"
@@ -1291,7 +1320,8 @@ def main():
     parser.add_argument("--ssh-config", type=Path, default=Path.home() / ".ssh/config",
                         help="SSH config to read and update (default: ~/.ssh/config)")
     parser.add_argument("--account", default=os.environ.get("SC26_ACCOUNT", "trn047"))
-    parser.add_argument("--remote-root", help="Dedicated portal directory, not an existing checkout")
+    parser.add_argument("--remote-root", help="Directory for the console's sessions on Odo; every "
+                                              "Connect creates its own new folder inside it")
     parser.add_argument("--control-path", type=Path, default=Path.home() / ".ssh/control/sc26-portal")
     parser.add_argument("--time", default="02:00:00")
     parser.add_argument("--reservation", default="")
@@ -1344,7 +1374,7 @@ def main():
     else:
         connection_note = "\nSSH login failed; use Connect & allocate after fixing SSH"
     print(f"Tutorial console: {url}\nOdo user: {args.odo_user} via {args.ssh_host}"
-          f"\nOdo workspace: {args.remote_root}{connection_note}"
+          f"\nOdo sessions: {args.remote_root} (each Connect makes its own folder){connection_note}"
           + "\nCtrl-C releases the console's allocation.", flush=True)
     if authenticated and not args.no_auto_allocate:
         print("Allocating a node and precompiling Julia in the background…", flush=True)

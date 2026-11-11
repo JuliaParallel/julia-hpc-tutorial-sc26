@@ -1053,6 +1053,8 @@ function appendOutput(pane, text) {
 }
 function controls() {
   $("status").textContent = state.status;
+  // Each connection has its own folder on Odo; show it once it exists.
+  if (state.remote_dir) $("remote").textContent = `${config.host}:${state.remote_dir}`;
   $("connect").disabled = state.connecting || state.connected;
   $("disconnect").disabled = !state.connected && !state.connecting;
   $("cancel").disabled = !state.busy;

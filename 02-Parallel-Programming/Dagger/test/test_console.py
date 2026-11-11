@@ -224,11 +224,15 @@ class ConsoleTests(unittest.TestCase):
         c.send = Mock()
         c.run(dict(op="eval", mode="single", demo="final", code="x = 1", setup="y = 2"))
         command = c.send.call_args[0][0]
-        self.assertEqual(command["label"], "Final Exercise · One process")
+        self.assertEqual(command["label"], "Final Exercise · CPU · One process")
+        self.assertEqual(command["gpus"], 0)
         self.assertEqual(command["setup"], "y = 2")
         c.busy = False
         c.run(dict(op="eval", mode="mpi", demo="final", code="x = 1", setup="y = 2"))
-        self.assertEqual(c.send.call_args[0][0]["label"], "Final Exercise · Two MPI ranks")
+        self.assertEqual(c.send.call_args[0][0]["label"], "Final Exercise · CPU · Two MPI ranks")
+        c.busy = False
+        c.run(dict(op="eval", mode="mpi", target="gpu", demo="final", code="x = 1", setup="y = 2"))
+        self.assertEqual(c.send.call_args[0][0]["gpus"], 2)   # GPUs per rank
         c.busy = False
         with self.assertRaisesRegex(ValueError, "Setup and Use"):
             c.run(dict(op="eval", mode="single", demo="final", code="x = 1"))
@@ -364,7 +368,7 @@ class ConsoleTests(unittest.TestCase):
         c = console()
         c.process = Mock(stdin=io.StringIO())
         c.process.poll.return_value = None
-        c.job = "123"
+        c.ready = True
         c.run(dict(op="demo", demo="01_tasks"))
         started = [event for event in c.events if event["kind"] == "run"][-1]
         self.assertEqual(started["demo"], "01_tasks")
@@ -526,7 +530,7 @@ class ConsoleTests(unittest.TestCase):
         c = console()
         c.process = Mock(stdin=io.StringIO())
         c.process.poll.return_value = None
-        c.job = "123"
+        c.ready = True
         c.run(dict(op="demo", demo="07_multinode_multigpu"))
         command = json.loads(c.process.stdin.getvalue())
         self.assertEqual(command["mode"], "mpi")
@@ -612,23 +616,98 @@ class ConsoleTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
 
-    def test_agent_eof_cancels_only_its_own_job(self):
+    def test_agent_eof_cancels_the_run_by_its_session_name(self):
         import os
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            for name, code in {"sbatch":'echo "$@" > "$SBATCH_LOG"; echo 456',
-                               "scancel":'echo "$@" > "$CANCEL_LOG"', "squeue":r"echo RUNNING\|testnode"}.items():
-                p = root / name
-                p.write_text("#!/bin/sh\n"+code+"\n")
-                p.chmod(0o755)
-            env = dict(os.environ, PATH=directory+os.pathsep+os.environ["PATH"], CANCEL_LOG=str(root/"cancelled"),
-                       SBATCH_LOG=str(root/"sbatch-args"), SC26_SESSION="sc26-20261111-120000-abc123")
-            result = subprocess.run(["python3", str(BASE/"host/remote_agent.py")], input="", env=env,
-                                    capture_output=True, text=True, timeout=10)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual((root/"cancelled").read_text().strip(), "456")
-            # The session's job carries the session's name.
-            self.assertIn("-J sc26-20261111-120000-abc123 ", (root/"sbatch-args").read_text())
+            (root / "frontier").mkdir()
+            # A stand-in for launch.sh: records its arguments and input, then waits.
+            (root / "frontier/launch.sh").write_text(
+                'echo "$@ GPUS=$SC26_GPUS_PER_TASK JOB=${SLURM_JOB_ID:-none}" > "$LOG/args"\n'
+                'cat > "$LOG/stdin"\nsleep 30 & wait $!\n')
+            (root / "bin").mkdir()
+            scancel = root / "bin/scancel"
+            scancel.write_text('#!/bin/sh\necho "$@" > "$LOG/cancelled"\n')
+            scancel.chmod(0o755)
+            script = ("import importlib.util, pathlib; s=importlib.util.spec_from_file_location('agent', "
+                      + repr(str(BASE/"host/remote_agent.py")) + "); m=importlib.util.module_from_spec(s); "
+                      "s.loader.exec_module(m); m.ROOT = pathlib.Path(" + repr(directory) + "); "
+                      "m.configure_stdio(); m.main()")
+            env = dict(os.environ, PATH=str(root/"bin")+os.pathsep+os.environ["PATH"], LOG=directory,
+                       SC26_PRECOMPILE="0", USER="alice", SC26_SESSION="sc26-20261111-120000-abc123",
+                       SLURM_JOB_ID="999")
+            proc = subprocess.Popen(["python3", "-c", script], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE, env=env)
+            try:
+                proc.stdin.write(b'{"op":"demo","id":"r1","mode":"mpi","gpus":2}\n')
+                proc.stdin.flush()
+                for _ in range(400):   # up to 20 s on a busy machine
+                    if (root/"stdin").exists() and (root/"stdin").read_text():
+                        break
+                    time.sleep(0.05)
+                proc.stdin.close()   # EOF: the console went away mid-run.
+                out, err = proc.communicate(timeout=60)
+            finally:
+                if proc.poll() is None:
+                    proc.kill()
+            self.assertEqual(proc.returncode, 0, err)
+            args = (root/"args").read_text().split()
+            self.assertEqual(args[0], "2")
+            self.assertIn("--mpi", args)
+            self.assertIn("--gpu", args)
+            self.assertIn("GPUS=2", args)
+            self.assertIn("JOB=none", args)   # a job of its own, not a step of some allocation
+            commands = [json.loads(line) for line in (root/"stdin").read_text().splitlines()]
+            self.assertEqual([c["op"] for c in commands], ["demo", "quit"])
+            self.assertEqual((root/"cancelled").read_text().split(),
+                             ["--name", "sc26-20261111-120000-abc123", "--user", "alice"])
+            events = [json.loads(line[len(app.PREFIX):]) for line in out.decode().splitlines()
+                      if line.startswith(app.PREFIX)]
+            self.assertEqual(events[0]["kind"], "ready")
+            self.assertTrue(any(e["kind"] == "status" and "two MPI ranks" in e["message"] for e in events))
+
+    def test_a_job_that_ends_without_done_reports_a_failed_run(self):
+        spec = importlib.util.spec_from_file_location("agent", BASE / "host/remote_agent.py")
+        agent = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(agent)
+        events = []
+        agent.emit = lambda kind, **fields: events.append(dict(kind=kind, **fields))
+        child = ("print('srun: job 77 queued and waiting for resources', flush=True)\n"
+                 "print('ERROR: something broke', flush=True)\nraise SystemExit(3)\n")
+        proc = subprocess.Popen(["python3", "-c", child], stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, universal_newlines=True)
+        run = dict(proc=proc, id="r1", done=False, cancelled=False)
+        agent.current = run
+        agent.relay(run)
+        self.assertIsNone(agent.current)
+        self.assertIn(dict(kind="job", job="77"), events)
+        self.assertTrue(all(e.get("run") == "r1" for e in events if e["kind"] == "output"))
+        done = [e for e in events if e["kind"] == "done"]
+        self.assertEqual(len(done), 1)
+        self.assertFalse(done[0]["ok"])
+        self.assertIn("status 3", done[0]["error"])
+        self.assertEqual(agent.describe(2, 2), "two MPI ranks · 7 CPUs each · 2 GPUs each")
+        self.assertEqual(agent.describe(1, 0), "one process · 7 CPUs · no GPU")
+        self.assertEqual(agent.resources(dict(mode="mpi", gpus=2)), (2, 2))
+        for bad in (dict(mode="mpi", gpus=5), dict(gpus=9), dict(gpus="2")):
+            with self.assertRaises(ValueError):
+                agent.resources(bad)
+
+    def test_runs_ask_for_the_gpus_they_use(self):
+        self.assertEqual([app.run_gpus(t, "single") for t in app.TARGETS], [0, 4, 4, 4])
+        self.assertEqual([app.run_gpus(t, "mpi") for t in app.TARGETS], [0, 2, 2, 2])
+        self.assertEqual(app.demo_gpus("01_tasks", "single"), 0)
+        self.assertEqual(app.demo_gpus("05_multigpu", "single"), 4)
+        self.assertEqual(app.demo_gpus("07_multinode_multigpu", "mpi"), 2)
+        self.assertEqual(app.demo_gpus(None, "single"), 0)
+        c = console()
+        c.ready = True
+        c.send = Mock()
+        c.run(dict(op="demo", demo="06_multinode"))
+        self.assertEqual((c.send.call_args[0][0]["mode"], c.send.call_args[0][0]["gpus"]), ("mpi", 0))
+        c.busy = False
+        c.run(dict(op="eval", mode="single", code="1", demo="03_gpu"))
+        self.assertEqual(c.send.call_args[0][0]["gpus"], 4)
 
     def test_every_connection_gets_its_own_folder(self):
         names = {app.new_session_name() for _ in range(200)}
@@ -686,42 +765,6 @@ class ConsoleTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, err)
         self.assertEqual(len(json.loads(report.decode()[len(app.PREFIX):])["payload"]), 250000)
 
-    def test_layout_switch_quits_the_idle_worker_instead_of_killing_its_step(self):
-        # A stand-in for srun: it exits quietly on quit, and prints srun's
-        # cancellation chatter if it is killed instead.
-        child = ("import signal, sys\n"
-                 "def killed(*_):\n"
-                 "    print('srun: forcing job termination', flush=True); sys.exit(143)\n"
-                 "signal.signal(signal.SIGTERM, killed)\n"
-                 "print('@@SC26@@{\"kind\":\"worker_ready\",\"mode\":\"single\"}', flush=True)\n"
-                 "for line in sys.stdin:\n"
-                 "    if 'quit' in line: sys.exit(0)\n")
-        spec = importlib.util.spec_from_file_location("agent", BASE / "host/remote_agent.py")
-        agent = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(agent)
-        events = []
-        agent.emit = lambda kind, **fields: events.append(dict(kind=kind, **fields))
-        agent.worker = subprocess.Popen(["python3", "-c", child], stdin=subprocess.PIPE,
-                                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                        universal_newlines=True, bufsize=1, start_new_session=True)
-        agent.mode = "single"
-        proc = agent.worker
-        relay = threading.Thread(target=agent.relay, args=(proc,), daemon=True)
-        relay.start()
-        try:
-            self.assertTrue(agent.ready.wait(5))
-            agent.close_worker(graceful=True)
-            relay.join(5)
-        finally:
-            if proc.poll() is None:
-                proc.kill()
-                proc.wait()
-        text = "".join(e.get("text", "") for e in events if e["kind"] == "output")
-        self.assertNotIn("forcing job termination", text)
-        exit_event = [e for e in events if e["kind"] == "worker_exit"][-1]
-        self.assertEqual(exit_event["returncode"], 0)
-        self.assertTrue(exit_event["expected"])
-
     def test_batched_commands_do_not_wait_for_more_stdin(self):
         import os
         with tempfile.TemporaryDirectory() as directory:
@@ -732,7 +775,8 @@ class ConsoleTests(unittest.TestCase):
                 path.chmod(0o755)
             script = ("import importlib.util; s=importlib.util.spec_from_file_location('agent', "
                       + repr(str(BASE/"host/remote_agent.py")) + "); m=importlib.util.module_from_spec(s); "
-                      "s.loader.exec_module(m); m.execute=lambda c: None; m.configure_stdio(); m.main()")
+                      "s.loader.exec_module(m); m.execute=lambda c: None; m.precompile=lambda: None; "
+                      "m.configure_stdio(); m.main()")
             proc = subprocess.Popen(["python3", "-c", script], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE, env=dict(os.environ, PATH=directory+os.pathsep+os.environ["PATH"]))
             try:

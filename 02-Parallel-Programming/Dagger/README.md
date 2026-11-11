@@ -71,7 +71,7 @@ From this directory on your laptop, run `python3 host/app.py`, then open
 one marked `Host sc26-odo-<user>` entry in `~/.ssh/config`, and opens the SSH
 connection; a working `odo` alias is reused untouched. The console then
 connects to Odo, prepares packages on the login node, and manages your
-one-node allocation and persistent Julia workers.
+Julia runs, each submitted as its own Slurm job, with nothing held in between.
 It offers all seven demos, a multiline Julia evaluator, an exercise editor that
 runs the harness on CPU, GPU, or MPI, a final Gray-Scott reaction-diffusion
 exercise with side-by-side substrate and activator visualizations with time

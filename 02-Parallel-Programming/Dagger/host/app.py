@@ -56,6 +56,21 @@ SECTIONS = [
 # section's starting choices; the attendee can change both.
 TARGETS = {"cpu": "CPU", "gpu": "GPU", "gpus": "All GPUs", "mixed": "Mixed"}
 MODES = {"single": "One process", "mpi": "Two MPI ranks"}
+# Every run is its own Slurm job. A run that uses GPUs sees four of the node's
+# eight in one process (the Multiple GPUs demo picks two or four), or two per
+# MPI rank; a CPU run asks for none.
+GPUS_PER_TASK = {"single": 4, "mpi": 2}
+GPU_DEMOS = {"03_gpu", "05_multigpu", "07_multinode_multigpu"}
+
+
+def run_gpus(target, mode):
+    """GPUs per process for an exercise or final-exercise run."""
+    return 0 if target == "cpu" else GPUS_PER_TASK[mode]
+
+
+def demo_gpus(demo, mode):
+    """GPUs per process for a demo, or for a REPL evaluation in its section."""
+    return GPUS_PER_TASK[mode] if demo in GPU_DEMOS else 0
 
 EXERCISES = {
     "02_datadeps": dict(
@@ -978,6 +993,7 @@ class Console:
         self.process = None
         self.connecting = False
         self.busy = False
+        self.ready = False
         self.job = None
         self.mode = None
         self.status = "Disconnected"
@@ -996,7 +1012,7 @@ class Console:
 
     def state(self, after=0):
         with self.lock:
-            return dict(status=self.status, job=self.job, mode=self.mode,
+            return dict(status=self.status, job=self.job, mode=self.mode, ready=self.ready,
                         session=self.session, remote_dir=self.session_dir,
                         connecting=self.connecting, busy=self.busy,
                         connected=self.process is not None and self.process.poll() is None,
@@ -1057,9 +1073,10 @@ class Console:
             root = shlex.quote(self.session_dir)
             if self.stop_event.is_set():
                 return
-            self.status = "Preparing packages on the login node, then requesting one node…"
+            self.status = "Preparing packages on the login node…"
+            # Every later run is its own Slurm job; nothing is held between runs.
             env = ["env", f"SC26_SESSION={name}", f"SC26_CACHE_ROOT={cache_root(self.args.remote_root)}",
-                   "SC26_NODES=1", f"SC26_TIME={self.args.time}", f"SC26_ACCOUNT={self.args.account}"]
+                   "SC26_NODES=1", f"SC26_STEP_TIME={self.args.time}", f"SC26_ACCOUNT={self.args.account}"]
             if self.args.reservation:
                 env.append(f"SC26_RESERVATION={self.args.reservation}")
             script = "source frontier/env.sh; bash frontier/prepare.sh </dev/null; exec python3 -u host/remote_agent.py"
@@ -1079,9 +1096,10 @@ class Console:
                 self.job = None
                 self.mode = None
                 self.connecting = False
+                self.ready = False
                 self.busy = False
                 if self.status != "Connection failed":
-                    self.status = "Disconnected · allocation released"
+                    self.status = "Disconnected"
 
     def _read(self, proc):
         for line in proc.stdout:
@@ -1091,6 +1109,8 @@ class Console:
                 except ValueError:
                     self.emit("output", text=line, run=self.run_id)
                     continue
+                if event.get("kind") == "heartbeat":
+                    continue   # keeps the connection busy; nothing to show
                 with self.lock:
                     kind = event["kind"]
                     # The coordinator relays the worker's lines as output events
@@ -1098,26 +1118,27 @@ class Console:
                     # console shows them in the panel that started it.
                     if kind == "output" and not event.get("run"):
                         event["run"] = self.run_id
-                    if kind == "allocated":
-                        self.job = event["job"]
+                    if kind == "ready":
+                        self.ready = True
                         self.connecting = False
-                        self.status = f"Ready · job {self.job} · {event['nodes']}"
+                        self.status = event.get("message") or "Ready · every run is its own Slurm job"
                     elif kind == "status":
                         self.status = event["message"]
+                    elif kind == "job":
+                        self.job = event.get("job")
                     elif kind == "worker_ready":
                         self.mode = event["mode"]
-                        self.status = "Running…"
+                        self.job = event.get("job") or self.job
+                        self.status = f"Running · job {self.job}…" if self.job else "Running…"
                     elif kind in ("done", "cancelled"):
                         self.busy = False
-                        self.status = f"Ready · job {self.job}" if event.get("ok", True) else "Run failed · see output"
+                        self.job = None
+                        self.status = ("Ready · every run is its own Slurm job" if event.get("ok", True)
+                                       else "Run failed · see output")
                         if kind == "cancelled":
                             self.mode = None
                     elif kind == "worker_exit":
                         self.mode = None
-                        # A nonzero exit can be cancellation or an MPI abort.
-                        if event["returncode"] != 0 and not event.get("expected"):
-                            self.busy = False
-                            self.status = "Worker stopped · next run starts a new process"
                     self.emit(**event)
                     if kind in ("done", "cancelled"):
                         # Later coordinator chatter belongs to the next run.
@@ -1130,8 +1151,8 @@ class Console:
 
     def send(self, command):
         with self.lock:
-            if self.process is None or self.process.poll() is not None or not self.job:
-                raise ValueError("Allocate a node first")
+            if self.process is None or self.process.poll() is not None or not self.ready:
+                raise ValueError("Connect to Odo first and wait until it is ready")
             self.process.stdin.write(json.dumps(command) + "\n")
             self.process.stdin.flush()
 
@@ -1149,6 +1170,8 @@ class Console:
                 if gpus not in ("2", "4"):
                     raise ValueError("Choose two or four GPUs")
                 command["args"] = [f"--gpus={gpus}"] if demo[0] == "05_multigpu" else []
+                command["gpus"] = demo_gpus(demo[0], demo[2])
+                command.setdefault("label", demo[1])
             elif command.get("op") == "exercise":
                 demo = next((d for d in DEMOS if d[0] == command.get("demo")), None)
                 if demo is None:
@@ -1167,6 +1190,7 @@ class Console:
                         raise ValueError(f"Write Julia code for {what} first")
                 command["mode"] = layout
                 command["target"] = target
+                command["gpus"] = run_gpus(target, layout)
                 command["label"] = f"Exercise · {TARGETS[target]} · {MODES[layout]}"
             elif command.get("op") == "eval":
                 if command.get("mode") not in ("single", "mpi"):
@@ -1180,21 +1204,28 @@ class Console:
                     setup = command.get("setup")
                     if not isinstance(setup, str) or not setup.strip():
                         raise ValueError("Write Julia code for Setup and Use first")
-                    command["label"] = f"Final Exercise · {MODES[command['mode']]}"
+                    target = str(command.get("target") or "cpu")
+                    if target not in TARGETS:
+                        raise ValueError("Unknown exercise target")
+                    command["target"] = target
+                    command["gpus"] = run_gpus(target, command["mode"])
+                    command["label"] = f"Final Exercise · {TARGETS[target]} · {MODES[command['mode']]}"
                     visuals = command.get("visuals", [])
                     if not isinstance(visuals, list) or any(v not in FINAL_VISUAL_IDS for v in visuals):
                         raise ValueError("Unknown visualization")
                     command["visuals"] = visuals
+                else:
+                    command["gpus"] = demo_gpus(command.get("demo"), command["mode"])
             else:
                 raise ValueError("Unknown operation")
             command["id"] = secrets.token_hex(8)
             self.send(command)
             self.busy = True
-            self.status = "Running…"
+            self.status = "Submitting to Slurm…"
             self.run_id = command["id"]
             self.emit("run", run=command["id"], demo=command.get("demo"),
                       label=command.get("label") or command.get("demo", "REPL"),
-                      mode=command["mode"], args=command.get("args", []),
+                      mode=command["mode"], gpus=command["gpus"], args=command.get("args", []),
                       exercise=command.get("op") == "exercise")
 
     def disconnect(self):
@@ -1217,8 +1248,8 @@ class Console:
                 proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 proc.kill()
-        # The remote agent's EOF/finally terminates its step and cancels only
-        # the holding job it submitted. Other terminal allocations stay intact.
+        # The coordinator's EOF/finally cancels the Slurm job of a run in
+        # progress, by this session's unique name. Nothing else is allocated.
 
 
 _JS, _CSS = "text/javascript; charset=utf-8", "text/css; charset=utf-8"
@@ -1402,12 +1433,13 @@ def main():
                                               "Connect creates its own new folder inside it")
     parser.add_argument("--control-path", type=Path,
                         help="SSH control socket to use; by default each console opens its own")
-    parser.add_argument("--time", default="02:00:00")
+    parser.add_argument("--time", default="00:20:00", help="Slurm time limit of each run (default 00:20:00)")
     parser.add_argument("--reservation", default="")
     parser.add_argument("--no-auth", action="store_true",
                         help="Skip the startup SSH login; Connect then needs an existing connection")
-    parser.add_argument("--no-auto-allocate", action="store_true",
-                        help="Wait for Connect instead of allocating and warming Julia at startup")
+    parser.add_argument("--no-auto-connect", "--no-auto-allocate", dest="no_auto_connect",
+                        action="store_true",
+                        help="Wait for Connect instead of preparing Julia at startup")
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
     if args.ssh_host and (not re.fullmatch(r"[\w@.-]+", args.ssh_host) or args.ssh_host.startswith("-")):
@@ -1447,7 +1479,7 @@ def main():
         except (ValueError, OSError, subprocess.TimeoutExpired):
             pass
     atexit.register(console.disconnect)
-    if authenticated and not args.no_auto_allocate:
+    if authenticated and not args.no_auto_connect:
         def _auto_connect():
             time.sleep(0.5)
             try:
@@ -1461,12 +1493,12 @@ def main():
     elif args.no_auth:
         connection_note = "\nSSH login skipped (--no-auth); Connect needs an existing connection"
     else:
-        connection_note = "\nSSH login failed; use Connect & allocate after fixing SSH"
+        connection_note = "\nSSH login failed; use Connect after fixing SSH"
     print(f"Tutorial console: {url}\nOdo user: {args.odo_user} via {args.ssh_host}"
           f"\nOdo sessions: {args.remote_root} (each Connect makes its own folder){connection_note}"
-          + "\nCtrl-C releases the console's allocation.", flush=True)
-    if authenticated and not args.no_auto_allocate:
-        print("Allocating a node and precompiling Julia in the background…", flush=True)
+          + "\nEvery run is its own Slurm job; Ctrl-C cancels a run in progress.", flush=True)
+    if authenticated and not args.no_auto_connect:
+        print("Preparing Julia and compiling packages in a short job, in the background…", flush=True)
     if args.host == "0.0.0.0":
         for ip in tailscale_ips:
             print(f"Tailscale: http://{ip}:{port}", flush=True)

@@ -1,13 +1,16 @@
-# Persistent compute-side Julia evaluator. The HTTP server runs on the laptop.
+# Compute-side Julia evaluator, one per Slurm job: it runs the command the
+# coordinator sends, then reads quit and exits. The HTTP server runs on the laptop.
 using Dagger, JSON3, LinearAlgebra, Random
 include(joinpath(@__DIR__, "..", "demos", "presentation.jl"))
 include(joinpath(@__DIR__, "final_visuals.jl"))
 using .FinalVisuals
 const USE_MPI = "--mpi" in ARGS
+# The job has GPUs: load AMDGPU before MPI initializes its processor inventory,
+# so the GPU processors are part of it.
+const USE_GPU = "--gpu" in ARGS
+USE_GPU && using AMDGPU
 if USE_MPI
-    # Install GPU processors before MPI initializes its processor inventory,
-    # including when the first command happens to be a CPU-only demo.
-    using AMDGPU, MPI
+    using MPI
     Dagger.accelerate!(:mpi)
 end
 const RANK = USE_MPI ? MPI.Comm_rank(MPI.COMM_WORLD) : 0
@@ -25,6 +28,9 @@ end
 const WORKSPACE = workspace(:AttendeeREPL)
 Core.eval(WORKSPACE, :(using Dagger, LinearAlgebra, Random))
 USE_MPI && Core.eval(WORKSPACE, :(using MPI))
+USE_GPU && Core.eval(WORKSPACE, :(using AMDGPU))
+# A frame of the final exercise: a DArray is gathered, a plain array copied.
+Core.eval(WORKSPACE, :(__sc26_snapshot(x) = x isa $(Dagger.DArray) ? collect(x) : copy(x)))
 # Values created by the latest eval live in a newer world than this loop, so
 # isdefined/getglobal can miss them; evaluate the symbol to read its binding.
 function workspace_value(name, default = nothing)
@@ -79,14 +85,15 @@ function inject_frame_capture(expr)
                 __sc26_stride = max(1, nsteps ÷ 24)
             end
             if __sc26_tick > 1 && (__sc26_tick - 1) % __sc26_stride == 0
-                push!(__sc26_frames, (; u = copy(u), v = copy(v)))
+                push!(__sc26_frames, (; u = __sc26_snapshot(u), v = __sc26_snapshot(v)))
             end
         catch
         end
     end)
     return true
 end
-RANK == 0 && DemoPresentation.emit("worker_ready"; mode=USE_MPI ? "mpi" : "single")
+RANK == 0 && DemoPresentation.emit("worker_ready"; mode=USE_MPI ? "mpi" : "single",
+                                   job=get(ENV, "SLURM_JOB_ID", nothing), node=gethostname())
 
 while true
     line = RANK == 0 ? (eof(stdin) ? "{\"op\":\"quit\"}" : readline(stdin)) : ""
@@ -153,6 +160,8 @@ while true
                 try
                     u = workspace_value(:u)
                     v = workspace_value(:v)
+                    u isa Dagger.DArray && (u = collect(u))
+                    v isa Dagger.DArray && (v = collect(v))
                     (u isa AbstractMatrix && v isa AbstractMatrix) ||
                         error("the run must leave u and v defined")
                     data = FinalVisuals.payload(u, v;
@@ -184,8 +193,7 @@ while true
             Base.invokelatest(showerror, stdout, err, catch_backtrace()); println()
             DemoPresentation.emit("done"; ok=false, error=sprint(showerror, err))
         end
-        # An MPI exception may leave another rank in a collective. Restart the
-        # step instead of offering a broken persistent prompt.
+        # An MPI exception may leave another rank in a collective; end the job.
         USE_MPI && MPI.Abort(MPI.COMM_WORLD, 1)
     end
     flush(stdout)

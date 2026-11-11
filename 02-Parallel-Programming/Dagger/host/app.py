@@ -57,7 +57,8 @@ SECTIONS = [
 TARGETS = {"cpu": "CPU", "gpu": "GPU", "gpus": "All GPUs", "mixed": "Mixed"}
 MODES = {"single": "One process", "mpi": "MPI ranks"}
 # Every run is its own Slurm job. A single-process run that uses GPUs sees four
-# of the node's eight (the Multiple GPUs demo asks for 2, 4 or 8). An MPI run
+# of the node's eight, or 2, 4 or 8 chosen in the GPUs menu of the Multiple
+# GPUs demo and of an exercise whose Target is All GPUs. An MPI run
 # puts each rank on its own Odo node, with all eight of its GPUs when the run
 # uses GPUs. A CPU run asks for none.
 GPUS_PER_TASK = {"single": 4, "mpi": 8}
@@ -76,10 +77,36 @@ def mpi_ranks(value):
     return ranks
 
 
+GPU_CHOICES = (2, 4, 8)   # GPUs for one process; an Odo node has eight
+
+
+def process_gpus(target, mode, chosen=None):
+    """GPUs per process for an exercise or final-exercise run. With Target All
+    GPUs, one process gets the GPUs chosen in its GPUs menu (2, 4 or 8); an
+    MPI rank always gets its node's eight."""
+    if target == "gpus" and mode == "single" and chosen is not None:
+        try:
+            gpus = int(chosen)
+        except (TypeError, ValueError):
+            gpus = None
+        if gpus not in GPU_CHOICES:
+            raise ValueError("Choose 2, 4 or 8 GPUs")
+        return gpus
+    return run_gpus(target, mode)
+
+
+def target_label(target, mode, gpus):
+    if target == "gpus" and mode == "single":
+        return f"{TARGETS[target]} ({gpus})"
+    return TARGETS[target]
+
+
 def layout_label(mode, ranks):
     if mode != "mpi":
         return MODES["single"]
     return f"{ranks} MPI rank" + ("s" if ranks != 1 else "")
+
+
 GPU_DEMOS = {"03_gpu", "05_multigpu", "07_multinode_multigpu"}
 
 
@@ -1217,9 +1244,10 @@ class Console:
                         raise ValueError(f"Write Julia code for {what} first")
                 command["mode"] = layout
                 command["target"] = target
-                command["gpus"] = run_gpus(target, layout)
+                command["gpus"] = process_gpus(target, layout, command.get("gpus"))
                 command["ranks"] = mpi_ranks(command.get("ranks", DEFAULT_RANKS)) if layout == "mpi" else 1
-                command["label"] = f"Exercise · {TARGETS[target]} · {layout_label(layout, command['ranks'])}"
+                command["label"] = (f"Exercise · {target_label(target, layout, command['gpus'])} · "
+                                    f"{layout_label(layout, command['ranks'])}")
             elif command.get("op") == "eval":
                 if command.get("mode") not in ("single", "mpi"):
                     raise ValueError("Unknown REPL layout")
@@ -1238,8 +1266,8 @@ class Console:
                     if target not in TARGETS:
                         raise ValueError("Unknown exercise target")
                     command["target"] = target
-                    command["gpus"] = run_gpus(target, command["mode"])
-                    command["label"] = (f"Final Exercise · {TARGETS[target]} · "
+                    command["gpus"] = process_gpus(target, command["mode"], command.get("gpus"))
+                    command["label"] = (f"Final Exercise · {target_label(target, command['mode'], command['gpus'])} · "
                                         f"{layout_label(command['mode'], command['ranks'])}")
                     visuals = command.get("visuals", [])
                     if not isinstance(visuals, list) or any(v not in FINAL_VISUAL_IDS for v in visuals):
@@ -1321,7 +1349,8 @@ def handler_for(console):
                                 exercises=exercises(), exercise_template=exercise_template(),
                                 exercise_setups=setup_templates(exercise_setup),
                                 targets=TARGETS, modes=MODES, max_ranks=MAX_RANKS,
-                                default_ranks=DEFAULT_RANKS,
+                                default_ranks=DEFAULT_RANKS, gpu_choices=GPU_CHOICES,
+                                default_gpus=GPUS_PER_TASK["single"],
                                 final_exercise=dict(FINAL_EXERCISE, visuals=FINAL_VISUALS,
                                                     target="cpu", mode="single",
                                                     setups=setup_templates(final_setup)),

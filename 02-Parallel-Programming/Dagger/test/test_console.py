@@ -749,6 +749,41 @@ class ConsoleTests(unittest.TestCase):
         c.run(dict(op="eval", mode="single", code="1", demo="03_gpu"))
         self.assertEqual(c.send.call_args[0][0]["gpus"], 4)
 
+    def test_exercises_choose_their_gpus_and_ranks(self):
+        c = console()
+        c.ready = True
+        c.send = Mock()
+        # Target All GPUs in one process: the GPUs menu chooses 2, 4 or 8.
+        c.run(dict(op="exercise", demo="05_multigpu", target="gpus", mode="single", gpus="8",
+                   code="x = 1", setup="y = 2"))
+        command = c.send.call_args[0][0]
+        self.assertEqual((command["gpus"], command["ranks"]), (8, 1))
+        self.assertEqual(command["label"], "Exercise · All GPUs (8) · One process")
+        c.busy = False
+        c.run(dict(op="eval", demo="final", target="gpus", mode="single", gpus="2",
+                   code="x = 1", setup="y = 2"))
+        command = c.send.call_args[0][0]
+        self.assertEqual(command["gpus"], 2)
+        self.assertEqual(command["label"], "Final Exercise · All GPUs (2) · One process")
+        c.busy = False
+        with self.assertRaisesRegex(ValueError, "2, 4 or 8"):
+            c.run(dict(op="exercise", demo="05_multigpu", target="gpus", mode="single", gpus="16",
+                       code="x = 1", setup="y = 2"))
+        c.busy = False
+        # Under MPI each rank gets its node's eight GPUs whatever the menu says;
+        # a one-GPU or CPU target ignores the menu.
+        c.run(dict(op="exercise", demo="07_multinode_multigpu", target="gpus", mode="mpi",
+                   ranks="4", gpus="2", code="x = 1", setup="y = 2"))
+        command = c.send.call_args[0][0]
+        self.assertEqual((command["gpus"], command["ranks"]), (8, 4))
+        self.assertEqual(command["label"], "Exercise · All GPUs · 4 MPI ranks")
+        c.busy = False
+        c.run(dict(op="exercise", demo="03_gpu", target="cpu", mode="single", gpus="8",
+                   code="x = 1", setup="y = 2"))
+        self.assertEqual(c.send.call_args[0][0]["gpus"], 0)
+        page = (BASE / "host/app.js").read_text()
+        self.assertIn('gpusSelect("exercise-gpus")', page)
+
     def test_every_connection_gets_its_own_folder(self):
         names = {app.new_session_name() for _ in range(200)}
         self.assertEqual(len(names), 200)

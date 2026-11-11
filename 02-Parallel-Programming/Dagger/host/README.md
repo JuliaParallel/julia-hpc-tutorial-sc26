@@ -175,7 +175,8 @@ session, with your account, the reservation if you pass `--reservation`, and
 the time limit `--time` (default 20 minutes). The job ends with the run.
 
 - One-process runs ask for one task with 7 CPUs, plus four GPUs when they use
-  GPUs. The Multiple GPUs demo asks for exactly the GPUs chosen in its menu:
+  GPUs. The Multiple GPUs demo, and an Exercise or Final Exercise run whose
+  Target is All GPUs, asks for exactly the GPUs chosen in its **GPUs** menu:
   2, 4 or 8 (an Odo node has eight: four MI250X with two GCDs each).
 - MPI runs put **each rank on its own Odo node**, with the node's 56 CPUs as
   Julia threads and, when the run uses GPUs, all eight of its GPUs. Choose 1

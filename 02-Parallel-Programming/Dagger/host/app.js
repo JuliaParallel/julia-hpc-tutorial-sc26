@@ -119,6 +119,20 @@ function ranksSelect(role) {
 function syncRanks(modeSelect, ranksLabel) {
   if (ranksLabel) ranksLabel.hidden = modeSelect.value !== "mpi";
 }
+// How many GPUs one process gets when its Target is All GPUs (an Odo node has
+// eight). Under MPI each rank gets all of its node's GPUs.
+function gpusSelect(role) {
+  const chosen = String(config.default_gpus ?? 4);
+  const options = (config.gpu_choices ?? [2, 4, 8])
+    .map(n => `<option value="${n}"${String(n) === chosen ? " selected" : ""}>${n}</option>`).join("");
+  return `<label class="exercise-control gpu-control" data-role="${role}-label" title="GPUs for one process">GPUs
+<select data-role="${role}" aria-label="GPUs for one process">${options}</select>
+</label>`;
+}
+function syncExerciseControls(panel) {
+  syncRanks(panel.mode, panel.ranksLabel);
+  panel.gpusLabel.hidden = !(panel.mode.value === "single" && panel.target.value === "gpus");
+}
 function layoutLabel(layout) {
   const who = layout === "mpi" ? "MPI RANKS / ONE ODO NODE EACH" : "ONE JULIA PROCESS";
   return `${who} · ONE SLURM JOB PER RUN`;
@@ -208,7 +222,8 @@ function runControlsMarkup() {
 <label class="exercise-control">Processes
 <select data-role="exercise-mode" aria-label="Exercise processes">${options(config.modes)}</select>
 </label>
-${ranksSelect("exercise-ranks")}`;
+${ranksSelect("exercise-ranks")}
+${gpusSelect("exercise-gpus")}`;
 }
 
 function setupMarkup(pid) {
@@ -235,17 +250,18 @@ function wireSetup(panel, key, templates, defaults) {
   panel.target.value = saved.target in (config.targets ?? {}) ? saved.target : defaults.target;
   panel.mode.value = saved.mode in (config.modes ?? {}) ? saved.mode : defaults.mode;
   if (saved.ranks) panel.ranks.value = String(saved.ranks);
-  syncRanks(panel.mode, panel.ranksLabel);
+  if (saved.gpus) panel.gpus.value = String(saved.gpus);
+  syncExerciseControls(panel);
   const template = () => templates[`${panel.target.value}/${panel.mode.value}`] ?? "";
   panel.setup.value = typeof saved.code === "string" ? saved.code : template();
   const save = () => {
     setupStore[key] = {target: panel.target.value, mode: panel.mode.value,
-                       ranks: panel.ranks.value, code: panel.setup.value};
+                       ranks: panel.ranks.value, gpus: panel.gpus.value, code: panel.setup.value};
     saveSetups();
   };
   const choose = () => {
     const edited = !Object.values(templates).includes(panel.setup.value);
-    syncRanks(panel.mode, panel.ranksLabel);
+    syncExerciseControls(panel);
     const name = `${config.targets[panel.target.value]} · ${config.modes[panel.mode.value]}`;
     if (!edited || confirm(`Load the Setup and Use for ${name}? This replaces your edits. ` +
                            "Cancel keeps your code; the run still uses the chosen Processes.")) {
@@ -254,7 +270,7 @@ function wireSetup(panel, key, templates, defaults) {
     save();
   };
   panel.target.onchange = panel.mode.onchange = choose;
-  panel.ranks.onchange = save;
+  panel.ranks.onchange = panel.gpus.onchange = save;
   panel.setup.oninput = save;
   panel.setupReset.onclick = () => { panel.setup.value = template(); save(); };
 }
@@ -516,7 +532,8 @@ function createExercisePanel(demo) {
     code: role("exercise-code"), run: role("exercise-run"),
     reset: role("exercise-reset"), target: role("exercise-target"),
     mode: role("exercise-mode"), ranks: role("exercise-ranks"),
-    ranksLabel: role("exercise-ranks-label"), prompt: role("exercise-prompt"),
+    ranksLabel: role("exercise-ranks-label"), gpus: role("exercise-gpus"),
+    gpusLabel: role("exercise-gpus-label"), prompt: role("exercise-prompt"),
     setup: role("exercise-setup"), setupReset: role("exercise-setup-reset"),
     output: role("output"), clear: role("clear"),
     metrics: role("metrics"), history: role("history"), timeline: role("timeline"),
@@ -543,7 +560,8 @@ function createExercisePanel(demo) {
   };
   panel.run.onclick = () => post("/api/run", {
     op: "exercise", demo: panel.demo, target: panel.target.value,
-    mode: panel.mode.value, ranks: panel.ranks.value, code: panel.code.value, setup: panel.setup.value,
+    mode: panel.mode.value, ranks: panel.ranks.value, gpus: panel.gpus.value,
+    code: panel.code.value, setup: panel.setup.value,
   });
   panel.clear.onclick = () => panel.output.replaceChildren();
   panel.moves.onchange = panel.zoom.oninput = () => draw(panel);
@@ -571,6 +589,7 @@ function createFinalExercisePanel() {
     code: role("final-code"), run: role("final-run"), reset: role("final-reset"),
     prompt: role("final-prompt"), target: role("exercise-target"), mode: role("exercise-mode"),
     ranks: role("exercise-ranks"), ranksLabel: role("exercise-ranks-label"),
+    gpus: role("exercise-gpus"), gpusLabel: role("exercise-gpus-label"),
     setup: role("exercise-setup"), setupReset: role("exercise-setup-reset"),
     output: role("output"), clear: role("clear"),
     visual: role("visual"), visualControls: role("visual-controls"),
@@ -652,7 +671,8 @@ function createFinalExercisePanel() {
         : "No visualization selected.";
     }
     post("/api/run", {
-      op: "eval", mode: panel.mode.value, ranks: panel.ranks.value, target: panel.target.value, demo: "final",
+      op: "eval", mode: panel.mode.value, ranks: panel.ranks.value, gpus: panel.gpus.value,
+      target: panel.target.value, demo: "final",
       code: panel.code.value, setup: panel.setup.value, visuals,
     });
   };

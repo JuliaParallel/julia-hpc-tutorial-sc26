@@ -9,6 +9,7 @@ import ipaddress
 import json
 import os
 from pathlib import Path
+import posixpath
 import re
 import secrets
 import shlex
@@ -713,11 +714,20 @@ def new_session_name():
     return "sc26-" + time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(3)
 
 
-def session_upload_script(base, name):
+def session_upload_script(base, name, account="trn047"):
     """Create this session's own folder and unpack the course code into it."""
+    hint = (f"The console cannot create its sessions folder {base} on Odo. Your project "
+            f"scratch directory must exist and be yours: check `groups` for {account} and "
+            f"`ls -ld {posixpath.dirname(posixpath.dirname(base.rstrip('/')))}`. Use --account "
+            "for another project, or --remote-root for another directory you can write.")
     base, name = shlex.quote(base), shlex.quote(name)
-    return (f"set -eu; umask 077; mkdir -p {base}; cd {base}; mkdir {name}; cd {name}; "
-            "touch .sc26-session; tar -xzf -")
+    return (f"set -eu; umask 077; mkdir -p {base} || {{ echo {shlex.quote(hint)} >&2; exit 1; }}; "
+            f"cd {base}; mkdir {name}; cd {name}; touch .sc26-session; tar -xzf -")
+
+
+def cache_root(remote_root):
+    """The package depot and the shared manifest live next to the sessions."""
+    return posixpath.dirname(remote_root.rstrip("/"))
 
 
 def managed_alias(user):
@@ -977,7 +987,8 @@ class Console:
             payload = snapshot()
             for _ in range(3):
                 name = new_session_name()
-                result = subprocess.run(self.ssh() + [session_upload_script(self.args.remote_root, name)],
+                result = subprocess.run(self.ssh() + [session_upload_script(self.args.remote_root, name,
+                                                                            self.args.account)],
                                         input=payload, capture_output=True, timeout=120)
                 if result.returncode == 0 or b"File exists" not in result.stderr:
                     break
@@ -991,8 +1002,8 @@ class Console:
             if self.stop_event.is_set():
                 return
             self.status = "Preparing packages on the login node, then requesting one node…"
-            env = ["env", f"SC26_SESSION={name}", "SC26_NODES=1", f"SC26_TIME={self.args.time}",
-                   f"SC26_ACCOUNT={self.args.account}"]
+            env = ["env", f"SC26_SESSION={name}", f"SC26_CACHE_ROOT={cache_root(self.args.remote_root)}",
+                   "SC26_NODES=1", f"SC26_TIME={self.args.time}", f"SC26_ACCOUNT={self.args.account}"]
             if self.args.reservation:
                 env.append(f"SC26_RESERVATION={self.args.reservation}")
             script = "source frontier/env.sh; bash frontier/prepare.sh </dev/null; exec python3 -u host/remote_agent.py"

@@ -375,28 +375,6 @@ arbitrary CPU-only code is not automatically a GPU kernel. For the Cholesky
 exercise, spawn BLAS/LAPACK calls directly so Dagger can select replacements.
 :::
 
-## Motivating Problem: a matrix product, two GPUs
-
-![](assets/two-gpus.svg){.diagram .full-diagram fig-alt="One product, A times B equals C. One Julia process on one server has two GPU devices available."}
-
-::: {.notes}
-Hold the setup one beat: A(1024, 512), B(512, 512), output C(1024, 512), and a
-two-GPU scope in one Julia process. The products are the actors; the next slide
-shows how this product splits into block rows.
-:::
-
-## The naive way: Split A, Split C
-
-![](assets/product-tiles.svg){.diagram .full-diagram fig-alt="One matrix product split into two block rows. A reads as two tiles, its upper block row A one in mint and lower block row A two in violet. Matrix B is one shared amber tile. GPU one computes C one equals A one times B, and GPU two computes C two equals A two times the same B. The two block rows stack into the one output matrix C = A times B."}
-
-::: {.notes}
-Transition from one GPU to two devices on one server. The picture shows the
-product slide's demo, A(1024, 512) times B(512, 512): A carries two 512×512
-block rows, B is shared and read by both tasks, and each output block row
-lands on a distinct GPU. Nothing MPI-shaped yet, this is still one Julia
-process. Run demos/05_multigpu.jl here.
-:::
-
 ## Multiple nodes: add MPI
 
 ![](assets/multinode.svg){.diagram fig-alt="MPI connects rank 0 on server A and rank 1 on server B over a network. Each rank runs CPU tasks as part of the same Dagger program."}
@@ -410,7 +388,7 @@ Odo tutorial resource limits: both ranks share one node. The same MPI code runs 
 :::
 
 ::: {.notes}
-23:00–24:00. Introduce MPI only after single-process multi-GPU. Explain SPMD:
+23:00–24:00. Introduce MPI after the GPU demos (Single GPU and Multiple GPUs in the console). Explain SPMD:
 every rank builds the same graph, with deterministic input and uniform decisions.
 Keep rank-0-only branches for reporting; do not put the Dagger work inside one.
 The shared implementation enables Dagger.accelerate!(:mpi), builds the same

@@ -3,6 +3,7 @@
 import argparse
 import atexit
 import codecs
+import errno
 import getpass
 import io
 import ipaddress
@@ -350,9 +351,25 @@ FINAL_EXERCISE = dict(
 )
 
 
-FINAL_WORKSPACE = ROOT / "results" / "final-exercise"
+FINAL_ROOT = ROOT / "results" / "final-exercise"
+FINAL_WORKSPACE = FINAL_ROOT
 FINAL_FILE = FINAL_WORKSPACE / "final_exercise.jl"
 FINAL_README = FINAL_WORKSPACE / "README.md"
+
+
+def use_final_workspace(user):
+    """Keep each Odo user's Simulation file apart, so consoles running side by
+    side for different users do not overwrite each other's simulate!. The first
+    time, start from the file an older console kept for everyone."""
+    global FINAL_WORKSPACE, FINAL_FILE, FINAL_README
+    workspace = FINAL_ROOT / re.sub(r"[^A-Za-z0-9_.-]", "-", user)
+    workspace.mkdir(parents=True, exist_ok=True)
+    for name in ("final_exercise.jl", "README.md"):
+        shared = FINAL_ROOT / name
+        if shared.is_file() and not (workspace / name).exists():
+            shutil.copy2(shared, workspace / name)
+    FINAL_WORKSPACE, FINAL_FILE, FINAL_README = (workspace, workspace / "final_exercise.jl",
+                                                 workspace / "README.md")
 
 
 def ensure_final_workspace():
@@ -464,8 +481,14 @@ def snapshot():
 
 
 ODO_HOSTNAME = "login1.odo.olcf.ornl.gov"
+# Older consoles kept one managed block for whichever user ran last; it is
+# replaced by one block per alias, so consoles for several users can run at once.
 MANAGED_BEGIN = "# >>> sc26-dagger console: managed host block >>>"
 MANAGED_END = "# <<< sc26-dagger console: managed host block <<<"
+
+
+def managed_markers(alias):
+    return (f"# >>> sc26-dagger console: {alias} >>>", f"# <<< sc26-dagger console: {alias} <<<")
 
 
 TERMINALS = {}
@@ -762,17 +785,31 @@ def ssh_config_values(alias, config_path=None):
     return values
 
 
-def extract_managed_block(text):
+def extract_managed_block(text, begin=MANAGED_BEGIN, end=MANAGED_END):
     """Return (block, remaining lines); refuse to guess at a damaged block."""
     lines = text.splitlines()
-    starts = [index for index, line in enumerate(lines) if line.strip() == MANAGED_BEGIN]
-    ends = [index for index, line in enumerate(lines) if line.strip() == MANAGED_END]
+    starts = [index for index, line in enumerate(lines) if line.strip() == begin]
+    ends = [index for index, line in enumerate(lines) if line.strip() == end]
     if not starts and not ends:
         return None, lines
     if len(starts) != 1 or len(ends) != 1 or ends[0] < starts[0]:
         raise ValueError("The SSH config has a damaged sc26-dagger managed block; "
-                         f"remove or fix the lines between {MANAGED_BEGIN!r} and {MANAGED_END!r}")
+                         f"remove or fix the lines between {begin!r} and {end!r}")
     return lines[starts[0]:ends[0] + 1], lines[:starts[0]] + lines[ends[0] + 1:]
+
+
+def without_managed_blocks(lines):
+    """The hand-written part of a config: every console-managed block removed."""
+    kept, inside = [], False
+    for line in lines:
+        mark = line.strip()
+        if mark.startswith("# >>> sc26-dagger console:"):
+            inside = True
+        elif mark.startswith("# <<< sc26-dagger console:"):
+            inside = False
+        elif not inside:
+            kept.append(line)
+    return kept
 
 
 def ssh_aliases(lines):
@@ -782,39 +819,45 @@ def ssh_aliases(lines):
             yield from match.group(1).split()
 
 
-def write_managed_host(config_path, alias, user, control_path, server=ODO_HOSTNAME, alternative=None):
-    """Insert or update our own block; never touch hand-written Host sections.
+def write_managed_host(config_path, alias, user, server=ODO_HOSTNAME, alternative=None):
+    """Insert or update this alias's own block; never touch hand-written Host
+    sections or other users' blocks.
 
-    The block goes first because OpenSSH keeps the first value it obtains for
-    User, HostName, Port and ControlPath, regardless of block specificity.
+    Each alias has its own marked block, so consoles for several users can run
+    at once. The block names no ControlPath: every console opens its own SSH
+    connection and passes its socket explicitly. Blocks go first because
+    OpenSSH keeps the first value it obtains for User, HostName and Port.
     """
     config_path = Path(config_path).expanduser()
     # Follow a dotfile-manager symlink instead of replacing it with a plain file.
     if config_path.is_symlink():
         config_path = config_path.resolve()
     text = config_path.read_text() if config_path.exists() else ""
-    _, remainder = extract_managed_block(text)
-    for pattern in ssh_aliases(remainder):
+    begin, end = managed_markers(alias)
+    # The single block of older consoles is ours too; this replaces it.
+    _, lines = extract_managed_block(text)
+    own, remainder = extract_managed_block("\n".join(lines), begin, end)
+    # Keep an existing block where it is, so starting one user's console does
+    # not reorder (and rewrite) the others'; a new block goes first.
+    position = lines.index(begin) if own else 0
+    for pattern in ssh_aliases(without_managed_blocks(remainder)):
         if pattern.lower() == alias.lower():
             hint = "Remove or rename that entry"
             if alternative and alternative.lower() != alias.lower():
                 hint += f", or let the console manage {alternative!r} instead"
             raise ValueError(f"SSH alias {alias!r} is already defined outside the console's "
                              f"managed block. {hint}.")
-    socket = str(control_path)
-    if any(character.isspace() for character in socket):
-        socket = '"' + socket.replace('"', '\\"') + '"'
-    block = [MANAGED_BEGIN,
+    block = [begin,
              f"Host {alias}",
              f"    HostName {server}",
              f"    User {user}",
              "    ServerAliveInterval 60",
-             "    ControlMaster auto",
-             f"    ControlPath {socket}",
-             "    ControlPersist 8h",
-             MANAGED_END]
-    rest = "\n".join(remainder).strip("\n")
-    updated = "\n".join(block) + "\n" + ("\n" + rest + "\n" if rest else "")
+             end]
+    if own:
+        updated = "\n".join(remainder[:position] + block + remainder[position:]) + "\n"
+    else:
+        rest = "\n".join(remainder).strip("\n")
+        updated = "\n".join(block) + "\n" + ("\n" + rest + "\n" if rest else "")
     if updated == text:
         return "unchanged"
     config_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -879,11 +922,24 @@ def bootstrap_ssh(args):
         print(f"Using existing SSH alias {preferred!r} as {user}@{ODO_HOSTNAME}", flush=True)
         return user, preferred
     alias = args.ssh_host or managed_alias(user)
-    action = write_managed_host(config_path, alias, user, args.control_path,
+    action = write_managed_host(config_path, alias, user,
                                 alternative=None if args.ssh_host else managed_alias(user))
     verify_managed_host(alias, user, config_path)
     print(f"SSH alias {alias!r} {action} in {config_path}", flush=True)
     return user, alias
+
+
+def console_socket(user):
+    """A control socket for this console alone: consoles never share an SSH
+    connection, so several can run at once, for one user or for several."""
+    return Path.home() / ".ssh" / "control" / f"sc26-{user}-{secrets.token_hex(3)}"
+
+
+def close_master(args):
+    """Close the SSH connection this console opened."""
+    subprocess.run(["ssh"] + ssh_config_option(args.ssh_config)
+                   + ["-S", str(args.control_path), "-O", "exit", args.ssh_host],
+                   capture_output=True, timeout=20)
 
 
 def ensure_master(args):
@@ -1319,12 +1375,23 @@ def handler_for(console):
     return Handler
 
 
+def bind_server(host, port, handler):
+    """Serve on --port, or on the first free port from 8767 when none is given,
+    so a second console starts next to the first."""
+    for candidate in [port] if port else range(8767, 8800):
+        try:
+            return ThreadingHTTPServer((host, candidate), handler)
+        except OSError as exc:
+            if port or exc.errno != errno.EADDRINUSE:
+                raise
+    raise OSError("No free port between 8767 and 8799; pass --port")
+
+
 def main():
-    ensure_final_workspace()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="0.0.0.0", help="Listen address (default: all IPv4 interfaces)")
     parser.add_argument("--allow-host", action="append", default=[], help="Additional allowed browser hostname")
-    parser.add_argument("--port", type=int, default=8767)
+    parser.add_argument("--port", type=int, help="Local port (default: 8767, or the next free one)")
     parser.add_argument("--ssh-host", help="SSH alias; reuse `odo` when it already points at Odo, "
                                            "otherwise the console manages `sc26-odo-<user>`")
     parser.add_argument("--odo-user", help="OLCF/UCAMS username (skips the prompt; also SC26_ODO_USER)")
@@ -1333,7 +1400,8 @@ def main():
     parser.add_argument("--account", default=os.environ.get("SC26_ACCOUNT", "trn047"))
     parser.add_argument("--remote-root", help="Directory for the console's sessions on Odo; every "
                                               "Connect creates its own new folder inside it")
-    parser.add_argument("--control-path", type=Path, default=Path.home() / ".ssh/control/sc26-portal")
+    parser.add_argument("--control-path", type=Path,
+                        help="SSH control socket to use; by default each console opens its own")
     parser.add_argument("--time", default="02:00:00")
     parser.add_argument("--reservation", default="")
     parser.add_argument("--no-auth", action="store_true",
@@ -1344,18 +1412,28 @@ def main():
     args = parser.parse_args()
     if args.ssh_host and (not re.fullmatch(r"[\w@.-]+", args.ssh_host) or args.ssh_host.startswith("-")):
         parser.error("Invalid SSH host alias")
-    args.control_path = args.control_path.expanduser().resolve()
     args.ssh_config = args.ssh_config.expanduser()
     try:
         args.odo_user, args.ssh_host = bootstrap_ssh(args)
     except (ValueError, RuntimeError, OSError) as exc:
         parser.error(str(exc))
+    own_socket = args.control_path is None
+    args.control_path = (console_socket(args.odo_user) if own_socket
+                         else args.control_path.expanduser().resolve())
+    use_final_workspace(args.odo_user)
+    ensure_final_workspace()
     args.remote_root = args.remote_root or default_remote_root(args.account, args.odo_user)
     if not args.remote_root.startswith("/"):
         parser.error("--remote-root must be an absolute path")
     authenticated = False if args.no_auth else ensure_master(args)
     console = Console(args)
-    server = ThreadingHTTPServer((args.host, args.port), handler_for(console))
+    try:
+        server = bind_server(args.host, args.port, handler_for(console))
+    except OSError as exc:
+        if own_socket:
+            close_master(args)
+        parser.error(f"Cannot serve the page: {exc}")
+    port = server.server_port
     server.allowed_hosts = {"127.0.0.1", "localhost", socket.gethostname().lower(), socket.getfqdn().lower(),
                             *(name.lower().rstrip(".") for name in args.allow_host)}
     tailscale_ips = []
@@ -1377,7 +1455,7 @@ def main():
             except Exception:
                 pass
         threading.Thread(target=_auto_connect, daemon=True).start()
-    url = f"http://127.0.0.1:{args.port}"
+    url = f"http://127.0.0.1:{port}"
     if authenticated:
         connection_note = ""
     elif args.no_auth:
@@ -1391,7 +1469,7 @@ def main():
         print("Allocating a node and precompiling Julia in the background…", flush=True)
     if args.host == "0.0.0.0":
         for ip in tailscale_ips:
-            print(f"Tailscale: http://{ip}:{args.port}", flush=True)
+            print(f"Tailscale: http://{ip}:{port}", flush=True)
     if not args.no_browser:
         webbrowser.open(url)
     try:
@@ -1401,6 +1479,9 @@ def main():
     finally:
         console.disconnect()
         server.server_close()
+        # This console's SSH connection is its own: close it with the console.
+        if own_socket:
+            close_master(args)
 
 
 if __name__ == "__main__":

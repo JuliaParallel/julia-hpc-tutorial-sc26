@@ -19,18 +19,24 @@ Python 3.9+ and OpenSSH with connection multiplexing locally; no Python
 packages, local Julia, Node, or internet-hosted web assets are needed. Odo's
 Python 3.6 runs only the coordinator.
 
-The console uses your SSH alias `odo`. With the existing `odo-connect` helper,
-authentication happens automatically through that helper. Otherwise SSH keys
-or an agent must already work; for password/MFA authentication, open the
-console's dedicated transport once from a local terminal:
+Every console opens its own SSH connection when it starts and asks for your
+PASSCODE in its terminal; consoles never share a connection. Passwords never
+pass through the webpage, and a console's own connection avoids Odo's
+one-session-per-transport limit while another terminal is connected. To reuse
+a connection you opened yourself instead, pass its socket with
+`--control-path`.
 
-```bash
-mkdir -p ~/.ssh/control
-ssh -S ~/.ssh/control/sc26-portal -MNf odo
-```
+### Several consoles at once
 
-Passwords never pass through the webpage. The dedicated connection avoids
-Odo's one-session-per-transport limit while another terminal is connected.
+Run the console as many times as you like, for one Odo user or several. Each
+one has its own SSH connection (`~/.ssh/control/sc26-<user>-<random>`), closed
+when that console exits; its own page, on the first free port from 8767 (the
+second console prints `http://127.0.0.1:8768`, and so on); its own session
+folder and Slurm job on Odo; and, per Odo user, its own Simulation file
+(`results/final-exercise/<user>/`). The first time a user starts, that file is
+copied from the one older consoles kept for everyone. To start one for another
+user: `python3 host/app.py --odo-user OTHER_USER`, or with the installer
+`curl -fsSL https://fda-tome.github.io/sc26/install.sh | sh -s -- --odo-user OTHER_USER`.
 
 ## Credentials
 
@@ -44,24 +50,23 @@ webpage, or the uploaded workspace. Startup automates the setup:
    username already in your SSH config, otherwise your local user.
 
 2. If an alias already points at `login1.odo.olcf.ornl.gov`, the console uses
-   it unchanged. Otherwise it owns exactly one marked block in
+   it unchanged. Otherwise it owns one marked block per user in
    `~/.ssh/config` and creates `Host sc26-odo-<user>`:
 
    ```
-   # >>> sc26-dagger console: managed host block >>>
+   # >>> sc26-dagger console: sc26-odo-YOUR_ODO_USERNAME >>>
    Host sc26-odo-YOUR_ODO_USERNAME
        HostName login1.odo.olcf.ornl.gov
        User YOUR_ODO_USERNAME
        ServerAliveInterval 60
-       ControlMaster auto
-       ControlPath /home/you/.ssh/control/sc26-portal
-       ControlPersist 8h
-   # <<< sc26-dagger console: managed host block <<<
+   # <<< sc26-dagger console: sc26-odo-YOUR_ODO_USERNAME <<<
    ```
 
-   The block goes at the **top** of the file because OpenSSH keeps the first
-   value it obtains for `User`, `HostName`, `Port` and `ControlPath`,
-   regardless of block specificity. After writing, the console verifies the
+   The block names no shared socket: each console passes its own. A new
+   block goes at the **top** of the file because OpenSSH keeps the first
+   value it obtains for `User`, `HostName` and `Port`, regardless of block
+   specificity; an existing one is updated where it is. The single block of
+   older consoles is replaced. After writing, the console verifies the
    alias with `ssh -G` and refuses to continue if anything resolved
    differently.
 
@@ -91,23 +96,20 @@ manage a different file, and `--ssh-host NAME` to force an alias;
   identity.
 - **Never touched:** other `Host` blocks, `Include`d files, keys, and
   `known_hosts`. Your `odo-connect` helper keeps working.
-- **Only one managed block:** it is replaced in place, left byte-for-byte
-  unchanged when nothing changed, and the file is written atomically with mode
-  `0600`.
+- **One managed block per user:** each is updated in place, left
+  byte-for-byte unchanged when nothing changed, and the file is written
+  atomically with mode `0600`. Another user's block is never touched.
 - **Refused:** a hand-written `Host sc26-odo-<user>` (or your `--ssh-host`)
   outside the markers, a damaged marker pair, or a resolved mismatch after
   writing. Rename the entry or pass `--ssh-host`.
 - **Shared, not duplicated:** the same hostname means the same `known_hosts`
-  entry, and the socket directory exists once. Two consoles share the master
-  socket; each still owns and cancels only its own Slurm job.
-- **Possible leftovers:** `ControlPersist 8h` keeps the master after the
-  console exits. Close it with `ssh -O exit sc26-odo-<user>`. An existing
-  master on the same socket is reused; a stale one fails with SSH's own
-  message.
+  entry. Connections are never shared: every console opens its own, and owns
+  and cancels only its own Slurm job.
+- **Possible leftovers:** a console closes its connection when it exits; one
+  killed outright leaves it to close itself after 8 hours.
 - **Global options:** a `Host *` `User` or `HostName` cannot override the
   managed block because it comes first. A `Host * ControlPath` does not affect
-  console traffic either, since every command passes `-S` explicitly; it only
-  affects a manual `ssh sc26-odo-<user>`.
+  console traffic either, since every command passes `-S` explicitly.
 
 ### One folder and one job name per connection
 
@@ -152,7 +154,7 @@ python3 host/app.py --remote-root /gpfs/wolf2/olcf/trn047/scratch/YOUR_ODO_USER/
     --account trn047 --time 02:00:00
 ```
 
-The server listens on **`0.0.0.0:8767`** by default, so you can also open it
+The server listens on **`0.0.0.0:8767`** (or the next free port) by default, so you can also open it
 from your laptop over Tailscale. Startup prints the machine's Tailscale URL
 when the Tailscale CLI is available. Tailscale IPs and the machine's MagicDNS
 name are accepted; `--allow-host NAME` adds another browser hostname.

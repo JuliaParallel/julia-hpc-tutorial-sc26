@@ -116,6 +116,7 @@ def warmup():
     try:
         result = subprocess.run(
             ["srun", f"--jobid={job}", "--exact", "-N", "1", "-n", "1", "-c", "7",
+             "--job-name=" + os.environ.get("SC26_SESSION", "sc26-dagger-warmup"),
              "--threads-per-core=1", "--gpus-per-task=8", "--gpu-bind=none",
              "julia", f"--project={ROOT}", "--startup-file=no", "-e", script],
             cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -156,7 +157,8 @@ def allocate():
     args = ["sbatch", "--parsable", "-A", os.environ.get("SC26_ACCOUNT", "trn047"),
             "-p", "batch", "-N", "1", "-n", "8", "--ntasks-per-node=8", "-c", "7",
             "--threads-per-core=1", "--gpus-per-node=8", "-t", os.environ.get("SC26_TIME", "02:00:00"),
-            "-J", "sc26-dagger-portal", "--output", str(ROOT / "results/portal-%j.log"),
+            "-J", os.environ.get("SC26_SESSION", "sc26-dagger-portal"),
+            "--output", str(ROOT / "results/portal-%j.log"),
             "--wrap", "exec sleep infinity"]
     if os.environ.get("SC26_RESERVATION"):
         args.append("--reservation=" + os.environ["SC26_RESERVATION"])

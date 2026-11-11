@@ -69,9 +69,9 @@ webpage, or the uploaded workspace. Startup automates the setup:
    for your XCAMS/UCAMS password in that terminal. Odo needs no RSA token.
    Later traffic runs in `BatchMode` over that socket.
 
-4. It derives the default workspace from the resolved username:
-   `/gpfs/wolf2/olcf/trn047/scratch/<odo-user>/sc26-dagger/portal`. This fixes
-   the old behaviour, which used your *local* username.
+4. It derives where sessions live from the resolved username:
+   `/gpfs/wolf2/olcf/trn047/scratch/<odo-user>/sc26-dagger/sessions`. This
+   fixes the old behaviour, which used your *local* username.
 
 Passwords never pass through the webpage. Keep the control socket private:
 `~/.ssh/control` is created with mode `0700`, and each launch prints a random
@@ -109,19 +109,40 @@ manage a different file, and `--ssh-host NAME` to force an alias;
   console traffic either, since every command passes `-S` explicitly; it only
   affects a manual `ssh sc26-odo-<user>`.
 
-On connection the console uploads the current tutorial code to its own marked
-scratch workspace, prepares packages on the **login node**, and submits a
-one-node holding job. It waits for that job to start before enabling Run.
-The default workspace is
-`/gpfs/wolf2/olcf/trn047/scratch/<odo-user>/sc26-dagger/portal`.
-Existing unmarked, nonempty directories are rejected. Reconnecting refreshes
-course code there; results and Julia preferences stay put. This is separate
-from your normal checkout and exercise edits.
+### One folder and one job name per connection
+
+Many consoles can connect with the same SSH credentials, so every
+**Connect** starts a session of its own. The console picks a unique name,
+`sc26-<date>-<time>-<random>` (for example `sc26-20261111-163012-a1b2c3`), and
+creates exactly that folder under
+`/gpfs/wolf2/olcf/trn047/scratch/<odo-user>/sc26-dagger/sessions/`. The
+folder is created with a plain `mkdir`, which fails rather than reuse a folder
+that already exists, and is readable only by your account. Everything the
+session does lives in it: the uploaded course code, its `Manifest.toml` and
+MPI preferences, the holding job's log, and the results and timelines. The
+same name is the name of the session's Slurm job (`sbatch -J`) and of its
+steps, so `squeue --me` shows which job belongs to which console, and
+Release or Ctrl-C cancels only that job by its ID. The page's sidebar shows
+the session's folder. A new Connect makes a new folder; earlier folders and
+their results stay until you delete them.
+
+The one thing sessions share is the Julia package depot,
+`…/sc26-dagger/depot`, so a new session does not download and compile
+everything again. Package preparation on the login node runs one session at a
+time (a lock on `…/sc26-dagger/prepare.lock`), and each new session starts
+from the manifest the last one resolved, so all sessions run the same package
+versions even when Dagger's `master` moves. Sessions under one account are
+kept apart by the console's own paths, not by the operating system: the same
+account can read every one of its folders.
+
+Then the session prepares packages on the **login node** and submits its
+one-node holding job, and waits for that job to start before enabling Run.
+This is separate from your normal checkout and exercise edits.
 
 Override your remote username/path, account, reservation, or time limit:
 
 ```bash
-python3 host/app.py --remote-root /gpfs/wolf2/olcf/trn047/scratch/YOUR_ODO_USER/sc26-dagger/portal \
+python3 host/app.py --remote-root /gpfs/wolf2/olcf/trn047/scratch/YOUR_ODO_USER/sc26-dagger/sessions \
     --account trn047 --time 02:00:00
 ```
 

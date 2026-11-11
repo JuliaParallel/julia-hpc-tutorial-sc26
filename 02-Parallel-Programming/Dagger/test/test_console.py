@@ -395,7 +395,7 @@ class ConsoleTests(unittest.TestCase):
 
     def test_ssh_config_username_replaces_the_local_user(self):
         self.assertEqual(app.default_remote_root("trn047", "godoywf"),
-                         "/gpfs/wolf2/olcf/trn047/scratch/godoywf/sc26-dagger/portal")
+                         "/gpfs/wolf2/olcf/trn047/scratch/godoywf/sc26-dagger/sessions")
         self.assertTrue(app.is_odo_hostname("login1.odo.olcf.ornl.gov"))
         self.assertTrue(app.is_odo_hostname("login2.odo.olcf.ornl.gov"))
         self.assertFalse(app.is_odo_hostname("odo"))
@@ -551,15 +551,46 @@ class ConsoleTests(unittest.TestCase):
         import os
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            for name, code in {"sbatch":"echo 456", "scancel":'echo "$@" > "$CANCEL_LOG"', "squeue":r"echo RUNNING\|testnode"}.items():
+            for name, code in {"sbatch":'echo "$@" > "$SBATCH_LOG"; echo 456',
+                               "scancel":'echo "$@" > "$CANCEL_LOG"', "squeue":r"echo RUNNING\|testnode"}.items():
                 p = root / name
                 p.write_text("#!/bin/sh\n"+code+"\n")
                 p.chmod(0o755)
-            env = dict(os.environ, PATH=directory+os.pathsep+os.environ["PATH"], CANCEL_LOG=str(root/"cancelled"))
+            env = dict(os.environ, PATH=directory+os.pathsep+os.environ["PATH"], CANCEL_LOG=str(root/"cancelled"),
+                       SBATCH_LOG=str(root/"sbatch-args"), SC26_SESSION="sc26-20261111-120000-abc123")
             result = subprocess.run(["python3", str(BASE/"host/remote_agent.py")], input="", env=env,
                                     capture_output=True, text=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual((root/"cancelled").read_text().strip(), "456")
+            # The session's job carries the session's name.
+            self.assertIn("-J sc26-20261111-120000-abc123 ", (root/"sbatch-args").read_text())
+
+    def test_every_connection_gets_its_own_folder(self):
+        names = {app.new_session_name() for _ in range(200)}
+        self.assertEqual(len(names), 200)
+        for name in names:
+            self.assertRegex(name, r"^sc26-\d{8}-\d{6}-[0-9a-f]{6}$")
+        with tempfile.TemporaryDirectory() as directory:
+            base = str(Path(directory) / "sessions with space")
+            payload = io.BytesIO()
+            import tarfile
+            with tarfile.open(fileobj=payload, mode="w:gz") as archive:
+                data = b"x = 1\n"
+                info = tarfile.TarInfo("demos/a.jl"); info.size = len(data)
+                archive.addfile(info, io.BytesIO(data))
+            script = app.session_upload_script(base, "sc26-test")
+            first = subprocess.run(["bash", "-c", script], input=payload.getvalue(), capture_output=True)
+            self.assertEqual(first.returncode, 0, first.stderr)
+            folder = Path(base) / "sc26-test"
+            self.assertEqual((folder / "demos/a.jl").read_text(), "x = 1\n")
+            self.assertTrue((folder / ".sc26-session").exists())
+            self.assertEqual(folder.stat().st_mode & 0o777, 0o700)
+            # A second session with the same name is refused, never merged.
+            (folder / "results").mkdir()
+            second = subprocess.run(["bash", "-c", script], input=payload.getvalue(), capture_output=True)
+            self.assertNotEqual(second.returncode, 0)
+            self.assertIn(b"File exists", second.stderr)
+            self.assertEqual(sorted(p.name for p in folder.iterdir()), [".sc26-session", "demos", "results"])
 
     def test_large_report_survives_nonblocking_inherited_stdout(self):
         import os

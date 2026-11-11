@@ -22,6 +22,8 @@ terminal=()
 if [[ "${SC26_PTY:-0}" == 1 ]]; then terminal+=(--pty); fi
 limit=()
 if [[ -n "${SC26_STEP_TIME:-}" ]]; then limit+=(--time="$SC26_STEP_TIME"); fi
+# A console session names its steps after itself, like its job.
+if [[ -n "${SC26_SESSION:-}" ]]; then limit+=(--job-name="$SC26_SESSION"); fi
 exec srun --jobid="$SLURM_JOB_ID" --exact -N "$nodes" -n "$np" \
     --ntasks-per-node="$rpn" -c "$threads" --threads-per-core=1 \
     --gpus-per-task="$gpt" --gpu-bind="$bind" --cpu-bind=cores \

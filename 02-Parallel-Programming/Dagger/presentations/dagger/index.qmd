@@ -176,45 +176,6 @@ Spawn returns a handle promptly. No manual wait is needed between these calls.
 Ask: which two tasks could overlap? Use the graph rather than terminology.
 :::
 
-## Open your compute-node REPL
-
-::: {.small}
-In an Odo login terminal, with the course repository already cloned:
-:::
-
-```bash
-cd /gpfs/wolf2/olcf/trn047/scratch/$USER
-cd julia-hpc-tutorial-sc26/02-Parallel-Programming/Dagger
-export SC26_NODES=1
-bash frontier/allocate.sh  # skip if already in your allocation
-bash frontier/repl.sh
-```
-
-::: {.takeaway}
-Wait for <code>julia&gt;</code>. You are now running Julia on a compute node.<br>
-Keep this session open for the demos.
-:::
-
-::: {.small}
-<code>allocate.sh</code> installs dependencies on the login node before requesting a node.
-:::
-
-::: {.notes}
-At 6:00, before the first demo. The checkout location matches the repository's
-Odo access instructions; adjust the first cd if you cloned elsewhere.
-Clone the repository before class. allocate.sh runs prepare.sh on the login
-node before calling salloc, so missing packages and lazy artifacts are downloaded
-and Cray MPI preferences are configured before entering the allocation shell.
-Odo's allocation shell runs on a compute node, without package-server access.
-The REPL launchers do not download packages and set Julia's package manager offline.
-Package compilation takes place on the compute node. Instructors should still
-prepare and precompile the environment before class to avoid startup delays.
-Obtain the one-node allocation in advance where possible. Skip allocate.sh if
-already in that allocation shell, and skip repl.sh if Julia is already open.
-The launcher selects the tutorial project and CPU threads on the compute node.
-Keep this transition and the following demo within the 6:00–8:00 slot.
-:::
-
 ## Run the graph. See the threads. {.demo .task-demo}
 
 ```julia-repl
@@ -282,7 +243,7 @@ Example output from Odo; random values and thread assignments vary.
 :::
 
 ::: {.notes}
-6:00–8:00. Run in the warm compute-node REPL, not on the login node.
+6:00–8:00. Run it from the console's CPU section (Tasks & dependencies), not on the login node.
 The include executes both code excerpts; using Dagger is omitted here.
 First explain the computation: generate two independent 2000-by-2000 random
 matrices, multiply them once both are ready, then reduce the product to a scalar.
@@ -421,7 +382,7 @@ exercise, spawn BLAS/LAPACK calls directly so Dagger can select replacements.
 ::: {.notes}
 Hold the setup one beat: A(1024, 512), B(512, 512), output C(1024, 512), and a
 two-GPU scope in one Julia process. The products are the actors; the next slide
-shows how this product splits into block rows. Run demos/05_multigpu.jl after.
+shows how this product splits into block rows.
 :::
 
 ## The naive way: Split A, Split C
@@ -433,83 +394,12 @@ Transition from one GPU to two devices on one server. The picture shows the
 product slide's demo, A(1024, 512) times B(512, 512): A carries two 512×512
 block rows, B is shared and read by both tasks, and each output block row
 lands on a distinct GPU. Nothing MPI-shaped yet, this is still one Julia
-process. Run demos/05_multigpu.jl on the next slides.
-:::
-
-## One server. Multiple GPUs. One algorithm.
-
-```julia
-Dagger.spawn_datadeps() do
-    for (i, placement) in enumerate(scopes)
-        Dagger.@spawn scope=placement multiply_and_report!(
-            Out(DC.chunks[i, 1]), In(DA.chunks[i, 1]), In(DB.chunks[1, 1]))
-    end
-end
-```
-
-```julia
-gpus = Dagger.scope(rocm_gpus=1:2)
-```
-
-::: {.takeaway}
-Split one matrix product into output tiles. Schedule those tiles on distinct GPUs.
-:::
-
-::: {.notes}
-20:00–22:00. Multi-GPU on a server does not require MPI. One Julia process
-can schedule tasks onto GPU devices 1 and 2. The scope above selects both.
-Walk through C = A * B: split A into block rows, reuse B for both, and compute
-the corresponding block rows of C on different GPUs. This is one matrix product.
-The demo explicitly places one output-tile task on each selected GPU so device
-participation is visible. Dagger moves inputs and tracks the output writes.
-On Odo the GPU device IDs refer to MI250X GCDs; two IDs need not mean two packages.
-:::
-
-## Run this yourself {.demo}
-
-::: {.small}
-In the allocation shell, after leaving the Julia REPL with <code>exit()</code>:
-:::
-
-```bash
-bash frontier/launch.sh 1 demos/05_multigpu.jl
-```
-
-```text
-One matrix product: A(1024, 512) * B(512, 512)
-  output tile row 1 -> GPU 1 on odo03
-  output tile row 2 -> GPU 2 on odo03
-PASS: C ≈ A * B
-GPUs: 2 | nodes: 1 | Julia processes: 1
-```
-
-::: {.takeaway}
-One process, one result, two distinct GPU devices doing matrix multiplication.
-:::
-
-::: {.source-note}
-Example output; hostname varies. Add <code>--gpus=4</code> to use four GPUs.
-:::
-
-::: {.notes}
-22:00–23:00. The shell command is one line. The launcher's argument 1 requests
-one Julia process, not one GPU; the demo selects two GPU devices by default.
-No device-visibility environment variables are set by attendees. Slurm exposes
-the allocated GPUs and the application uses Dagger scopes to choose among them.
-The reporting helper calls mul! on a GPU output tile, synchronizes that GPU,
-and returns the actual device identity. The demo verifies distinct physical
-devices using hostname plus PCI address internally, and checks C against A * B.
-Each output row belongs to the same C; no independent full-product replicas.
-Exit the warm REPL first because its step reserves these GPU resources.
+process. Run demos/05_multigpu.jl here.
 :::
 
 ## Multiple nodes: add MPI
 
 ![](assets/multinode.svg){.diagram fig-alt="MPI connects rank 0 on server A and rank 1 on server B over a network. Each rank runs CPU tasks as part of the same Dagger program."}
-
-```bash
-bash frontier/multinode.sh cpu
-```
 
 ::: {.takeaway}
 Two MPI ranks contribute tiles to one <code>C = A * B</code>. Check PASS and two processes.
@@ -528,8 +418,7 @@ matrix product on every rank, and explicitly places output tiles across ranks.
 The diagram shows a possible two-server deployment; Odo tutorial capacity
 places both ranks on one server for this live demo.
 The entry script demos/06_multinode.jl requires two MPI ranks, checks the
-assembled result, and reports where the tile tasks executed. Run the shell
-command in the existing one-node allocation. MPI coordinates separate processes
+assembled result, and reports where the tile tasks executed. MPI coordinates separate processes
 on either one host or several; only launcher placement changes.
 The attendee launch remains bash frontier/launch.sh 2 demos/06_multinode.jl on one node.
 That exercises the programming model without claiming inter-server communication.
@@ -540,10 +429,6 @@ No additional attendee or presenter nodes are required.
 ## Multiple nodes × multiple GPUs
 
 ![](assets/multinode-gpu.svg){.diagram height=285 fig-alt="Two servers each host one MPI rank and two GPU devices. MPI connects the ranks across the network; GPU scopes distribute tiles within each server. All four GPUs contribute to one distributed algorithm."}
-
-```bash
-bash frontier/multinode.sh gpu
-```
 
 ::: {.takeaway}
 One <code>C = A * B</code>, two ranks, four distinct GPUs. Check PASS and the device counts.
@@ -653,173 +538,122 @@ Keep GPU/MPI setup outside your function. Keep <code>fetch</code> and <code>wait
 28:00–29:00. Show the template and serial version side by side in the editor.
 The supplied student template intentionally fails until annotated. Return T.
 Spawn the actual BLAS/LAPACK function, not a helper containing the call.
-Do not reveal the full answer yet; a reference is in the appendix for debrief.
+Do not reveal the full answer yet; solution/my_cholesky.jl is the reference for the debrief.
 :::
 
-## A quick access-pattern check
+## Tiled Cholesky, line by line
 
+:::: {.columns}
+::: {.column width="60%" .compact-code}
 ```julia
-# Existing diagonal values are replaced by their factor.
-Dagger.@spawn LAPACK.potrf!('L', InOut(T[k, k]))
+for k in 1:mt
+    T[k,k] = chol(T[k,k])                      # P
+    for m in k+1:mt
+        T[m,k] = T[m,k] / T[k,k]'              # S
+    end
+    for n in k+1:mt
+        T[n,n] = T[n,n] - T[n,k] * T[n,k]'     # U
+        for m in n+1:mt
+            T[m,n] = T[m,n] - T[m,k] * T[n,k]' # G
+        end
+    end
+end
 ```
+:::
+::: {.column width="36%"}
+::: {.small}
+<code>T</code> is an <code>mt × mt</code> grid of tiles: <code>T[i,j]</code> is tile <code>(i, j)</code> of <code>A</code>. Only the lower triangle is read or written.
+:::
 
-::: {.big-statement}
-For a solve or update:<br>which tiles are <span class="accent">inputs</span>,<br>and which tile <span class="accent">changes</span>?
+::: {.small}
+<code>X / B</code> is Julia's right division, <code>X * inv(B)</code>.
+:::
+
+::: {.small}
+When step <code>k</code> ends, column <code>k</code> of <code>T</code> holds column <code>k</code> of <code>L</code>, and the trailing tiles hold what is left to factor.
+:::
+:::
+::::
+
+::: {.kernel-key}
+<span><b>P</b> POTRF · factor</span><span><b>S</b> TRSM · solve</span><span><b>U</b> SYRK · update</span><span><b>G</b> GEMM · update</span>
 :::
 
 ::: {.notes}
-29:00–30:00. Show one of four calls as a worked example. For TRSM, read
-the diagonal and update the column tile. For SYRK, read a column tile and
-update a diagonal. For GEMM, read two column tiles and update one trailing tile.
-Then hand over to attendees. The next slides stay visible during checkpoints.
+The whole algorithm, in matrix notation: this is exercise/serial_cholesky.jl
+without the BLAS spelling. Four loops, four tile operations. Point out that each
+line writes exactly one tile, the left-hand side, and reads the tiles on its
+right-hand side; that is all Datadeps needs. The next slide puts these lines on
+the tile grid.
 :::
 
-## A fast edit → run → see loop
+## Step k on the tile grid
 
-![](assets/feedback.svg){.diagram fig-alt="Edit the student file, run the warm benchmark, check PASS, and view the plot. Then repeat."}
-
-```bash
-bash frontier/repl.sh
-```
-
-```julia
-TutorialSession.benchmark(impl="student")
-TutorialSession.plot()
-```
+![](assets/cholesky-step.svg){.diagram .full-diagram fig-alt="Step k equals 2 of a five by five tiled Cholesky. Column 1 holds finished tiles of L. POTRF factors tile 2,2. TRSM solves tiles 3,2, 4,2 and 5,2, each reading tile 2,2. SYRK updates diagonal tiles 3,3, 4,4 and 5,5. GEMM updates tiles 4,3, 5,3 and 5,4; GEMM of tile 5,3 reads tiles 5,2 and 3,2. A legend repeats each line of the loop nest next to its colour."}
 
 ::: {.takeaway}
-Keep Julia alive. Edits reload; unchanged code stays compiled.
+Each line writes one tile and reads a few others. Those reads and writes are the dependencies.
 :::
 
 ::: {.notes}
-At 30:00. For continuous Odo access, a prepared compute allocation and shared
-depot are prerequisites. If access is rotated, use the replacement schedule in
-PLAN.md: start with ten minutes of local CPU work, then the assigned Odo windows.
-The checkpoint timings below describe the continuous-access schedule.
-This command launches the compute-node REPL; it is not a login-node workload.
-Defaults are a small 1024 matrix, 256 tiles, and one trial for quick feedback.
-The MPI prompt is different from the Julia REPL. We will switch explicitly.
+Step k = 2 of five tile columns. Column 1 is already L. P factors the diagonal
+tile; every S tile below it needs that factor; every U and G tile needs the S
+tiles in its own row and column, as the arrows show for G(5,3). Nothing in step
+3 needs all of step 2: P(3,3) waits only for U(3,3). That is the overlap the
+earlier dependency slide showed.
 :::
 
-## {.exercise-slide}
+## From pseudocode to the template
 
-<div class="exercise-title"><h2>Checkpoint 1 / CPU</h2><span class="time">12 minutes</span></div>
+| | Pseudocode | Call in <code>exercise/my_cholesky.jl</code> |
+|-|------------------|--------------------------------|
+| <b style="color:var(--mint)">P</b> | <code>T[k,k] = chol(T[k,k])</code> | <code>factor_diagonal_tile!('L', T[k, k])</code> |
+| <b style="color:var(--violet)">S</b> | <code>T[m,k] = T[m,k] / T[k,k]'</code> | <code>solve_panel_tile!('R', 'L', 'T', 'N', 1.0, T[k, k], T[m, k])</code> |
+| <b style="color:var(--amber)">U</b> | <code>T[n,n] -= T[n,k] * T[n,k]'</code> | <code>update_diagonal_tile!('L', 'N', -1.0, T[n, k], 1.0, T[n, n])</code> |
+| <b style="color:#8abdea">G</b> | <code>T[m,n] -= T[m,k] * T[n,k]'</code> | <code>update_offdiagonal_tile!('N', 'T', -1.0, T[m, k], T[n, k], 1.0, T[m, n])</code> |
 
-::: {.checkpoint}
-30:00–42:00 · Edit → run → PASS
+::: {.small}
+The letters are BLAS flags: <code>'L'</code> use the lower triangle · <code>'R'</code> the factor is on the right · <code>'T'</code> transpose it · <code>'N'</code> as is.
+The scalars <code>-1.0, …, 1.0</code> make an update <i>C ← C − A·Bᵀ</i>. The last tile argument is the one written, in place.
 :::
+
+::: {.notes}
+Each pseudocode line is one BLAS or LAPACK call on whole tiles. Read the flags
+once and move on: nobody needs to memorise BLAS argument orders today, they are
+already written in the template. The point is that the tile written in place is
+always the last tile argument, which is the one that will need InOut.
+:::
+
+## Our names are aliases, not wrappers
 
 ```julia
-TutorialSession.benchmark(impl="student")
+const factor_diagonal_tile!    = LAPACK.potrf!   # P
+const solve_panel_tile!        = BLAS.trsm!      # S
+const update_diagonal_tile!    = BLAS.syrk!      # U
+const update_offdiagonal_tile! = BLAS.gemm!      # G
 ```
 
-::: {.lead}
-Annotate all four kernels. Keep the algorithm and return <code>T</code>.
+::: {.cards}
+::: {.card}
+<h3>Reads like the picture</h3>
+The name says what happens to the tile; the four-letter BLAS name does not.
 :::
-
-::: {.takeaway}
-Stuck? Inspect every tile that changes: does it have <code>InOut</code>?
+::: {.card}
+<h3>Still the BLAS function</h3>
+A <code>const</code> alias is the same function object. Dagger swaps in rocBLAS/rocSOLVER (cuBLAS/cuSOLVER on NVIDIA) when the task lands on a GPU.
 :::
-
-::: {.notes}
-Leave this slide visible for most of the twelve minutes. Walk the room.
-Confirm source was saved. A MethodError involving DTask often means a call
-is missing Dagger.@spawn or lies outside the Datadeps region. If environment
-setup is suspect, --impl=solution is an instructor diagnostic, not the exercise.
-Shell fallback: bash frontier/run.sh 1 --impl=student.
+::: {.card}
+<h3>A wrapper would break it</h3>
+A new function that calls <code>BLAS.gemm!</code> hides the call: on a GPU task it runs CPU BLAS on device memory and fails.
 :::
-
-## {.exercise-slide}
-
-<div class="exercise-title"><h2>Checkpoint 2 / GPU</h2><span class="time">8 minutes</span></div>
-
-::: {.checkpoint}
-42:00–50:00 · Same function, different target
-:::
-
-```julia
-TutorialSession.benchmark(impl="student", target="gpu")
-TutorialSession.plot()
-```
-
-::: {.lead}
-Get **PASS** first. Then rerun with <code>sizes=[4096], bs=512</code>.
-:::
-
-::: {.terminal-note}
-The first GPU call compiles. Compare timed trials after warm-up.
 :::
 
 ::: {.notes}
-Spend eight minutes. No changes to my_cholesky! should be required. If a helper
-fails on GPU, spawn BLAS/LAPACK directly. Stretch: target="gpu", gpus="all",
-sizes=[4096], bs=512. Do not treat tiny matrices as a peak-performance test.
-Shell fallback: bash frontier/run.sh 1 --impl=student --target=gpu.
-:::
-
-## {.exercise-slide}
-
-<div class="exercise-title"><h2>Checkpoint 3 / MPI</h2><span class="time">6 minutes</span></div>
-
-::: {.checkpoint}
-50:00–56:00 · Test the mutation annotations across ranks
-:::
-
-```bash
-# First: exit() from the Julia REPL to release its step.
-bash frontier/mpi-repl.sh 2
-```
-
-At the **mpi>** prompt:
-
-```text
---impl=student --strict --sizes=1024 --bs=256
-```
-
-::: {.takeaway}
-<code>--strict</code> stress-tests dependencies across ranks: missing writes are easier to catch.
-:::
-
-::: {.notes}
-Six minutes. Two ranks on one node are sufficient for attendees. MPI warm-up
-defaults to GPU and may take tens of seconds; start it promptly. Add
---target=gpu to test GPU ranks. The strict option is a useful stress check,
-not proof of correctness for arbitrary inputs. A deliberately wrong all-In
-implementation failed it in our Odo validation. Type quit to release the step.
-:::
-
-## Make performance visible
-
-![](assets/throughput.svg){.diagram .full-diagram fig-alt="Measured Odo throughput at tile size 1024 for matrices of size 2048, 4096, and 8192. One GPU gives approximately 301, 939, and 1128 GFLOP/s; eight GPUs give 199, 666, and 1072 GFLOP/s. More devices do not improve these samples."}
-
-::: {.source-note}
-Odo rehearsal · October 14, 2026 · reference solution · 56 Julia threads · tile 1024 · best of 2 passing trials · compilation excluded. Source: data/odo-fixed.csv.
-:::
-
-::: {.notes}
-56:00–57:00. These are saved, corrected-environment measurements, not a live
-claim. Same tile size within this chart. Only three tested sizes are connected;
-the lines guide the eye. Ask attendees to compare with their own terminal plot.
-Larger matrices amortize some overhead; we have not isolated its causes.
-:::
-
-## More GPUs is a hypothesis to test
-
-![](assets/comparison.svg){.diagram fig-alt="At matrix size 16384 and tile size 2048, one GPU takes 0.214 seconds and eight GPUs take 0.355 seconds, best of two passing trials. Eight GPUs are slower in this sample."}
-
-::: {.takeaway}
-Discuss tile count, data movement, scheduling overhead, and the critical path.
-:::
-
-::: {.source-note}
-Odo rehearsal · October 14, 2026 · reference solution · 56 Julia threads · both residual checks PASS · best of 2 trials. Rehearsal samples; no peak-performance claim.
-:::
-
-::: {.notes}
-57:00–58:00. No eight-GPU speedup here. Avoid claiming that one specific factor
-caused the result: the measurements do not isolate causes. At N=16384,
-bs=2048 there are 8×8 tiles. Tile size changes both task count and kernel size.
-Compare the builtin and vendor baselines as stretch work, not as extra homework.
+Why the template looks the way it does. Dagger chooses the GPU implementation
+by the identity of the spawned function, so the spawned function must be the
+BLAS/LAPACK function itself. A const alias keeps that identity and adds a
+readable name; a wrapper function would not be recognised. This is also the
+rule for the exercise: spawn the tile operation directly, not a helper around it.
 :::
 
 ## Look at overlap, then ask why
@@ -856,6 +690,112 @@ Do not let the success criterion become beating a vendor library on one device.
 The win today is a correct portable task program and a defensible measurement.
 :::
 
+## What is Gray-Scott?
+
+::: {.lead}
+Two chemicals react and spread, and patterns grow by themselves.
+:::
+
+::: {.gs-key}
+<span><b>React</b> <code>U + 2V → 3V</code>: the activator V feeds on the substrate U</span><span><b>Feed and kill</b> U flows in at rate F; V is removed at rate F + k</span><span><b>Diffuse</b> both spread to neighbours, U twice as fast as V</span>
+:::
+
+![](assets/gray-scott.svg){.diagram .gs-frames fig-alt="The activator v of the final exercise at t = 200, 1000 and 6000: fourteen seeded squares become spots, the spots split, and they fill the grid with a labyrinth of stripes."}
+
+::: {.notes}
+Gray and Scott's model of an autocatalytic reaction fed with fresh substrate
+(1983-84); Pearson (1993) mapped the patterns it makes as F and k change.
+Locally, V grows where there is U and dies away elsewhere; diffusion moves U
+toward the spots faster than V spreads, which is what lets patterns form instead
+of everything mixing to grey. These three frames are the final exercise itself,
+with the console's parameters and seed, so attendees know what their run should
+show. The next slide is the algorithm.
+:::
+
+## Final exercise: Gray-Scott, line by line
+
+:::: {.columns}
+::: {.column width="60%" .compact-code}
+```julia
+L      = periodic 1D Laplacian                  # once
+Fu, Fv = cholesky(I - dt/2·Du·L), … Dv …        # once
+for step in 1:nsteps
+    # first half: y explicit, x implicit
+    ru = u + dt/2·(Du·(u·L) - u·v² + F·(1 - u))
+    rv = v + dt/2·(Dv·(v·L) + u·v² - (F + k)·v)
+    for j in 1:n                 # every column
+        u[:, j] = Fu \ ru[:, j];  v[:, j] = Fv \ rv[:, j]
+    end
+    # second half: x explicit, y implicit
+    ru, rv = … the same, with L·u and L·v …
+    for i in 1:n                 # every row
+        u[i, :] = Fu \ ru[i, :];  v[i, :] = Fv \ rv[i, :]
+    end
+end
+```
+:::
+::: {.column width="36%"}
+::: {.small}
+<code>du/dt = Du ∇²u − uv² + F(1 − u)</code><br><code>dv/dt = Dv ∇²v + uv² − (F + k)v</code>
+:::
+
+::: {.small}
+ADI splitting: each half step treats one direction implicitly and the other explicitly. <code>A = I − (dt/2) D L</code> is SPD and constant, so it is factored once.
+:::
+
+::: {.small}
+The solves of a half step are independent of each other: that is the loop to spawn as Dagger tasks.
+:::
+:::
+::::
+
+::: {.takeaway}
+Cholesky factors the implicit operators once; Dagger runs the independent line solves in parallel.
+:::
+
+::: {.notes}
+The final exercise in matrix notation. Two fields, u and v, on a periodic
+grid. The 2D implicit operator would be an n² × n² system; ADI replaces it with
+n small n × n systems per direction, all with the same matrix. That matrix is
+SPD and constant, so one Cholesky factorization per field serves every solve of
+every step. Within a half step the column (or row) solves do not depend on each
+other, which is where the parallelism is.
+:::
+
+## One time step on the grid
+
+![](assets/gray-scott-adi.svg){.diagram .full-diagram fig-alt="One ADI time step on the n by n grid of u. First half step: the explicit part u times L couples neighbours along y, then every column is solved with the Cholesky factor, n independent solves. Second half step: the explicit part L times u couples neighbours along x, then every row is solved, again n independent solves."}
+
+::: {.takeaway}
+Each half step is n independent solves with the same factor: one Dagger task per column, then per row.
+:::
+
+::: {.notes}
+Left: the first half step. u·L is the second difference along y, the explicit
+part; then each column is a 1D implicit system along x, solved with Fu (and Fv
+for v). Right: the second half step swaps the roles, L·u along x explicitly and
+row solves along y. The columns of a half step can run at once, on threads,
+GPUs or MPI ranks; the next half step needs all of them, because a row crosses
+every column.
+:::
+
+## The final template's pieces, and why
+
+| Piece | In the template | Why |
+|-----------|-----------------------|------------------------------|
+| <code>L</code> | periodic 1D Laplacian: <code>-2</code> on the diagonal, <code>1</code> beside it, wrapping at the corners | <code>u * L</code> is the second difference along y, <code>L * u</code> along x. |
+| <code>Fu</code>, <code>Fv</code> | <code>cholesky(Symmetric(I - (dt/2) * D * L))</code> | SPD and constant: factor once, reuse in every solve of every step. |
+| First half step | <code>ru = u + dt/2 * (Du * (u * L) + …)</code>, then <code>u[:, j] = Fu &#92; ru[:, j]</code> | y explicit, x implicit; the column solves are independent tasks. |
+| Second half step | <code>L * u</code> explicit, then <code>u[i, :] = Fu &#92; ru[i, :]</code> | x explicit, y implicit; the row solves are independent tasks. |
+| Setup and Use | parameters, fields, <code>simulate!</code> inside <code>Dagger.with_options(scope = …)</code> | Target and Processes choose where the tasks run; the function stays the same. |
+
+::: {.notes}
+Walk the template from the top. Attendees fill in L, the two factors and the
+two half steps; Setup and Use already sets the parameters and the seeded
+fields, calls simulate! where the scope says, and checks that both fields stay
+finite. The Visualization panel then draws u and v and replays the run.
+:::
+
 ## Describe access.<br>Expose parallelism.<br><span class="accent">Measure the result.</span> {.closing}
 
 ::: {.subtitle}
@@ -867,188 +807,6 @@ Continue in <code>exercise/README.md</code> · Reference in <code>solution/my_ch
 :::
 
 ::: {.notes}
-End of the main deck. Everything after this slide is optional reference material.
+End of the deck.
 Esc opens the slide overview. S opens speaker notes when served over HTTP.
-:::
-
-## Appendix / Launch reference
-
-::: {.small}
-Run inside the appropriate compute allocation, from <code>02-Parallel-Programming/Dagger/</code>.
-:::
-
-```bash
-# CPU → GPU → strict MPI
-bash frontier/run.sh 1 --impl=student
-bash frontier/run.sh 1 --impl=student --target=gpu
-bash frontier/run.sh 2 --impl=student --mpi --strict
-
-# Presenter or attendee: four GPU ranks on one node
-SC26_NODES=1 bash frontier/run.sh 4 \
-  --impl=solution --mpi --strict --target=gpu
-```
-
-::: {.notes}
-Exit warm steps that occupy needed resources before launching another step.
-Obtain one node in advance with bash frontier/allocate.sh.
-The last command requests four ranks with one GPU each on that node.
-:::
-
-## Appendix / A local web console
-
-::: {.small}
-On your laptop, from <code>02-Parallel-Programming/Dagger</code>:
-:::
-
-```bash
-python3 host/app.py
-```
-
-::: {.takeaway}
-Open <code>http://127.0.0.1:8767</code> → Connect & allocate → choose a demo.
-:::
-
-::: {.small}
-Tree-sitter Julia highlighting · Julia input · task timelines · run history<br>
-The browser runs locally; Julia runs on your own Odo node. Release the node when finished.
-:::
-
-::: {.notes}
-Optional alternative to the terminal commands, with setup in host/README.md.
-The host app needs Python and OpenSSH, not a local Julia installation.
-It listens on 0.0.0.0:8767, including the host's Tailscale interface; use the
-printed Tailscale URL when opening the console from another laptop.
-It uploads course code into a separate portal workspace and prepares packages
-on the login node before requesting one node. A holding job retains that node;
-persistent srun workers receive commands over the same SSH connection.
-Switching between one process and two MPI ranks restarts Julia and clears REPL
-variables. Plot history stays on the host. All demos also print source and a
-terminal Gantt when launched using the existing shell scripts.
-Charts show logged host tasks, including compilation, not kernel profiling.
-Closing the tab does not release the allocation: click Release node or stop
-the local app. Password/MFA authentication may need an initial local SSH prompt.
-:::
-
-## Appendix / MPI demos on Odo
-
-::: {.small}
-Inside the existing single-node allocation, after exiting any warm REPL step:
-:::
-
-```bash
-bash frontier/multinode.sh cpu
-bash frontier/multinode.sh gpu
-```
-
-::: {.takeaway}
-Two MPI ranks share one node. The GPU demo uses two distinct GPUs per rank.
-:::
-
-::: {.small}
-Odo tutorial resource limits keep the allocation small; the same Julia code runs across nodes.<br>
-25 attendee nodes + 1 presenter node = 26 nodes to reserve.
-:::
-
-::: {.notes}
-The wrapper fixes the workshop step layout to one node and two ranks. CPU mode
-requests no GPUs; GPU mode requests two per rank, four distinct devices total.
-There is no second allocation and no physical-host requirement in the Julia
-entry scripts. On a larger allocation, launch the same files with MPI ranks
-placed across nodes. The algorithm and data-access annotations stay unchanged.
-The diagrammed multi-node deployment is a programming-model explanation;
-same-node measurements do not establish inter-node network performance.
-:::
-
-## Appendix / The four access patterns
-
-::: {.compact-code}
-```julia
-# Inside Dagger.spawn_datadeps() do ... end
-Dagger.@spawn LAPACK.potrf!('L', InOut(T[k, k]))
-
-Dagger.@spawn BLAS.trsm!('R', 'L', 'T', 'N', 1.0,
-    In(T[k, k]), InOut(T[m, k]))
-
-Dagger.@spawn BLAS.syrk!('L', 'N', -1.0,
-    In(T[n, k]), 1.0, InOut(T[n, n]))
-
-Dagger.@spawn BLAS.gemm!('N', 'T', -1.0,
-    In(T[m, k]), In(T[n, k]), 1.0, InOut(T[m, n]))
-```
-:::
-
-::: {.takeaway}
-Read the panel tiles. Update the destination tile in place.
-:::
-
-::: {.notes}
-Reveal only after the exercise or when needed to unblock the room. The full
-loop nest and return value remain in solution/my_cholesky.jl. These calls
-must stay in their original sequential loop order within the Datadeps region.
-:::
-
-## Appendix / Independent access for 25
-
-::: {.cards}
-::: {.card}
-::: {.number}
-25
-:::
-<h3>Independent attendees</h3>
-Own account, code, and results.<br>One compute node each.
-:::
-::: {.card}
-::: {.number}
-1
-:::
-<h3>Presenter node</h3>
-Multiple MPI ranks and GPUs.<br>Same layout as every attendee.
-:::
-::: {.card}
-::: {.number}
-26
-:::
-<h3>Nodes to reserve</h3>
-25 attendee nodes + 1 presenter node.<br>Three spare against the recorded 29 healthy.
-:::
-:::
-
-::: {.source-note}
-All scheduled examples use one node per person. Independent concurrent access fits the recorded whole-node policy without node sharing. Reserve capacity and revalidate before the event. Details in PLAN.md.
-:::
-
-::: {.notes}
-Organizer reference, not teaching content. The October 14 inspection found
-30 batch nodes with one drained and whole-node exclusive jobs. Twenty-five
-attendees plus one presenter require 26 healthy nodes, leaving three spare
-if the remaining recorded capacity is available. Each attendee uses one node
-for CPU, multi-GPU, two MPI ranks, and the optional four-rank GPU run.
-The presenter keeps their own one-node allocation throughout. All ranks in
-these examples communicate within their own node; do not claim network scaling.
-Node-sharing approval is unnecessary for this layout, but reserve 26 healthy
-nodes. If fewer nodes are available, PLAN.md describes two independent access
-windows of 13 and 12 attendees plus one presenter (14 nodes at peak), with
-preflighted local CPU work outside each window. No class-scale rehearsal has
-yet validated the fallback timing. An idle allocation still owns its node.
-:::
-
-## Appendix / Validated environment
-
-| Component | Rehearsal baseline · October 14, 2026 |
-|---|---|
-| Dagger | 0.22.7 · master commit `034f72a` |
-| AMDGPU | Compatible upstream fix `482cd05` |
-| Julia / ROCm | 1.13.1 / 6.4.2 |
-| MPI | Cray MPICH 8.1.31 · host-staged GPU transfers |
-| Historical checks | CPU, GPU, eight GPUs, MPI, earlier two-node runs, strict residuals |
-
-::: {.takeaway}
-Download on the login node. Precompile and run on compute nodes. Revalidate after updates.
-:::
-
-::: {.notes}
-The environment tracks Dagger master on fresh resolution; these hashes name
-the tested baseline, not today's master. AMDGPU is pinned for compatible handle
-cleanup/context ownership fixes. The full suite passed sixteen compute checks,
-plus baselines and negative checks. See PLAN.md and the saved evidence logs.
 :::

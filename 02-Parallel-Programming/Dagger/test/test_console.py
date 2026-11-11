@@ -426,11 +426,76 @@ class ConsoleTests(unittest.TestCase):
             text = config.read_text()
             self.assertIn(original.strip(), text)
             # First value wins for User/HostName, so the block must come first.
-            self.assertLess(text.index(app.MANAGED_BEGIN), text.index("Host odo"))
+            self.assertLess(text.index(app.managed_markers(alias)[0]), text.index("Host odo"))
+            # No shared socket: every console opens and passes its own.
+            self.assertNotIn("ControlPath", text.split("# hand-written entry")[0])
             resolved = app.ssh_config_values(alias, config)
             self.assertEqual((resolved["user"], resolved["hostname"]), ("alice", app.ODO_HOSTNAME))
-            self.assertEqual(app.write_managed_host(config, alias, "alice", args.control_path),
-                             "unchanged")
+            self.assertEqual(app.write_managed_host(config, alias, "alice"), "unchanged")
+
+    def test_consoles_for_several_users_keep_their_own_entries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / "config"
+            # The single block of an older console is replaced, the dry-run
+            # console's block and hand-written entries stay.
+            legacy = (f"{app.MANAGED_BEGIN}\nHost sc26-odo-old\n    HostName {app.ODO_HOSTNAME}\n"
+                      f"    User old\n    ControlPath /tmp/sc26-portal\n{app.MANAGED_END}\n")
+            dry_run = ("# >>> sc26-dagger dry-run console: managed host block >>>\n"
+                       "Host sc26-andromeda-x\n    HostName andromeda.example\n"
+                       "# <<< sc26-dagger dry-run console: managed host block <<<\n")
+            config.write_text(legacy + "\n" + dry_run + "\nHost work\n    HostName example.org\n")
+            for user in ("alice", "bob"):
+                args = argparse.Namespace(ssh_host=None, odo_user=user, ssh_config=config)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(app.bootstrap_ssh(args), (user, f"sc26-odo-{user}"))
+            text = config.read_text()
+            self.assertNotIn("sc26-odo-old", text)
+            self.assertNotIn("ControlPath", text)
+            self.assertIn("Host sc26-andromeda-x", text)
+            self.assertIn("Host work", text)
+            for user in ("alice", "bob"):
+                resolved = app.ssh_config_values(f"sc26-odo-{user}", config)
+                self.assertEqual((resolved["user"], resolved["hostname"]), (user, app.ODO_HOSTNAME))
+            # Starting alice's console again leaves bob's entry alone.
+            self.assertEqual(app.write_managed_host(config, "sc26-odo-alice", "alice"), "unchanged")
+
+    def test_every_console_opens_its_own_connection_and_port(self):
+        sockets = {app.console_socket("alice") for _ in range(50)}
+        self.assertEqual(len(sockets), 50)
+        for socket in sockets:
+            self.assertEqual(socket.parent, Path.home() / ".ssh" / "control")
+            self.assertTrue(socket.name.startswith("sc26-alice-"))
+            self.assertLess(len(str(socket)) + 17, 104)   # ssh's temporary suffix included
+        first = app.bind_server("127.0.0.1", None, app.handler_for(console()))
+        try:
+            second = app.bind_server("127.0.0.1", None, app.handler_for(console()))
+            try:
+                self.assertNotEqual(first.server_port, second.server_port)
+                self.assertTrue(8767 <= second.server_port < 8800)
+                with self.assertRaises(OSError):
+                    app.bind_server("127.0.0.1", second.server_port, app.handler_for(console()))
+            finally:
+                second.server_close()
+        finally:
+            first.server_close()
+
+    def test_each_user_keeps_their_own_simulation_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            saved = (app.FINAL_ROOT, app.FINAL_WORKSPACE, app.FINAL_FILE, app.FINAL_README)
+            try:
+                app.FINAL_ROOT = root
+                (root / "final_exercise.jl").write_text("# shared by older consoles\nfunction simulate!() end\n")
+                app.use_final_workspace("alice")
+                self.assertEqual(app.FINAL_FILE, root / "alice" / "final_exercise.jl")
+                self.assertIn("shared by older consoles", app.FINAL_FILE.read_text())
+                app.write_final_file("alice's simulate!\n")
+                app.use_final_workspace("bob")
+                self.assertIn("shared by older consoles", app.FINAL_FILE.read_text())
+                app.use_final_workspace("alice")
+                self.assertEqual(app.final_file_state()["code"], "alice's simulate!\n")
+            finally:
+                app.FINAL_ROOT, app.FINAL_WORKSPACE, app.FINAL_FILE, app.FINAL_README = saved
 
     def test_foreign_alias_collision_is_refused(self):
         with tempfile.TemporaryDirectory() as directory:

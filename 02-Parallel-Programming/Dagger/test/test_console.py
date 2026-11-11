@@ -143,6 +143,12 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn("exercise_template", page)
         self.assertIn("exercise_setups", page)
         self.assertIn("EXERCISE_SETUP_KEY", page)
+        # Every editor is highlighted: Function, Setup and Use, Simulation, REPL.
+        for editor in ("enhanceEditor(panel.code)", "enhanceEditor(panel.setup)",
+                       "enhanceEditor(pane.code)"):
+            self.assertIn(editor, page)
+        self.assertIn('<script src="/highlight.js"></script>',
+                      (BASE / "host/index.html").read_text())
         # The final exercise has the same Setup and Use and run controls.
         final = page[page.index("function finalExerciseMarkup"):]
         final = final[:final.index("\n}")]
@@ -505,6 +511,9 @@ class ConsoleTests(unittest.TestCase):
             with urllib.request.urlopen(base+"/visuals.js") as response:
                 self.assertEqual(response.status, 200)
                 self.assertIn(b"renderVisualization", response.read())
+            with urllib.request.urlopen(base+"/highlight.js") as response:
+                self.assertEqual(response.status, 200)
+                self.assertIn(b"function enhanceEditor", response.read())
         finally:
             server.shutdown()
             server.server_close()

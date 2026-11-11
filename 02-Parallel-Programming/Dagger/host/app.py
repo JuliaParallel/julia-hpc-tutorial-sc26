@@ -55,11 +55,31 @@ SECTIONS = [
 # chooses the hardware and calls the function. `target` and `mode` are the
 # section's starting choices; the attendee can change both.
 TARGETS = {"cpu": "CPU", "gpu": "GPU", "gpus": "All GPUs", "mixed": "Mixed"}
-MODES = {"single": "One process", "mpi": "Two MPI ranks"}
-# Every run is its own Slurm job. A run that uses GPUs sees four of the node's
-# eight in one process (the Multiple GPUs demo picks two or four), or two per
-# MPI rank; a CPU run asks for none.
-GPUS_PER_TASK = {"single": 4, "mpi": 2}
+MODES = {"single": "One process", "mpi": "MPI ranks"}
+# Every run is its own Slurm job. A single-process run that uses GPUs sees four
+# of the node's eight (the Multiple GPUs demo asks for 2, 4 or 8). An MPI run
+# puts each rank on its own Odo node, with all eight of its GPUs when the run
+# uses GPUs. A CPU run asks for none.
+GPUS_PER_TASK = {"single": 4, "mpi": 8}
+MAX_RANKS = 32
+DEFAULT_RANKS = 2
+
+
+def mpi_ranks(value):
+    """The rank count of an MPI run: 1 to 32, one rank per Odo node."""
+    try:
+        ranks = int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"Choose 1 to {MAX_RANKS} MPI ranks")
+    if not 1 <= ranks <= MAX_RANKS:
+        raise ValueError(f"Choose 1 to {MAX_RANKS} MPI ranks")
+    return ranks
+
+
+def layout_label(mode, ranks):
+    if mode != "mpi":
+        return MODES["single"]
+    return f"{ranks} MPI rank" + ("s" if ranks != 1 else "")
 GPU_DEMOS = {"03_gpu", "05_multigpu", "07_multinode_multigpu"}
 
 
@@ -138,8 +158,9 @@ EXERCISES = {
         prompt=textwrap.dedent("""\
             Exercise: same code, on MPI ranks (CPU)
 
-            No changes to the Function. Processes is now Two MPI ranks:
-            every rank runs the same Function and Setup and Use, and Dagger
+            No changes to the Function. Processes is now MPI ranks, each on
+            its own Odo node; choose how many with Ranks (1 to 32). Every
+            rank runs the same Function and Setup and Use, and Dagger
             spreads the tiles and their tasks across the ranks. The test
             matrix is seeded, so every rank builds the same one, and only
             rank 0 prints.
@@ -154,10 +175,12 @@ EXERCISES = {
         prompt=textwrap.dedent("""\
             Exercise: MPI ranks and GPUs together
 
-            No changes to the Function. Two MPI ranks, each placing tasks on
-            its GPU: the same my_cholesky! from exercise/my_cholesky.jl, the
-            same Setup and Use, with Target GPU and Processes Two MPI ranks.
-            Compare the timeline with the CPU run in the previous section.
+            No changes to the Function. MPI ranks, each on its own Odo node
+            with all of the node's GPUs: the same my_cholesky! from
+            exercise/my_cholesky.jl, the same Setup and Use, with Target GPU
+            (one GPU per rank) or All GPUs (every GPU of every rank) and
+            Processes MPI ranks. Compare the timeline with the CPU run in the
+            previous section, and try more ranks.
 
             Full handout: exercise/README.md""")),
 }
@@ -1167,11 +1190,15 @@ class Console:
                 command["mode"] = demo[2]
                 # The only demo option exposed by the console is GPU count.
                 gpus = str(command.pop("gpus", "2"))
-                if gpus not in ("2", "4"):
-                    raise ValueError("Choose two or four GPUs")
+                if gpus not in ("2", "4", "8"):
+                    raise ValueError("Choose 2, 4 or 8 GPUs")
                 command["args"] = [f"--gpus={gpus}"] if demo[0] == "05_multigpu" else []
-                command["gpus"] = demo_gpus(demo[0], demo[2])
-                command.setdefault("label", demo[1])
+                # The Multiple GPUs demo's job asks for exactly the GPUs chosen;
+                # an Odo node has eight (four MI250X, two GCDs each).
+                command["gpus"] = int(gpus) if demo[0] == "05_multigpu" else demo_gpus(demo[0], demo[2])
+                command["ranks"] = mpi_ranks(command.get("ranks", DEFAULT_RANKS)) if demo[2] == "mpi" else 1
+                command["label"] = (f"{demo[1]} · {layout_label('mpi', command['ranks'])}"
+                                    if demo[2] == "mpi" else demo[1])
             elif command.get("op") == "exercise":
                 demo = next((d for d in DEMOS if d[0] == command.get("demo")), None)
                 if demo is None:
@@ -1191,10 +1218,13 @@ class Console:
                 command["mode"] = layout
                 command["target"] = target
                 command["gpus"] = run_gpus(target, layout)
-                command["label"] = f"Exercise · {TARGETS[target]} · {MODES[layout]}"
+                command["ranks"] = mpi_ranks(command.get("ranks", DEFAULT_RANKS)) if layout == "mpi" else 1
+                command["label"] = f"Exercise · {TARGETS[target]} · {layout_label(layout, command['ranks'])}"
             elif command.get("op") == "eval":
                 if command.get("mode") not in ("single", "mpi"):
                     raise ValueError("Unknown REPL layout")
+                command["ranks"] = (mpi_ranks(command.get("ranks", DEFAULT_RANKS))
+                                    if command["mode"] == "mpi" else 1)
                 if not isinstance(command.get("code"), str) or not command["code"].strip():
                     raise ValueError("Enter Julia code")
                 if command.get("demo") is not None and command["demo"] not in {d[0] for d in DEMOS} \
@@ -1209,7 +1239,8 @@ class Console:
                         raise ValueError("Unknown exercise target")
                     command["target"] = target
                     command["gpus"] = run_gpus(target, command["mode"])
-                    command["label"] = f"Final Exercise · {TARGETS[target]} · {MODES[command['mode']]}"
+                    command["label"] = (f"Final Exercise · {TARGETS[target]} · "
+                                        f"{layout_label(command['mode'], command['ranks'])}")
                     visuals = command.get("visuals", [])
                     if not isinstance(visuals, list) or any(v not in FINAL_VISUAL_IDS for v in visuals):
                         raise ValueError("Unknown visualization")
@@ -1225,7 +1256,8 @@ class Console:
             self.run_id = command["id"]
             self.emit("run", run=command["id"], demo=command.get("demo"),
                       label=command.get("label") or command.get("demo", "REPL"),
-                      mode=command["mode"], gpus=command["gpus"], args=command.get("args", []),
+                      mode=command["mode"], ranks=command["ranks"], gpus=command["gpus"],
+                      args=command.get("args", []),
                       exercise=command.get("op") == "exercise")
 
     def disconnect(self):
@@ -1288,7 +1320,8 @@ def handler_for(console):
                 self.reply(dict(token=console.token, demos=DEMOS, sections=section_layout(),
                                 exercises=exercises(), exercise_template=exercise_template(),
                                 exercise_setups=setup_templates(exercise_setup),
-                                targets=TARGETS, modes=MODES,
+                                targets=TARGETS, modes=MODES, max_ranks=MAX_RANKS,
+                                default_ranks=DEFAULT_RANKS,
                                 final_exercise=dict(FINAL_EXERCISE, visuals=FINAL_VISUALS,
                                                     target="cpu", mode="single",
                                                     setups=setup_templates(final_setup)),

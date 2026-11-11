@@ -1,7 +1,8 @@
 # Demo 6: the GPU demo's code on MPI ranks (CPU), on one or several nodes.
 # Only the scope changes: Dagger spreads the tiles' tasks over the ranks.
 #
-# Odo tutorial: two ranks on the existing node.
+# The console runs 1 to 32 ranks, one per Odo node (its Ranks menu). In an
+# existing allocation, two ranks on its node:
 #   bash frontier/multinode.sh cpu
 
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
@@ -46,9 +47,7 @@ function run_ranks()
 end
 # source-end
 
-# ---- Not shown to attendees: input check and process check. ----
-
-ranks >= 2 || error("This demo needs at least two MPI ranks")
+# ---- Not shown to attendees: process check. ----
 
 # The Julia process a task runs in.
 process_identity() = (gethostname(), getpid())

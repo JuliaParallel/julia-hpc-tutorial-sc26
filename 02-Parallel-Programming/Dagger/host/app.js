@@ -106,8 +106,21 @@ function expandAncestors(element) {
 function demoById(id) {
   return config.demos.find(demo => demo[0] === id);
 }
+// MPI runs put one rank on each Odo node; the user picks how many.
+function ranksSelect(role) {
+  const max = config.max_ranks ?? 32, chosen = config.default_ranks ?? 2;
+  const options = Array.from({length: max}, (_, i) => i + 1)
+    .map(n => `<option value="${n}"${n === chosen ? " selected" : ""}>${n}</option>`).join("");
+  return `<label class="exercise-control gpu-control" data-role="${role}-label" title="MPI ranks, each on its own Odo node">Ranks
+<select data-role="${role}" aria-label="MPI ranks, each on its own Odo node">${options}</select>
+</label>`;
+}
+// Show a Ranks menu only while its Processes or layout menu says MPI.
+function syncRanks(modeSelect, ranksLabel) {
+  if (ranksLabel) ranksLabel.hidden = modeSelect.value !== "mpi";
+}
 function layoutLabel(layout) {
-  const who = layout === "mpi" ? "TWO MPI RANKS / ONE ODO NODE" : "ONE JULIA PROCESS";
+  const who = layout === "mpi" ? "MPI RANKS / ONE ODO NODE EACH" : "ONE JULIA PROCESS";
   return `${who} · ONE SLURM JOB PER RUN`;
 }
 
@@ -194,7 +207,8 @@ function runControlsMarkup() {
 </label>
 <label class="exercise-control">Processes
 <select data-role="exercise-mode" aria-label="Exercise processes">${options(config.modes)}</select>
-</label>`;
+</label>
+${ranksSelect("exercise-ranks")}`;
 }
 
 function setupMarkup(pid) {
@@ -220,14 +234,18 @@ function wireSetup(panel, key, templates, defaults) {
   const saved = setupStore[key] ?? {};
   panel.target.value = saved.target in (config.targets ?? {}) ? saved.target : defaults.target;
   panel.mode.value = saved.mode in (config.modes ?? {}) ? saved.mode : defaults.mode;
+  if (saved.ranks) panel.ranks.value = String(saved.ranks);
+  syncRanks(panel.mode, panel.ranksLabel);
   const template = () => templates[`${panel.target.value}/${panel.mode.value}`] ?? "";
   panel.setup.value = typeof saved.code === "string" ? saved.code : template();
   const save = () => {
-    setupStore[key] = {target: panel.target.value, mode: panel.mode.value, code: panel.setup.value};
+    setupStore[key] = {target: panel.target.value, mode: panel.mode.value,
+                       ranks: panel.ranks.value, code: panel.setup.value};
     saveSetups();
   };
   const choose = () => {
     const edited = !Object.values(templates).includes(panel.setup.value);
+    syncRanks(panel.mode, panel.ranksLabel);
     const name = `${config.targets[panel.target.value]} · ${config.modes[panel.mode.value]}`;
     if (!edited || confirm(`Load the Setup and Use for ${name}? This replaces your edits. ` +
                            "Cancel keeps your code; the run still uses the chosen Processes.")) {
@@ -236,6 +254,7 @@ function wireSetup(panel, key, templates, defaults) {
     save();
   };
   panel.target.onchange = panel.mode.onchange = choose;
+  panel.ranks.onchange = save;
   panel.setup.oninput = save;
   panel.setupReset.onclick = () => { panel.setup.value = template(); save(); };
 }
@@ -335,15 +354,17 @@ function paneMarkup(demo, heading = demo[1]) {
 <label class="gpu-control">GPUs <select data-role="gpus" aria-label="GPUs">
 <option>2</option>
 <option>4</option>
+<option>8</option>
 </select>
 </label>` : "";
+  const ranks = layout === "mpi" ? ranksSelect("ranks") : "";
   const collapse = collapseButton;
   return `
 <section class="panel pane" id="${pid}" data-demo="${id}">
 <div class="panel-head">
 <h3 id="${pid}-title">${heading}</h3>
 <div class="panel-tools">
-<span class="tag">${layout === "mpi" ? "Two MPI ranks" : "One Julia process"}</span>${gpus}
+<span class="tag">${layout === "mpi" ? "MPI ranks · one node each" : "One Julia process"}</span>${gpus}${ranks}
 <button class="primary" data-role="run" disabled>Run demo <span>↗</span></button>
 ${collapse(pid + "-body", pid + "-title")}
 </div>
@@ -370,8 +391,9 @@ ${collapse(pid + "-source-body", pid + "-source-title")}
 <div class="panel-tools">
 <select data-role="mode" aria-label="REPL layout">
 <option value="single">One process</option>
-<option value="mpi">Two MPI ranks</option>
+<option value="mpi">MPI ranks</option>
 </select>
+${ranksSelect("repl-ranks")}
 ${collapse(pid + "-repl-body", pid + "-repl-title")}
 </div>
 </div>
@@ -447,7 +469,9 @@ function createPane(demo, heading) {
     id: demo[0], title: demo[1], layout: demo[2], el,
     source: role("source"), sourceLabel: role("source-label"),
     mode: role("mode"), code: role("code"), eval: role("eval"), run: role("run"),
-    gpus: role("gpus"), output: role("output"), clear: role("clear"),
+    gpus: role("gpus"), ranks: role("ranks"),
+    replRanks: role("repl-ranks"), replRanksLabel: role("repl-ranks-label"),
+    output: role("output"), clear: role("clear"),
     metrics: role("metrics"), history: role("history"), timeline: role("timeline"),
     summary: role("summary"), moves: role("moves"), zoom: role("zoom"),
     download: role("download"), traces: [], activeTrace: null, version: 0,
@@ -455,8 +479,12 @@ function createPane(demo, heading) {
   pane.mode.value = demo[2];
   pane.timeline.owner = pane;
   enhanceEditor(pane.code);
-  pane.run.onclick = () => post("/api/run", {op: "demo", demo: pane.id, gpus: pane.gpus?.value});
-  pane.eval.onclick = () => post("/api/run", {op: "eval", code: pane.code.value, mode: pane.mode.value, demo: pane.id});
+  syncRanks(pane.mode, pane.replRanksLabel);
+  pane.mode.onchange = () => syncRanks(pane.mode, pane.replRanksLabel);
+  pane.run.onclick = () => post("/api/run", {op: "demo", demo: pane.id, gpus: pane.gpus?.value,
+                                             ranks: pane.ranks?.value});
+  pane.eval.onclick = () => post("/api/run", {op: "eval", code: pane.code.value, mode: pane.mode.value,
+                                              ranks: pane.replRanks.value, demo: pane.id});
   pane.code.onkeydown = event => {
     if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
       event.preventDefault();
@@ -487,7 +515,8 @@ function createExercisePanel(demo) {
     demo: demo[0], el,
     code: role("exercise-code"), run: role("exercise-run"),
     reset: role("exercise-reset"), target: role("exercise-target"),
-    mode: role("exercise-mode"), prompt: role("exercise-prompt"),
+    mode: role("exercise-mode"), ranks: role("exercise-ranks"),
+    ranksLabel: role("exercise-ranks-label"), prompt: role("exercise-prompt"),
     setup: role("exercise-setup"), setupReset: role("exercise-setup-reset"),
     output: role("output"), clear: role("clear"),
     metrics: role("metrics"), history: role("history"), timeline: role("timeline"),
@@ -514,7 +543,7 @@ function createExercisePanel(demo) {
   };
   panel.run.onclick = () => post("/api/run", {
     op: "exercise", demo: panel.demo, target: panel.target.value,
-    mode: panel.mode.value, code: panel.code.value, setup: panel.setup.value,
+    mode: panel.mode.value, ranks: panel.ranks.value, code: panel.code.value, setup: panel.setup.value,
   });
   panel.clear.onclick = () => panel.output.replaceChildren();
   panel.moves.onchange = panel.zoom.oninput = () => draw(panel);
@@ -541,6 +570,7 @@ function createFinalExercisePanel() {
     demo: "final", el,
     code: role("final-code"), run: role("final-run"), reset: role("final-reset"),
     prompt: role("final-prompt"), target: role("exercise-target"), mode: role("exercise-mode"),
+    ranks: role("exercise-ranks"), ranksLabel: role("exercise-ranks-label"),
     setup: role("exercise-setup"), setupReset: role("exercise-setup-reset"),
     output: role("output"), clear: role("clear"),
     visual: role("visual"), visualControls: role("visual-controls"),
@@ -622,7 +652,7 @@ function createFinalExercisePanel() {
         : "No visualization selected.";
     }
     post("/api/run", {
-      op: "eval", mode: panel.mode.value, target: panel.target.value, demo: "final",
+      op: "eval", mode: panel.mode.value, ranks: panel.ranks.value, target: panel.target.value, demo: "final",
       code: panel.code.value, setup: panel.setup.value, visuals,
     });
   };

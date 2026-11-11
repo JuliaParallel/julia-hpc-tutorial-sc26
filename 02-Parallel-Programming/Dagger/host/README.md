@@ -174,9 +174,14 @@ runs on Odo. There is no holding job: every **Run demo**, **Run exercise**,
 session, with your account, the reservation if you pass `--reservation`, and
 the time limit `--time` (default 20 minutes). The job ends with the run.
 
-- Runs that use no GPU ask for one task with 7 CPUs and no GPU.
-- Runs that use GPUs see four GPUs in one process (the Multiple GPUs demo
-  selects two or four), or two GPUs per rank with two MPI ranks.
+- One-process runs ask for one task with 7 CPUs, plus four GPUs when they use
+  GPUs. The Multiple GPUs demo asks for exactly the GPUs chosen in its menu:
+  2, 4 or 8 (an Odo node has eight: four MI250X with two GCDs each).
+- MPI runs put **each rank on its own Odo node**, with the node's 56 CPUs as
+  Julia threads and, when the run uses GPUs, all eight of its GPUs. Choose 1
+  to 32 ranks with the **Ranks** menu: next to Run demo in the Multi-node
+  sections, next to Processes in the Exercise and Final Exercise panels when
+  Processes is MPI ranks, and next to the REPL's layout menu.
 - The status line follows the job: submitted, queued with its job ID while it
   waits for a node, running, done. Its output streams into the Session output
   of the panel that started it.

@@ -229,10 +229,12 @@ class ConsoleTests(unittest.TestCase):
         self.assertEqual(command["setup"], "y = 2")
         c.busy = False
         c.run(dict(op="eval", mode="mpi", demo="final", code="x = 1", setup="y = 2"))
-        self.assertEqual(c.send.call_args[0][0]["label"], "Final Exercise · CPU · Two MPI ranks")
+        self.assertEqual(c.send.call_args[0][0]["label"], "Final Exercise · CPU · 2 MPI ranks")
         c.busy = False
-        c.run(dict(op="eval", mode="mpi", target="gpu", demo="final", code="x = 1", setup="y = 2"))
-        self.assertEqual(c.send.call_args[0][0]["gpus"], 2)   # GPUs per rank
+        c.run(dict(op="eval", mode="mpi", ranks="16", target="gpu", demo="final", code="x = 1", setup="y = 2"))
+        command = c.send.call_args[0][0]
+        self.assertEqual((command["ranks"], command["gpus"]), (16, 8))   # every GPU of each rank's node
+        self.assertEqual(command["label"], "Final Exercise · GPU · 16 MPI ranks")
         c.busy = False
         with self.assertRaisesRegex(ValueError, "Setup and Use"):
             c.run(dict(op="eval", mode="single", demo="final", code="x = 1"))
@@ -327,7 +329,7 @@ class ConsoleTests(unittest.TestCase):
                    code="x = 1", setup="y = 2"))
         command = c.send.call_args[0][0]
         self.assertEqual(command["mode"], "mpi")
-        self.assertEqual(command["label"], "Exercise · GPU · Two MPI ranks")
+        self.assertEqual(command["label"], "Exercise · GPU · 2 MPI ranks")
         c.busy = False
         c.run(dict(op="exercise", demo="06_multinode", code="x = 1", setup="y = 2"))
         self.assertEqual(c.send.call_args[0][0]["mode"], "mpi")
@@ -639,7 +641,7 @@ class ConsoleTests(unittest.TestCase):
             proc = subprocess.Popen(["python3", "-c", script], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE, env=env)
             try:
-                proc.stdin.write(b'{"op":"demo","id":"r1","mode":"mpi","gpus":2}\n')
+                proc.stdin.write(b'{"op":"demo","id":"r1","mode":"mpi","ranks":3,"gpus":8}\n')
                 proc.stdin.flush()
                 for _ in range(400):   # up to 20 s on a busy machine
                     if (root/"stdin").exists() and (root/"stdin").read_text():
@@ -652,10 +654,10 @@ class ConsoleTests(unittest.TestCase):
                     proc.kill()
             self.assertEqual(proc.returncode, 0, err)
             args = (root/"args").read_text().split()
-            self.assertEqual(args[0], "2")
+            self.assertEqual(args[0], "3")
             self.assertIn("--mpi", args)
             self.assertIn("--gpu", args)
-            self.assertIn("GPUS=2", args)
+            self.assertIn("GPUS=8", args)
             self.assertIn("JOB=none", args)   # a job of its own, not a step of some allocation
             commands = [json.loads(line) for line in (root/"stdin").read_text().splitlines()]
             self.assertEqual([c["op"] for c in commands], ["demo", "quit"])
@@ -664,7 +666,8 @@ class ConsoleTests(unittest.TestCase):
             events = [json.loads(line[len(app.PREFIX):]) for line in out.decode().splitlines()
                       if line.startswith(app.PREFIX)]
             self.assertEqual(events[0]["kind"], "ready")
-            self.assertTrue(any(e["kind"] == "status" and "two MPI ranks" in e["message"] for e in events))
+            self.assertTrue(any(e["kind"] == "status" and "3 MPI ranks on 3 nodes" in e["message"]
+                                for e in events))
 
     def test_a_job_that_ends_without_done_reports_a_failed_run(self):
         spec = importlib.util.spec_from_file_location("agent", BASE / "host/remote_agent.py")
@@ -686,19 +689,56 @@ class ConsoleTests(unittest.TestCase):
         self.assertEqual(len(done), 1)
         self.assertFalse(done[0]["ok"])
         self.assertIn("status 3", done[0]["error"])
-        self.assertEqual(agent.describe(2, 2), "two MPI ranks · 7 CPUs each · 2 GPUs each")
-        self.assertEqual(agent.describe(1, 0), "one process · 7 CPUs · no GPU")
-        self.assertEqual(agent.resources(dict(mode="mpi", gpus=2)), (2, 2))
-        for bad in (dict(mode="mpi", gpus=5), dict(gpus=9), dict(gpus="2")):
+        self.assertEqual(agent.describe(True, 4, 8), "4 MPI ranks on 4 nodes · 56 CPUs and 8 GPUs each")
+        self.assertEqual(agent.describe(True, 1, 0), "1 MPI rank on 1 node · 56 CPUs and no GPU each")
+        self.assertEqual(agent.describe(False, 1, 0), "one process · 7 CPUs · no GPU")
+        self.assertEqual(agent.resources(dict(mode="mpi", ranks=32, gpus=8)), (True, 32, 8))
+        self.assertEqual(agent.resources(dict(gpus=4)), (False, 1, 4))
+        for bad in (dict(mode="mpi", ranks=33), dict(mode="mpi", ranks=0), dict(gpus=9), dict(gpus="2")):
             with self.assertRaises(ValueError):
                 agent.resources(bad)
 
+    def test_mpi_runs_choose_1_to_32_ranks_one_node_each(self):
+        self.assertEqual([app.mpi_ranks(n) for n in ("1", 2, "32")], [1, 2, 32])
+        for bad in ("0", 33, "many", None):
+            with self.assertRaisesRegex(ValueError, "1 to 32"):
+                app.mpi_ranks(bad)
+        c = console()
+        c.ready = True
+        c.send = Mock()
+        c.run(dict(op="demo", demo="07_multinode_multigpu", ranks="8"))
+        command = c.send.call_args[0][0]
+        self.assertEqual((command["mode"], command["ranks"], command["gpus"]), ("mpi", 8, 8))
+        self.assertEqual(command["label"], "Multi-node + multi-GPU · 8 MPI ranks")
+        c.busy = False
+        c.run(dict(op="demo", demo="06_multinode", ranks="1"))
+        self.assertEqual(c.send.call_args[0][0]["ranks"], 1)
+        c.busy = False
+        c.run(dict(op="exercise", demo="02_datadeps", target="cpu", code="x", setup="y"))
+        self.assertEqual(c.send.call_args[0][0]["ranks"], 1)   # one process: no ranks to choose
+        c.busy = False
+        with self.assertRaisesRegex(ValueError, "1 to 32"):
+            c.run(dict(op="eval", mode="mpi", ranks="64", code="1", demo="06_multinode"))
+        # The Multiple GPUs demo's job asks for the GPUs chosen, up to a whole node.
+        c.busy = False
+        c.run(dict(op="demo", demo="05_multigpu", gpus="8"))
+        command = c.send.call_args[0][0]
+        self.assertEqual((command["gpus"], command["args"]), (8, ["--gpus=8"]))
+        c.busy = False
+        with self.assertRaisesRegex(ValueError, "2, 4 or 8"):
+            c.run(dict(op="demo", demo="05_multigpu", gpus="3"))
+        page = (BASE / "host/app.js").read_text()
+        self.assertIn('ranksSelect("ranks")', page)
+        self.assertIn('ranksSelect("exercise-ranks")', page)
+        self.assertIn('ranksSelect("repl-ranks")', page)
+        self.assertIn("<option>8</option>", page)
+
     def test_runs_ask_for_the_gpus_they_use(self):
         self.assertEqual([app.run_gpus(t, "single") for t in app.TARGETS], [0, 4, 4, 4])
-        self.assertEqual([app.run_gpus(t, "mpi") for t in app.TARGETS], [0, 2, 2, 2])
+        self.assertEqual([app.run_gpus(t, "mpi") for t in app.TARGETS], [0, 8, 8, 8])
         self.assertEqual(app.demo_gpus("01_tasks", "single"), 0)
         self.assertEqual(app.demo_gpus("05_multigpu", "single"), 4)
-        self.assertEqual(app.demo_gpus("07_multinode_multigpu", "mpi"), 2)
+        self.assertEqual(app.demo_gpus("07_multinode_multigpu", "mpi"), 8)
         self.assertEqual(app.demo_gpus(None, "single"), 0)
         c = console()
         c.ready = True

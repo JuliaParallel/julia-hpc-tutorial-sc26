@@ -21,6 +21,8 @@ import threading
 ROOT = Path(__file__).resolve().parents[1]
 PREFIX = "@@SC26@@"
 MAX_GPUS = 8          # GPUs on one Odo node
+MAX_RANKS = 32        # MPI ranks, one per Odo node
+THREADS = {"single": 7, "mpi": 56}   # an MPI rank has its whole node
 HEARTBEAT = 30        # seconds between heartbeats to the console
 write_lock = threading.Lock()
 lock = threading.Lock()
@@ -60,19 +62,25 @@ def heartbeat():
 
 
 def resources(command):
-    """(ranks, GPUs per rank) for a command; app.py chooses them, this checks them."""
-    ranks = 2 if command.get("mode") == "mpi" else 1
+    """(MPI?, ranks, GPUs per rank) for a command; app.py chooses them, this
+    checks them. MPI runs put one rank on each node."""
+    mpi = command.get("mode") == "mpi"
+    ranks = command.get("ranks", 2) if mpi else 1
     gpus = command.get("gpus", 0)
-    if not isinstance(gpus, int) or not 0 <= gpus * ranks <= MAX_GPUS:
-        raise ValueError("Cannot give {} process(es) {!r} GPUs each".format(ranks, gpus))
-    return ranks, gpus
+    if not isinstance(ranks, int) or not 1 <= ranks <= MAX_RANKS:
+        raise ValueError("Choose 1 to {} MPI ranks, not {!r}".format(MAX_RANKS, ranks))
+    if not isinstance(gpus, int) or not 0 <= gpus <= MAX_GPUS:
+        raise ValueError("Cannot give a process {!r} GPUs".format(gpus))
+    return mpi, ranks, gpus
 
 
-def describe(ranks, gpus):
-    who = "one process" if ranks == 1 else "two MPI ranks"
-    each = "" if ranks == 1 else " each"
-    devices = "no GPU" if gpus == 0 else "{} GPU{}{}".format(gpus, "s" if gpus > 1 else "", each)
-    return "{} · 7 CPUs{} · {}".format(who, each, devices)
+def describe(mpi, ranks, gpus):
+    plural = lambda n, word: "{} {}{}".format(n, word, "" if n == 1 else "s")
+    devices = "no GPU" if gpus == 0 else plural(gpus, "GPU")
+    if not mpi:
+        return "one process · {} CPUs · {}".format(THREADS["single"], devices)
+    return "{} on {} · {} CPUs and {} each".format(plural(ranks, "MPI rank"), plural(ranks, "node"),
+                                                   THREADS["mpi"], devices)
 
 
 def stop(proc):
@@ -166,21 +174,24 @@ def execute(command):
             emit("done", run=run_id, ok=False, error="A run is in progress; wait or cancel it.")
             return
         try:
-            ranks, gpus = resources(command)
+            mpi, ranks, gpus = resources(command)
         except ValueError as exc:
             emit("done", run=run_id, ok=False, error=str(exc))
             return
         args = ["bash", str(ROOT / "frontier/launch.sh"), str(ranks),
                 "--startup-file=no", str(ROOT / "host/worker.jl")]
-        if ranks > 1:
+        if mpi:
             args.append("--mpi")
         if gpus:
             args.append("--gpu")
-        env = dict(os.environ, SC26_PORTAL="1", JULIA_PKG_OFFLINE="true", SC26_NODES="1",
-                   SC26_GPUS_PER_TASK=str(gpus))
+        # One rank per node: as many nodes as ranks, each rank with its node's
+        # CPUs (and, for a GPU run, all its GPUs).
+        env = dict(os.environ, SC26_PORTAL="1", JULIA_PKG_OFFLINE="true",
+                   SC26_NODES=str(ranks if mpi else 1), SC26_GPUS_PER_TASK=str(gpus),
+                   SC26_THREADS=str(THREADS["mpi" if mpi else "single"]))
         # A job of its own, not a step of some allocation.
         env.pop("SLURM_JOB_ID", None)
-        emit("status", message="Submitting to Slurm: {}…".format(describe(ranks, gpus)))
+        emit("status", message="Submitting to Slurm: {}…".format(describe(mpi, ranks, gpus)))
         proc = subprocess.Popen(args, cwd=str(ROOT), env=env, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                 universal_newlines=True, bufsize=1, start_new_session=True)

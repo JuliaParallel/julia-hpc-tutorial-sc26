@@ -413,11 +413,11 @@ one lane per GPU. Same algorithm, same tiles; one Julia process, no MPI yet.
 ![](assets/multinode.svg){.diagram fig-alt="MPI connects rank 0 on server A and rank 1 on server B over a network. Each rank runs CPU tasks as part of the same Dagger program."}
 
 ::: {.takeaway}
-Two MPI ranks share the tiles of one array. Check PASS and two processes.
+MPI ranks share the tiles of one array. Check PASS and the process count.
 :::
 
 ::: {.small}
-Odo tutorial resource limits: both ranks share one node. The same MPI code runs across nodes.
+In the console, choose 1 to 32 ranks; each rank runs on its own Odo node.
 :::
 
 ::: {.notes}
@@ -477,11 +477,11 @@ Only rank 0 prints; every rank runs the Dagger code.
 ![](assets/multinode-gpu.svg){.diagram height=285 fig-alt="Two servers each host one MPI rank and two GPU devices. MPI connects the ranks across the network; GPU scopes distribute tiles within each server. All four GPUs contribute to one distributed algorithm."}
 
 ::: {.takeaway}
-One array, two ranks, four distinct GPUs. Check PASS and the device count.
+One array, every GPU of every rank's node. Check PASS and the device count.
 :::
 
 ::: {.small}
-Odo tutorial resource limits: two ranks on one node, two GPUs per rank. Same code across nodes.
+In the console, each rank gets its own Odo node with all eight GPUs.
 :::
 
 ::: {.notes}
@@ -531,8 +531,8 @@ Since the CPU demo, only the scope changed.
 
 ::: {.notes}
 Run demos/07_multinode_multigpu.jl (console: Multi-node + multi-GPU). The
-same doubling and tiled matmul, now spread over two ranks with two GPUs each:
-four lanes in the timeline. This is the point of the whole sequence: the
+same doubling and tiled matmul, now spread over every GPU of every rank's node:
+eight lanes per rank in the timeline. This is the point of the whole sequence: the
 Datadeps code from the CPU demo ran unchanged on one GPU, several GPUs, MPI
 ranks, and ranks with GPUs.
 :::

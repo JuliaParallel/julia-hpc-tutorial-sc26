@@ -2,7 +2,7 @@
 # only the scope changes, so Dagger spreads the tiles' tasks over the GPUs.
 #
 #   bash frontier/launch.sh 1 demos/05_multigpu.jl
-#   bash frontier/launch.sh 1 demos/05_multigpu.jl --gpus=4
+#   bash frontier/launch.sh 1 demos/05_multigpu.jl --gpus=4   (or 8: a whole Odo node)
 
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
 

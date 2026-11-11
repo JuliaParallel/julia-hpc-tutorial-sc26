@@ -2,7 +2,8 @@
 # Only the scope changes: Dagger spreads the tiles' tasks over every GPU of
 # every rank.
 #
-# Odo tutorial: two ranks on the existing node, two GPUs each.
+# The console runs 1 to 32 ranks, one per Odo node with all its eight GPUs
+# (its Ranks menu). In an existing allocation, two ranks with two GPUs each:
 #   bash frontier/multinode.sh gpu
 
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
@@ -46,9 +47,8 @@ function run_ranks_and_gpus()
 end
 # source-end
 
-# ---- Not shown to attendees: input checks and device check. ----
+# ---- Not shown to attendees: GPU check and device check. ----
 
-ranks >= 2 || error("This demo needs at least two MPI ranks")
 AMDGPU.functional() || error("No functional AMD GPU")
 const ngpus = length(AMDGPU.devices())   # GPUs per rank
 

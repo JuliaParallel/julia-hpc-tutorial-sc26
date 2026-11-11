@@ -375,12 +375,45 @@ arbitrary CPU-only code is not automatically a GPU kernel. For the Cholesky
 exercise, spawn BLAS/LAPACK calls directly so Dagger can select replacements.
 :::
 
+## Multiple GPUs: widen the scope
+
+```julia
+using Dagger, AMDGPU
+
+gpus = Dagger.scope(rocm_gpus=1:2)   # rocm_gpus=: for every visible GPU
+Dagger.with_options(scope=gpus) do
+    # The same tiles and Datadeps code: their tasks spread over the GPUs.
+end
+```
+
+::: {.cards}
+::: {.card}
+<h3>Place</h3>
+The scope lists several GPUs.
+:::
+::: {.card}
+<h3>Spread</h3>
+Each tile's task runs on one of them.
+:::
+::: {.card}
+<h3>Move</h3>
+Dagger moves tiles between GPUs as tasks need them.
+:::
+:::
+
+::: {.notes}
+Run demos/05_multigpu.jl (console: Multiple GPUs; choose 2 or 4 GPUs). It is
+demos/03_gpu.jl with one changed line: the scope lists several GPUs, so the
+16 doubling tasks and the tiled matmul spread over them. The timeline shows
+one lane per GPU. Same algorithm, same tiles; one Julia process, no MPI yet.
+:::
+
 ## Multiple nodes: add MPI
 
 ![](assets/multinode.svg){.diagram fig-alt="MPI connects rank 0 on server A and rank 1 on server B over a network. Each rank runs CPU tasks as part of the same Dagger program."}
 
 ::: {.takeaway}
-Two MPI ranks contribute tiles to one <code>C = A * B</code>. Check PASS and two processes.
+Two MPI ranks share the tiles of one array. Check PASS and two processes.
 :::
 
 ::: {.small}
@@ -391,12 +424,12 @@ Odo tutorial resource limits: both ranks share one node. The same MPI code runs 
 23:00–24:00. Introduce MPI after the GPU demos (Single GPU and Multiple GPUs in the console). Explain SPMD:
 every rank builds the same graph, with deterministic input and uniform decisions.
 Keep rank-0-only branches for reporting; do not put the Dagger work inside one.
-The shared implementation enables Dagger.accelerate!(:mpi), builds the same
-matrix product on every rank, and explicitly places output tiles across ranks.
+The demo enables Dagger.accelerate!(:mpi), builds the same seeded array on
+every rank, and runs the GPU demo's code with the ranks' CPUs as the scope.
 The diagram shows a possible two-server deployment; Odo tutorial capacity
 places both ranks on one server for this live demo.
 The entry script demos/06_multinode.jl requires two MPI ranks, checks the
-assembled result, and reports where the tile tasks executed. MPI coordinates separate processes
+doubled tiles and the matmul, and that both processes take part. MPI coordinates separate processes
 on either one host or several; only launcher placement changes.
 The attendee launch remains bash frontier/launch.sh 2 demos/06_multinode.jl on one node.
 That exercises the programming model without claiming inter-server communication.
@@ -404,12 +437,47 @@ The same-node demo does not measure inter-node network performance.
 No additional attendee or presenter nodes are required.
 :::
 
+## MPI ranks: the same code
+
+```julia
+using Dagger, MPI
+Dagger.accelerate!(:mpi)   # every rank runs this same program
+
+cpus = Dagger.constrain(Dagger.scope(mpi_ranks=:), Dagger.DefaultScope())
+Dagger.with_options(scope=cpus) do
+    # The same tiles and Datadeps code: their tasks spread over the ranks.
+end
+```
+
+::: {.cards}
+::: {.card}
+<h3>Same program</h3>
+Every rank runs it and builds the same task graph.
+:::
+::: {.card}
+<h3>Same data</h3>
+Seeded input, so every rank starts from the same array.
+:::
+::: {.card}
+<h3>Move</h3>
+Dagger sends tiles between ranks over MPI.
+:::
+:::
+
+::: {.notes}
+Run demos/06_multinode.jl (console: Multi-node · CPU MPI). It is the GPU
+demo's code again with the CPUs of every MPI rank as the scope: the doubling
+tasks and the tiled matmul are spread over the two ranks, and the timeline
+shows a lane per rank. Constrain to DefaultScope keeps the tasks on CPUs.
+Only rank 0 prints; every rank runs the Dagger code.
+:::
+
 ## Multiple nodes × multiple GPUs
 
 ![](assets/multinode-gpu.svg){.diagram height=285 fig-alt="Two servers each host one MPI rank and two GPU devices. MPI connects the ranks across the network; GPU scopes distribute tiles within each server. All four GPUs contribute to one distributed algorithm."}
 
 ::: {.takeaway}
-One <code>C = A * B</code>, two ranks, four distinct GPUs. Check PASS and the device counts.
+One array, two ranks, four distinct GPUs. Check PASS and the device count.
 :::
 
 ::: {.small}
@@ -425,13 +493,48 @@ per rank are separate choices.
 The scope applies to devices visible to each rank; the selected hardware layout
 must expose those devices. Avoid device-mask configuration in this teaching flow.
 Our Odo MPI/GPU path uses host-staged transfers; do not imply GPU-direct networking.
-The entry script demos/07_multinode_multigpu.jl uses the same matrix-product
-implementation as the previous CPU and single-node GPU demos. It requires
-two MPI ranks and at least two GPUs per rank, and checks physical device
-identities as well as the numerical result. The shell wrapper launches both
+The entry script demos/07_multinode_multigpu.jl runs the same code as the
+GPU and MPI demos, with every GPU of every rank as the scope. It requires two
+MPI ranks with GPUs, and checks physical device identities as well as the
+numerical results. The shell wrapper launches both
 ranks on the existing node and exposes two different GPUs to each rank.
 The same Julia code also runs across nodes when the launcher places ranks there.
 Attendee MPI exercises and optional four-rank GPU checks keep one attendee node.
+:::
+
+## Ranks and GPUs: the same code
+
+```julia
+using Dagger, MPI, AMDGPU
+Dagger.accelerate!(:mpi)   # every rank runs this same program
+
+gpus = Dagger.scope(rocm_gpus=:)   # every GPU of every rank
+Dagger.with_options(scope=gpus) do
+    # The same tiles and Datadeps code: their tasks spread over all the GPUs.
+end
+```
+
+::: {.cards}
+::: {.card}
+<h3>Compose</h3>
+MPI ranks and GPU scopes combine.
+:::
+::: {.card}
+<h3>Per rank</h3>
+Each rank uses the GPUs it can see.
+:::
+::: {.card}
+<h3>Same code</h3>
+Since the CPU demo, only the scope changed.
+:::
+:::
+
+::: {.notes}
+Run demos/07_multinode_multigpu.jl (console: Multi-node + multi-GPU). The
+same doubling and tiled matmul, now spread over two ranks with two GPUs each:
+four lanes in the timeline. This is the point of the whole sequence: the
+Datadeps code from the CPU demo ran unchanged on one GPU, several GPUs, MPI
+ranks, and ranks with GPUs.
 :::
 
 ## Your algorithm: tiled Cholesky

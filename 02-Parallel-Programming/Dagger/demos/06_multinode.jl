@@ -1,5 +1,5 @@
-# Demo 6: one CPU matrix product across MPI ranks, on one or several nodes.
-# C = A * B is split into block rows; each row runs on a different rank.
+# Demo 6: the GPU demo's code on MPI ranks (CPU), on one or several nodes.
+# Only the scope changes: Dagger spreads the tiles' tasks over the ranks.
 #
 # Odo tutorial: two ranks on the existing node.
 #   bash frontier/multinode.sh cpu
@@ -15,56 +15,57 @@ const rank = MPI.Comm_rank(MPI.COMM_WORLD)
 const ranks = MPI.Comm_size(MPI.COMM_WORLD)
 BLAS.set_num_threads(1)   # one BLAS thread per process
 
-function run_product()
-    bs = 512
+# The same tile operation as the CPU and GPU demos.
+double!(X) = (X .*= 2; nothing)
 
-    # (1) One scope per rank, and one scope that spans all of them.
-    scopes = [Dagger.constrain(Dagger.scope(mpi_rank=r), Dagger.DefaultScope())
-              for r in 0:ranks-1]
-    all_ranks = Dagger.constrain(Dagger.scope(mpi_ranks=:), Dagger.DefaultScope())
+function run_ranks()
+    # (1) Choose the scope: the CPUs of every MPI rank.
+    cpus = Dagger.constrain(Dagger.scope(mpi_ranks=:), Dagger.DefaultScope())
 
-    # (2) A holds one tile per rank; B is a single tile.
-    A = rand(Xoshiro(1), bs * ranks, bs)
-    B = rand(Xoshiro(2), bs, bs)
-
-    C = Dagger.with_options(scope=all_ranks) do
-        DA = DArray(A, Blocks(bs, bs))
-        DB = DArray(B, Blocks(bs, bs))
-        DC = DArray(zeros(bs * ranks, bs), Blocks(bs, bs))
-
-        # (3) C[i] <- A[i] * B, with tile i pinned to rank i-1.
+    Dagger.with_options(scope=cpus) do
+        # (2) Tile the array and double every tile; the same code again. The
+        #     input is seeded, so every rank builds the same array.
+        DA = DArray(rand(Xoshiro(1), 4096, 4096), Blocks(1024, 1024))
+        A0 = collect(DA)
         Dagger.spawn_datadeps() do
-            for (i, owner) in enumerate(scopes)
-                Dagger.@spawn scope=owner mul!(Out(DC.chunks[i, 1]), In(DA.chunks[i, 1]), In(DB.chunks[1, 1]))
+            for tile in DA.chunks
+                Dagger.@spawn double!(InOut(tile))
             end
         end
-        collect(DC)
-    end
+        doubled = collect(DA) ≈ 2 .* A0
+        rank == 0 && println("doubled on $ranks ranks: ", doubled)
+        @assert doubled
 
-    @assert C ≈ A * B
-    rank == 0 && println("PASS: C ≈ A * B on $ranks ranks")
-    return scopes
+        # (3) DArray matmul, now across the ranks.
+        DC = DA * DA
+        host_A = collect(DA)
+        product_correct = collect(DC) ≈ host_A * host_A
+        rank == 0 && println("matmul on $ranks ranks correct: ", product_correct)
+        @assert product_correct
+    end
 end
 # source-end
 
-# ---- Not shown to attendees: input check and placement check. ----
+# ---- Not shown to attendees: input check and process check. ----
 
 ranks >= 2 || error("This demo needs at least two MPI ranks")
 
 # The Julia process a task runs in.
 process_identity() = (gethostname(), getpid())
 
-# Every scope must land on its own Julia process.
-function check_placement(scopes)
+# Every rank in the scope is its own Julia process.
+function check_processes()
+    scopes = [Dagger.constrain(Dagger.scope(mpi_rank=r), Dagger.DefaultScope()) for r in 0:ranks-1]
     processes = Set(fetch(Dagger.@spawn scope=s process_identity()) for s in scopes)
     @assert length(processes) == ranks "Some MPI ranks did not participate"
-    rank == 0 && println("distinct processes used: ", length(processes))
+    rank == 0 && println("distinct processes in the scope: ", length(processes))
 end
 
 function run_demo()
-    DemoPresentation.present(; title="06 MPI matrix product", files=[@__FILE__],
+    DemoPresentation.present(; title="06 MPI ranks", files=[@__FILE__],
                              demo="06_multinode", mpi=MPI) do
-        check_placement(run_product())
+        run_ranks()
+        check_processes()
     end
 end
 if abspath(PROGRAM_FILE) == @__FILE__

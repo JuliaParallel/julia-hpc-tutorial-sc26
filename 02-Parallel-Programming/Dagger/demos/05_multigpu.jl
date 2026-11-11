@@ -1,5 +1,5 @@
-# Demo 5: one matrix product, one Julia process, several GPUs on one node.
-# C = A * B is split into block rows; each row runs on a different GPU.
+# Demo 5: the single-GPU demo on several GPUs of one node. The code is demo 3's;
+# only the scope changes, so Dagger spreads the tiles' tasks over the GPUs.
 #
 #   bash frontier/launch.sh 1 demos/05_multigpu.jl
 #   bash frontier/launch.sh 1 demos/05_multigpu.jl --gpus=4
@@ -7,41 +7,41 @@
 isdefined(@__MODULE__, :DemoPresentation) || include(joinpath(@__DIR__, "presentation.jl"))
 
 # source-begin
-using Dagger, LinearAlgebra, Random, AMDGPU
+using Dagger, AMDGPU, LinearAlgebra, Random
 
-function run_product()
-    ngpus = gpu_count()
-    bs = 512
+# The same tile operation as the CPU and GPU demos.
+double!(X) = (X .*= 2; nothing)
 
-    # (1) One scope per GPU, and one scope that spans all of them.
-    scopes = [Dagger.scope(rocm_gpu=g) for g in 1:ngpus]
-    all_gpus = Dagger.scope(rocm_gpus=1:ngpus)
+function run_gpus()
+    # (1) Choose the scope: several GPUs instead of one. Every task spawned
+    #     inside runs on one of them.
+    gpus = Dagger.scope(rocm_gpus=1:gpu_count())
 
-    # (2) A holds one tile per GPU; B is a single tile.
-    A = rand(Xoshiro(1), bs * ngpus, bs)
-    B = rand(Xoshiro(2), bs, bs)
-
-    C = Dagger.with_options(scope=all_gpus) do
-        DA = DArray(A, Blocks(bs, bs))
-        DB = DArray(B, Blocks(bs, bs))
-        DC = DArray(zeros(bs * ngpus, bs), Blocks(bs, bs))
-
-        # (3) C[i] <- A[i] * B, with tile i pinned to GPU i.
+    Dagger.with_options(scope=gpus) do
+        # (2) Tile the array and double every tile; this is demo 3, unchanged.
+        #     The 16 tiles' tasks are spread over the GPUs.
+        DA = DArray(rand(Xoshiro(1), 4096, 4096), Blocks(1024, 1024))
+        A0 = collect(DA)
         Dagger.spawn_datadeps() do
-            for (i, gpu) in enumerate(scopes)
-                Dagger.@spawn scope=gpu mul!(Out(DC.chunks[i, 1]), In(DA.chunks[i, 1]), In(DB.chunks[1, 1]))
+            for tile in DA.chunks
+                Dagger.@spawn double!(InOut(tile))
             end
         end
-        collect(DC)
-    end
+        doubled = collect(DA) ≈ 2 .* A0
+        println("doubled on ", gpu_count(), " GPUs: ", doubled)
+        @assert doubled
 
-    @assert C ≈ A * B
-    println("PASS: C ≈ A * B on $ngpus GPUs")
-    return scopes
+        # (3) DArray matmul, now over every GPU in the scope.
+        DC = DA * DA
+        host_A = collect(DA)
+        product_correct = collect(DC) ≈ host_A * host_A
+        println("matmul on ", gpu_count(), " GPUs correct: ", product_correct)
+        @assert product_correct
+    end
 end
 # source-end
 
-# ---- Not shown to attendees: argument parsing and placement check. ----
+# ---- Not shown to attendees: argument parsing and device check. ----
 
 AMDGPU.functional() || error("No functional AMD GPU")
 
@@ -64,17 +64,19 @@ function device_identity()
                                  string(p.pciDeviceID; base=16, pad=2)), ':'))
 end
 
-# Every scope must land on its own physical GPU.
-function check_placement(scopes)
-    devices = Set(fetch(Dagger.@spawn scope=s device_identity()) for s in scopes)
-    @assert length(devices) == length(scopes) "GPU scopes reused a physical device"
-    println("distinct GPUs used: ", length(devices))
+# Every GPU in the scope is a distinct physical device.
+function check_devices()
+    devices = Set(fetch(Dagger.@spawn scope=Dagger.scope(rocm_gpu=g) device_identity())
+                  for g in 1:gpu_count())
+    @assert length(devices) == gpu_count() "GPU scopes reused a physical device"
+    println("distinct GPUs in the scope: ", length(devices))
 end
 
 function run_demo()
     DemoPresentation.present(; title="05 Multiple GPUs", files=[@__FILE__],
                              demo="05_multigpu") do
-        check_placement(run_product())
+        run_gpus()
+        check_devices()
     end
 end
 if abspath(PROGRAM_FILE) == @__FILE__

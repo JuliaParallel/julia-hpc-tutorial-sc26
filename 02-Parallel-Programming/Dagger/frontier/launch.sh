@@ -20,6 +20,12 @@ if (( np == 1 )); then gpt="${SC26_GPUS_PER_TASK:-8}"; bind=none; fi
 if (( np > 1 && gpt > 1 )); then bind="per_task:$gpt"; fi
 if (( gpt == 0 )); then bind=none; fi
 (( rpn * gpt <= 8 )) || { echo "Requested more than eight GPUs per node" >&2; exit 2; }
+# Cray MPICH on Odo picks each rank's network card by the NUMA node it runs on
+# (MPICH_OFI_NIC_POLICY=NUMA) and aborts MPI_Init for a rank that spans
+# several. An Odo node has 14 usable cores per NUMA node, so a rank with more
+# threads (a whole node's 56 under the console's MPI runs) spans several:
+# pick its card by rank instead.
+if (( threads > 14 )); then export MPICH_OFI_NIC_POLICY=BLOCK; fi
 cd "$SC26_ROOT"
 terminal=()
 if [[ "${SC26_PTY:-0}" == 1 ]]; then terminal+=(--pty); fi

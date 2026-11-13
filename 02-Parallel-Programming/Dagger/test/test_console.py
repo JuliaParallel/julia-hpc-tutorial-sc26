@@ -618,6 +618,33 @@ class ConsoleTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
 
+    def test_whole_node_ranks_pick_their_network_card_by_rank(self):
+        """Cray MPICH's NUMA NIC policy aborts a rank spanning NUMA nodes."""
+        import os
+        import shutil
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "frontier").mkdir()
+            shutil.copy(BASE / "frontier/launch.sh", root / "frontier/launch.sh")
+            (root / "frontier/env.sh").write_text(f'export SC26_ROOT={directory} SC26_ACCOUNT=trn047\n')
+            (root / "bin").mkdir()
+            srun = root / "bin/srun"
+            srun.write_text('#!/bin/sh\necho "POLICY=${MPICH_OFI_NIC_POLICY:-unset} $*"\n')
+            srun.chmod(0o755)
+            def launch(ranks, threads, gpus):
+                env = dict(os.environ, PATH=str(root / "bin") + os.pathsep + os.environ["PATH"],
+                           SC26_NODES=str(ranks), SC26_THREADS=str(threads), SC26_GPUS_PER_TASK=str(gpus),
+                           MPICH_OFI_NIC_POLICY="NUMA")
+                env.pop("SLURM_JOB_ID", None)
+                return subprocess.run(["bash", str(root / "frontier/launch.sh"), str(ranks), "x.jl"],
+                                      env=env, capture_output=True, text=True, check=True).stdout
+            out = launch(10, 56, 0)   # the console's MPI runs: one rank per node, all its CPUs
+            self.assertTrue(out.startswith("POLICY=BLOCK "), out)
+            self.assertIn("-N 10 -n 10 --ntasks-per-node=1 -c 56", out)
+            self.assertIn("POLICY=BLOCK", launch(4, 56, 8))
+            self.assertIn("--gpus-per-task=8 --gpu-bind=per_task:8", launch(4, 56, 8))
+            self.assertTrue(launch(1, 7, 4).startswith("POLICY=NUMA "))   # one process fits a NUMA node
+
     def test_agent_eof_cancels_the_run_by_its_session_name(self):
         import os
         with tempfile.TemporaryDirectory() as directory:

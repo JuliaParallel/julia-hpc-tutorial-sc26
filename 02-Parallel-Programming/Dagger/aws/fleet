@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+set -euo pipefail
+exec "${AWSMCP_DIR:-$HOME/awsmcp}/.venv/bin/python" "$(dirname "$0")/fleet.py" "$@"

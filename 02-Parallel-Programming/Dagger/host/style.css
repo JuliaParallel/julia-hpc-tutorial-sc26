@@ -51,7 +51,7 @@ h3 {
 .dot {
   color:var(--teal)
 }
-.connection,.run-controls,.plot-controls {
+.connection,.plot-controls {
   display:flex;
   gap:12px;
   align-items:center
@@ -93,6 +93,25 @@ nav button .num {
   display:inline-block;
   width:25px;
   opacity:.6
+}
+nav .nav-group {
+  display:grid;
+  gap:5px
+}
+nav .nav-group-head {
+  color:var(--text);
+  font-weight:600
+}
+nav .nav-children {
+  display:grid;
+  gap:5px;
+  margin-left:18px;
+  padding-left:10px;
+  border-left:1px solid var(--border)
+}
+nav .nav-children button {
+  padding:9px 12px;
+  font-size:12px
 }
 .allocation {
   border-top:1px solid var(--border);
@@ -159,6 +178,29 @@ button:focus-visible,select:focus-visible,textarea:focus-visible {
   grid-template-columns:1.1fr 1fr;
   gap:18px
 }
+/* A collapsed pane keeps its width; only its height shrinks to the title bar. */
+.panel.collapsed .panel-tools > :not(.collapse) {
+  display:none
+}
+/* Each demo is its own console: a CPU group holds two, the rest hold one. */
+.console-group > .panel-body {
+  padding:16px 16px 0
+}
+.pane {
+  background:#101f28
+}
+.pane > .panel-body {
+  padding:12px 12px 0
+}
+.pane .panel {
+  background:#0d1a22;
+  margin-bottom:12px
+}
+@media(min-width:1101px) {
+  .workspace[data-collapsed="10"],.workspace[data-collapsed="01"] {
+  align-items:start
+}
+}
 .panel {
   background:var(--panel);
   border:1px solid var(--border);
@@ -178,6 +220,162 @@ button:focus-visible,select:focus-visible,textarea:focus-visible {
   font-size:11px;
   padding:5px 8px
 }
+.panel-tools {
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  gap:12px;
+  min-width:0
+}
+.panel-tools label {
+  font-size:11px;
+  color:var(--muted)
+}
+.panel-head h3,.side-head .eyebrow {
+  cursor:pointer
+}
+.panel-head h3:hover,.side-head:hover .eyebrow {
+  color:var(--teal)
+}
+.collapse {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:none;
+  background:transparent;
+  border:1px solid transparent;
+  border-radius:6px;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1
+}
+.panel-head .collapse {
+  padding:5px 7px
+}
+.collapse:hover {
+  border-color:var(--border);
+  color:var(--teal)
+}
+.chevron {
+  display:block;
+  transition:transform .15s ease
+}
+.collapse[aria-expanded="false"] .chevron {
+  transform:rotate(-90deg)
+}
+.panel.collapsed .panel-body,.side-section.collapsed .section-body {
+  display:none
+}
+.panel.collapsed .panel-head,.side-section.collapsed .side-head {
+  border-bottom:0
+}
+.panel.collapsed,.side-section.collapsed {
+  padding-bottom:0
+}
+.side-section {
+  margin-top:18px
+}
+.side-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px
+}
+.side-head .collapse {
+  font-size:10px
+}
+.exercise-panel > .panel-body {
+  padding:16px 20px
+}
+.exercise-prompt {
+  margin:0 0 14px;
+  white-space:pre-wrap;
+  color:var(--muted);
+  font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace
+}
+.exercise-setup {
+  min-height:260px;
+  font-size:12px;
+  line-height:1.55
+}
+.exercise-panel textarea {
+  width:100%;
+  min-height:280px;
+  margin:0;
+  padding:14px
+}
+.exercise-control {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+  color:var(--muted)
+}
+.exercise-control select {
+  font-size:11px;
+  padding:5px 8px
+}
+.exercise-footer {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:12px;
+  padding:12px 14px 16px
+}
+.exercise-footer > span {
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45
+}
+.exercise-actions {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:none
+}
+.exercise-actions button {
+  font-size:11px
+}
+.agent-panel .panel-body {
+  padding:16px 20px
+}
+.agent-panel .hint {
+  padding:0
+}
+.agent-options {
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin:12px 0
+}
+.agent-options button {
+  min-width:110px
+}
+.agent-terminal {
+  margin-top:14px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  overflow:hidden;
+  background:#0e1b24
+}
+.agent-terminal-bar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 12px;
+  border-bottom:1px solid var(--border);
+  font-size:11px;
+  color:var(--muted)
+}
+.agent-terminal-body {
+  height:420px;
+  padding:8px
+}
+.agent-terminal-body .xterm {
+  height:100%
+}
 .tag {
   color:var(--muted);
   font-size:10px
@@ -190,16 +388,16 @@ pre,textarea {
   font:12px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace;
   tab-size:4
 }
-#source {
+.source {
   max-height:410px;
   overflow:auto;
   padding:0 20px 12px
 }
-#source pre {
+.source pre {
   white-space:pre;
   overflow:visible
 }
-#source h4 {
+.source h4 {
   font-size:11px;
   font-weight:400;
   color:var(--muted);
@@ -239,6 +437,101 @@ textarea {
 .plot-controls {
   font-size:11px;
   color:var(--muted)
+}
+.visual-controls {
+  display:flex;
+  flex-wrap:wrap;
+  gap:14px;
+  padding:12px 20px 0;
+  font-size:11px;
+  color:var(--muted)
+}
+.visual-controls label {
+  display:flex;
+  align-items:center;
+  gap:5px
+}
+pre.visual {
+  max-height:520px;
+  white-space:pre;
+  overflow:auto
+}
+.visual-grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:start;
+  justify-items:center;
+  gap:18px;
+  padding:14px 20px 4px
+}
+.visual-grid.single {
+  grid-template-columns:1fr
+}
+@media(max-width:680px) {
+  .visual-grid {
+    grid-template-columns:1fr
+  }
+}
+.visual-card {
+  margin:0;
+  padding:0;
+  width:100%
+}
+.visual-card figcaption {
+  color:var(--muted);
+  font-size:11px;
+  padding:0 0 6px
+}
+.visual-card canvas {
+  display:block;
+  max-width:100%;
+  margin:0 auto;
+  border-radius:4px
+}
+.visual-time {
+  grid-column:1/-1;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:2px 0 4px
+}
+.visual-play {
+  flex:0 0 auto;
+  min-width:74px;
+  padding:6px 14px;
+  border:1px solid var(--border);
+  border-radius:4px;
+  background:var(--panel);
+  color:var(--text);
+  font:inherit;
+  font-size:12px;
+  cursor:pointer
+}
+.visual-play:hover {
+  border-color:var(--teal);
+  color:var(--teal)
+}
+.visual-slider {
+  flex:1 1 auto;
+  min-width:120px;
+  accent-color:var(--teal);
+  cursor:pointer
+}
+.visual-step {
+  flex:0 0 auto;
+  min-width:56px;
+  text-align:right;
+  color:var(--muted);
+  font:11px ui-monospace, monospace
+}
+.visual-note {
+  grid-column:1/-1;
+  color:var(--muted);
+  font-size:11px;
+  margin:0
+}
+.visual-time[hidden], .visual-card[hidden], .visual-note[hidden] {
+  display:none
 }
 .plot-controls label {
   display:flex;
@@ -286,10 +579,10 @@ svg text {
 .amber {
   color:var(--amber)
 }
-#summary {
+.summary {
   padding:8px 20px 20px
 }
-#summary h4 {
+.summary h4 {
   font-size:12px;
   color:var(--muted);
   font-weight:500
@@ -317,22 +610,22 @@ svg text {
   background:var(--cyan);
   border-radius:3px
 }
-#history {
+.history {
   display:flex;
   gap:6px;
   padding:0 20px 14px;
   overflow:auto
 }
-#history button {
+.history button {
   font-size:10px;
   white-space:nowrap;
   background:transparent
 }
-#history button.active {
+.history button.active {
   border-color:var(--teal);
   color:var(--teal)
 }
-#output {
+.output {
   padding:18px 20px;
   margin:0;
   max-height:360px;
@@ -418,6 +711,12 @@ nav button {
 main {
   padding:0 15px
 }
+.console-group > .panel-body {
+  padding:12px 12px 0
+}
+.pane > .panel-body {
+  padding:8px 8px 0
+}
 .panel-head {
   flex-wrap:wrap
 }
@@ -449,3 +748,72 @@ main {
   font:12px/1.6 monospace;
 }
 #task-tooltip strong {color:#6acde8;font-size:14px}
+
+/* Highlighted editors: the textarea's text is transparent and a coloured
+   copy of it sits behind, with identical font, padding and scrolling. */
+.code-editor {
+  position:relative;
+  width:calc(100% - 40px);
+  margin:15px 20px;
+  background:#0e1b24;
+  border:1px solid var(--border);
+  border-radius:6px
+}
+.exercise-panel .code-editor {
+  width:100%;
+  margin:0
+}
+.code-editor > textarea,
+.code-editor > .code-highlight {
+  display:block;
+  width:100%;
+  margin:0;
+  padding:14px;
+  border:0;
+  border-radius:6px;
+  font:12px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace;
+  letter-spacing:0;
+  tab-size:4;
+  white-space:pre;
+  overflow-wrap:normal;
+  word-break:normal
+}
+.code-editor.tight > textarea,
+.code-editor.tight > .code-highlight {
+  line-height:1.55
+}
+.code-editor > textarea {
+  position:relative;
+  z-index:1;
+  background:transparent;
+  color:transparent;
+  caret-color:var(--text);
+  overflow:auto
+}
+.code-editor > textarea::selection {
+  color:transparent;
+  background:#44475a
+}
+.code-editor > textarea:focus-visible {
+  outline-offset:0
+}
+.code-editor > .code-highlight {
+  position:absolute;
+  inset:0;
+  overflow:hidden;
+  pointer-events:none;
+  color:#f8f8f2
+}
+.code-highlight code {
+  font:inherit
+}
+.tok-kw {color:#ff5555}
+.tok-comment {color:#8b9ca8}
+.tok-string {color:#50fa7b}
+.tok-num {color:#f1fa8c}
+.tok-const {color:#ffffa5}
+.tok-macro {color:#ff79c6}
+.tok-call {color:#bd93f9}
+.tok-type {color:#8be9fd}
+.tok-symbol {color:#8be9fd}
+.tok-todo {color:#0e1b24;background:#ffbd75;border-radius:3px}

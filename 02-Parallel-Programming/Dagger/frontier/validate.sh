@@ -21,6 +21,7 @@ check() {
 }
 export SC26_NODES=1
 export SC26_STEP_TIME="${SC26_STEP_TIME:-00:05:00}"
+check julia-basics bash frontier/launch.sh 1 demos/00_julia.jl
 check tasks bash frontier/launch.sh 1 demos/01_tasks.jl
 check datadeps bash frontier/launch.sh 1 demos/02_datadeps.jl
 check gpu-demo bash frontier/launch.sh 1 demos/03_gpu.jl
@@ -39,10 +40,8 @@ fi
 check gpu bash frontier/run.sh 1 "${small[@]}" --target=gpu
 check multigpu bash frontier/run.sh 1 "${small[@]}" --target=gpu --gpus=all
 check mixed bash frontier/run.sh 1 "${small[@]}" --target=mixed
-check mpi-demo bash frontier/launch.sh 2 demos/04_mpi.jl
 check mpi-cpu bash frontier/run.sh 2 "${small[@]}" --mpi --strict
 check mpi-gpu bash frontier/run.sh 2 "${small[@]}" --mpi --strict --target=gpu
-check mpi-four-rank-demo bash frontier/launch.sh 4 demos/05_multigpu.jl --mpi
 check mpi-four-rank-cpu bash frontier/run.sh 4 "${small[@]}" --mpi --strict
 check mpi-four-rank-gpu bash frontier/run.sh 4 "${small[@]}" --mpi --strict --target=gpu
 check mpi-matrix-cpu bash frontier/multinode.sh cpu

@@ -67,10 +67,18 @@ communication between physical hosts.
 ### Local web console
 
 From this directory on your laptop, run `python3 host/app.py`, then open
-**http://127.0.0.1:8767**. The console connects to Odo, prepares packages on the
-login node, and manages your one-node allocation and persistent Julia workers.
-It offers all seven demos, a multiline Julia evaluator, highlighted source,
-interactive task timelines, function-time summaries, and run history.
+**http://127.0.0.1:8767**. The first run asks for your OLCF username, manages
+one marked `Host sc26-odo-<user>` entry in `~/.ssh/config`, and opens the SSH
+connection; a working `odo` alias is reused untouched. The console then
+connects to Odo, prepares packages on the login node, and manages your
+Julia runs, each submitted as its own Slurm job, with nothing held in between.
+It offers all seven demos, a multiline Julia evaluator, an exercise editor that
+runs the harness on CPU, GPU, or MPI, a final Gray-Scott reaction-diffusion
+exercise with side-by-side substrate and activator visualizations with time
+scrubbing, an embedded local
+agent terminal for OpenCode, Claude, and Codex with a permission-gated installer
+when one is missing, highlighted source, interactive task timelines,
+function-time summaries, and run history.
 See [setup and session behavior](host/README.md).
 
 The terminal workflow below remains available. Every demo now prints its
@@ -138,25 +146,24 @@ export SC26_NODES=1
 bash frontier/launch.sh 1 demos/05_multigpu.jl          # one product, two GPUs
 bash frontier/launch.sh 1 demos/05_multigpu.jl --gpus=4 # one product, four GPUs
 SC26_GPUS_PER_TASK=2 bash frontier/run.sh 1 --impl=solution --target=gpu --gpus=all
-bash frontier/launch.sh 2 demos/04_mpi.jl
+bash frontier/launch.sh 2 demos/06_multinode.jl
 bash frontier/run.sh 2 --impl=solution --mpi --strict
-bash frontier/launch.sh 4 demos/05_multigpu.jl --mpi
 bash frontier/run.sh 4 --impl=solution --mpi --strict --target=gpu
 ```
 
-The default multi-GPU demo uses one Julia process and two GPU devices on one
-node. It splits one matrix product `C = A * B` into output block rows, schedules
-each row on a different GPU, and checks the assembled result. `--gpus=4` selects
-four devices; `--gpus=all` selects all visible devices. The output reports which
-GPU computed each output tile, plus the number of GPUs, nodes, and processes.
-An internal check uses hostname and PCI address to ensure distinct physical
-devices participated, including under MPI. No manual device masks are needed.
+The multi-GPU, MPI and MPI + GPU demos are the single-GPU demo with a wider
+scope: each doubles the 16 tiles of a seeded 4096 x 4096 DArray in a Datadeps
+region and multiplies it with the tiled DArray matmul, and Dagger spreads the
+tasks over every GPU, rank, or GPU of every rank in the scope. The multi-GPU
+demo uses one Julia process and two GPU devices; `--gpus=4` selects four,
+`--gpus=all` every visible device. An internal check uses hostname and PCI
+address to ensure the GPUs in the scope are distinct physical devices. No
+manual device masks are needed.
 
-The optional four-rank launch uses four GPUs on one node, one per rank, for the
-same matrix product. The slides introduce single GPU, single-process multi-GPU,
-multi-node MPI, then multi-node MPI with multiple GPUs per server. The MPI
-demos below use two ranks on the same node, so both presenter and attendees
-keep their existing allocations.
+The slides introduce single GPU, single-process multi-GPU, multi-node MPI, then
+multi-node MPI with multiple GPUs per server. The MPI demos below use two ranks
+on the same node, so both presenter and attendees keep their existing
+allocations.
 
 ### MPI demos on the workshop allocation
 
@@ -164,7 +171,7 @@ The “multi-node” segments teach the MPI programming model. To fit Odo tutori
 resource limits, run two ranks on your existing single-node allocation:
 
 ```bash
-bash frontier/multinode.sh cpu  # one CPU matrix product, two ranks on one node
+bash frontier/multinode.sh cpu  # the GPU demo's code on two CPU ranks, one node
 bash frontier/multinode.sh gpu  # two ranks, two GPUs each, four distinct GPUs
 ```
 
@@ -175,13 +182,12 @@ rank, the launcher uses `per_task:N` binding to expose the requested count;
 see the [Slurm launch reference](https://slurm.schedmd.com/srun.html).
 
 The entry scripts are `demos/06_multinode.jl` and
-`demos/07_multinode_multigpu.jl`. Both reuse the matrix-product implementation
-behind `05_multigpu.jl`, verify the assembled `C = A * B`, and report the actual
-hosts and processes that computed output tiles. They require at least two MPI
-ranks, regardless of whether those ranks share a host. The GPU version also
-requires two GPUs per rank and checks that all four physical devices differ.
-Successful workshop output reports one node and two Julia processes, with zero
-GPUs for CPU or four GPUs for GPU execution.
+`demos/07_multinode_multigpu.jl`. Each runs the single-GPU demo's code with
+the CPUs of every rank, or every GPU of every rank, as the scope, and checks
+the doubled tiles and the matmul. They require at least two MPI ranks,
+regardless of whether those ranks share a host. The CPU version checks that
+both processes take part; the GPU version checks that every GPU of every rank
+is a distinct physical device (four with two GPUs per rank).
 
 The Julia code is identical for same-node and multi-node MPI. With a larger
 allocation, place the same ranks on separate nodes using the generic launcher;

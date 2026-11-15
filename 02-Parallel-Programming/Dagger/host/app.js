@@ -37,7 +37,10 @@ function syncExerciseEditors(except) {
   }
 }
 function saveSetups() {
-  try { localStorage.setItem(EXERCISE_SETUP_KEY, JSON.stringify(setupStore)); } catch (e) {}
+  try { localStorage.setItem(setupStorageKey(), JSON.stringify(setupStore)); } catch (e) {}
+}
+function setupStorageKey() {
+  return EXERCISE_SETUP_KEY + (config?.backend === "cpu" ? "-cpu" : "");
 }
 function saveFinalCode() {
   try { localStorage.setItem(FINAL_CODE_KEY, finalCode ?? ""); } catch (e) {}
@@ -106,13 +109,17 @@ function expandAncestors(element) {
 function demoById(id) {
   return config.demos.find(demo => demo[0] === id);
 }
+function runLocation() {
+  return config.backend === "cpu" ? "on this CPU VM" : "in its own Slurm job";
+}
 // MPI runs put one rank on each Odo node; the user picks how many.
 function ranksSelect(role) {
   const max = config.max_ranks ?? 32, chosen = config.default_ranks ?? 2;
   const options = Array.from({length: max}, (_, i) => i + 1)
     .map(n => `<option value="${n}"${n === chosen ? " selected" : ""}>${n}</option>`).join("");
-  return `<label class="exercise-control gpu-control" data-role="${role}-label" title="MPI ranks, each on its own Odo node">Ranks
-<select data-role="${role}" aria-label="MPI ranks, each on its own Odo node">${options}</select>
+  const description = config.backend === "cpu" ? "MPI ranks sharing this VM's CPUs" : "MPI ranks, each on its own Odo node";
+  return `<label class="exercise-control gpu-control" data-role="${role}-label" title="${description}">Ranks
+<select data-role="${role}" aria-label="${description}">${options}</select>
 </label>`;
 }
 // Show a Ranks menu only while its Processes or layout menu says MPI.
@@ -203,7 +210,7 @@ ${collapseButton(pid + "-timeline-body", pid + "-timeline-title")}
 <span>Transfer arrows: source → destination rank</span>
 <span>Hover a task for details · seconds from logging start</span>
 </div>
-<p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Every run is a fresh Julia in its own Slurm job, so each timeline includes compilation.</p>
+<p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Every run is a fresh Julia ${runLocation()}, so each timeline includes compilation.</p>
 <div class="summary" data-role="summary">
 </div>
 </div>
@@ -249,7 +256,7 @@ function wireSetup(panel, key, templates, defaults) {
   const saved = setupStore[key] ?? {};
   panel.target.value = saved.target in (config.targets ?? {}) ? saved.target : defaults.target;
   panel.mode.value = saved.mode in (config.modes ?? {}) ? saved.mode : defaults.mode;
-  if (saved.ranks) panel.ranks.value = String(saved.ranks);
+  if (saved.ranks >= 1 && saved.ranks <= (config.max_ranks ?? 32)) panel.ranks.value = String(saved.ranks);
   if (saved.gpus) panel.gpus.value = String(saved.gpus);
   syncExerciseControls(panel);
   const template = () => templates[`${panel.target.value}/${panel.mode.value}`] ?? "";
@@ -380,7 +387,7 @@ function paneMarkup(demo, heading = demo[1]) {
 <div class="panel-head">
 <h3 id="${pid}-title">${heading}</h3>
 <div class="panel-tools">
-<span class="tag">${layout === "mpi" ? "MPI ranks · one node each" : "One Julia process"}</span>${gpus}${ranks}
+<span class="tag">${layout === "mpi" ? (config.backend === "cpu" ? "MPI ranks · one VM" : "MPI ranks · one node each") : "One Julia process"}</span>${gpus}${ranks}
 <button class="primary" data-role="run" disabled>Run demo <span>↗</span></button>
 ${collapse(pid + "-body", pid + "-title")}
 </div>
@@ -414,7 +421,7 @@ ${collapse(pid + "-repl-body", pid + "-repl-title")}
 </div>
 </div>
 <div class="panel-body" id="${pid}-repl-body">
-<p class="hint">Each evaluation is a fresh Julia in its own Slurm job, with this section's GPUs; variables do not carry over to the next one. MPI runs your expression on every rank; keep work uniform.</p>
+<p class="hint">Each evaluation is a fresh Julia ${runLocation()}${config.backend === "cpu" ? "" : ", with this section's GPUs"}; variables do not carry over to the next one. MPI runs your expression on every rank; keep work uniform.</p>
 <label class="sr-only" for="${pid}-code">Julia expression</label>
 <textarea id="${pid}-code" data-role="code" spellcheck="false">a = Dagger.@spawn sum(1:1_000_000)
 fetch(a)</textarea>
@@ -467,7 +474,7 @@ ${collapse(pid + "-timeline-body", pid + "-timeline-title")}
 <span>Transfer arrows: source → destination rank</span>
 <span>Hover a task for details · seconds from logging start</span>
 </div>
-<p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Every run is a fresh Julia in its own Slurm job, so each timeline includes compilation.</p>
+<p class="hint">Dagger host task timings include compilation and transfer overhead. GPU lanes are not a kernel profile. Every run is a fresh Julia ${runLocation()}, so each timeline includes compilation.</p>
 <div class="summary" data-role="summary">
 </div>
 </div>
@@ -1289,7 +1296,7 @@ async function init() {
     }
   } catch (e) {}
   try {
-    const saved = JSON.parse(localStorage.getItem(EXERCISE_SETUP_KEY) || "{}");
+    const saved = JSON.parse(localStorage.getItem(setupStorageKey()) || "{}");
     if (saved && typeof saved === "object" && !Array.isArray(saved)) setupStore = saved;
   } catch (e) {}
   finalCode = config.final_exercise?.template ?? "";
@@ -1319,6 +1326,16 @@ async function init() {
   $("remote").textContent = `${config.host}:${config.remote_root}`;
   buildSidebar();
   buildConsoles();
+  if (config.backend === "cpu") {
+    document.querySelector("footer").textContent = "The webpage and plots run on your computer. Julia runs on the CPU VM; MPI ranks share its CPUs.";
+    const info = $("side-workspace-body");
+    if (info) {
+      for (const paragraph of info.querySelectorAll("p")) {
+        if (paragraph.textContent.includes("Slurm")) paragraph.textContent = "Each run starts a fresh Julia on the CPU VM.";
+        if (paragraph.textContent.includes("Odo node")) paragraph.textContent = `Choose 1 to ${config.max_ranks} MPI ranks sharing this VM's CPUs.`;
+      }
+    }
+  }
   initCollapsible();
   let start = config.sections[0].demos[0];
   try {

@@ -537,9 +537,10 @@ def snapshot():
     """Upload course code only; results, credentials and preferences stay put."""
     stream = io.BytesIO()
     with tarfile.open(fileobj=stream, mode="w:gz") as archive:
-        for name in ("Project.toml", "demos", "harness", "frontier", "solution"):
+        for name in ("Project.toml", "demos", "harness", "frontier", "solution", "cpu"):
             archive.add(ROOT / name, arcname=name,
-                        filter=lambda item: None if "__pycache__" in item.name else item)
+                        filter=lambda item: None if ("__pycache__" in item.name or
+                            Path(item.name).name in ("Manifest.toml", "LocalPreferences.toml")) else item)
         for name in ("worker.jl", "remote_agent.py", "final_visuals.jl"):
             archive.add(ROOT / "host" / name, arcname="host/" + name)
     return stream.getvalue()
@@ -1025,7 +1026,7 @@ def ensure_master(args):
     else:
         command += ["-o", "BatchMode=yes"]
     command += ["-MNf", args.ssh_host]
-    print(f"Opening SSH connection to {args.ssh_host} (enter your OLCF password if asked)…",
+    print(f"Opening SSH connection to {args.ssh_host} (authenticate in this terminal if asked)…",
           flush=True)
     if subprocess.run(command).returncode == 0:
         return True
@@ -1053,6 +1054,37 @@ class Console:
         self.token = secrets.token_urlsafe(32)
         self.stop_event = threading.Event()
 
+    @property
+    def cpu(self):
+        return getattr(self.args, "backend", "odo") == "cpu"
+
+    def ready_message(self):
+        return "Ready · CPU VM" if self.cpu else "Ready · every run is its own Slurm job"
+
+    def remote_command(self, command):
+        if getattr(self.args, "via_relay", False):
+            command = shlex.join(["python3", self.args.relay_script, "client", "--socket",
+                                  self.args.relay_socket, "--command", command])
+        return self.ssh() + [command]
+
+    def configuration(self):
+        demos = [d for d in DEMOS if not self.cpu or d[0] in
+                 ("00_julia", "01_tasks", "02_datadeps", "06_multinode")]
+        sections = section_layout()
+        if self.cpu:
+            allowed = {d[0] for d in demos}
+            sections = [dict(s, demos=[d for d in s["demos"] if d in allowed]) for s in sections]
+            sections = [s for s in sections if s["demos"]]
+            for i, s in enumerate(sections, 1):
+                s["number"] = f"{i:02d}"
+                if "06_multinode" in s["demos"]:
+                    s["title"] = "CPU MPI · one VM"
+            demos = [(d[0], "CPU MPI · one VM" if d[0] == "06_multinode" else d[1], d[2]) for d in demos]
+        return dict(backend="cpu" if self.cpu else "odo", demos=demos, sections=sections,
+                    exercises={k: v for k, v in exercises().items() if k in {d[0] for d in demos}},
+                    targets={"cpu": "CPU"} if self.cpu else TARGETS,
+                    max_ranks=min(MAX_RANKS, self.args.threads) if self.cpu else MAX_RANKS)
+
     def emit(self, kind, **fields):
         with self.lock:
             self.seq += 1
@@ -1079,7 +1111,7 @@ class Console:
                 raise ValueError("Already connected or connecting")
             self.connecting = True
             self.stop_event.clear()
-            self.status = "Connecting to Odo…"
+            self.status = "Connecting to CPU VM…" if self.cpu else "Connecting to Odo…"
         threading.Thread(target=self._connect, daemon=True).start()
 
     def _connect(self):
@@ -1109,8 +1141,8 @@ class Console:
             payload = snapshot()
             for _ in range(3):
                 name = new_session_name()
-                result = subprocess.run(self.ssh() + [session_upload_script(self.args.remote_root, name,
-                                                                            self.args.account)],
+                result = subprocess.run(self.remote_command(session_upload_script(self.args.remote_root, name,
+                                                                            self.args.account)),
                                         input=payload, capture_output=True, timeout=120)
                 if result.returncode == 0 or b"File exists" not in result.stderr:
                     break
@@ -1123,18 +1155,21 @@ class Console:
             root = shlex.quote(self.session_dir)
             if self.stop_event.is_set():
                 return
-            self.status = "Preparing packages on the login node…"
+            self.status = "Preparing packages on CPU VM…" if self.cpu else "Preparing packages on the login node…"
             # Every later run is its own Slurm job; nothing is held between runs.
             env = ["env", f"SC26_SESSION={name}", f"SC26_CACHE_ROOT={cache_root(self.args.remote_root)}",
                    "SC26_NODES=1", f"SC26_STEP_TIME={self.args.time}", f"SC26_ACCOUNT={self.args.account}"]
             if self.args.reservation:
                 env.append(f"SC26_RESERVATION={self.args.reservation}")
             script = "source frontier/env.sh; bash frontier/prepare.sh </dev/null; exec python3 -u host/remote_agent.py"
+            if self.cpu:
+                env += ["SC26_BACKEND=cpu", f"SC26_THREADS={self.args.threads}"]
+                script = "source cpu/env.sh; bash cpu/prepare.sh </dev/null; exec python3 -u host/remote_agent.py"
             command = f"cd {root} && " + shlex.join(env + ["bash", "-ec", script])
             with self.lock:
                 if self.stop_event.is_set():
                     return
-                self.process = subprocess.Popen(self.ssh() + [command], stdin=subprocess.PIPE,
+                self.process = subprocess.Popen(self.remote_command(command), stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
             self._read(self.process)
         except Exception as exc:
@@ -1171,7 +1206,7 @@ class Console:
                     if kind == "ready":
                         self.ready = True
                         self.connecting = False
-                        self.status = event.get("message") or "Ready · every run is its own Slurm job"
+                        self.status = event.get("message") or self.ready_message()
                     elif kind == "status":
                         self.status = event["message"]
                     elif kind == "job":
@@ -1183,7 +1218,7 @@ class Console:
                     elif kind in ("done", "cancelled"):
                         self.busy = False
                         self.job = None
-                        self.status = ("Ready · every run is its own Slurm job" if event.get("ok", True)
+                        self.status = (self.ready_message() if event.get("ok", True)
                                        else "Run failed · see output")
                         if kind == "cancelled":
                             self.mode = None
@@ -1202,7 +1237,7 @@ class Console:
     def send(self, command):
         with self.lock:
             if self.process is None or self.process.poll() is not None or not self.ready:
-                raise ValueError("Connect to Odo first and wait until it is ready")
+                raise ValueError("Connect first and wait until it is ready")
             self.process.stdin.write(json.dumps(command) + "\n")
             self.process.stdin.flush()
 
@@ -1277,10 +1312,15 @@ class Console:
                     command["gpus"] = demo_gpus(command.get("demo"), command["mode"])
             else:
                 raise ValueError("Unknown operation")
+            if self.cpu:
+                if command["gpus"]:
+                    raise ValueError("This CPU fallback has no GPUs; choose CPU")
+                if command["ranks"] > min(MAX_RANKS, self.args.threads):
+                    raise ValueError(f"Choose at most {min(MAX_RANKS, self.args.threads)} MPI ranks on this VM")
             command["id"] = secrets.token_hex(8)
             self.send(command)
             self.busy = True
-            self.status = "Submitting to Slurm…"
+            self.status = "Starting CPU run…" if self.cpu else "Submitting to Slurm…"
             self.run_id = command["id"]
             self.emit("run", run=command["id"], demo=command.get("demo"),
                       label=command.get("label") or command.get("demo", "REPL"),
@@ -1345,10 +1385,9 @@ def handler_for(console):
                 except ValueError:
                     self.reply(dict(error="Invalid cursor"), code=400)
             elif url.path == "/api/config":
-                self.reply(dict(token=console.token, demos=DEMOS, sections=section_layout(),
-                                exercises=exercises(), exercise_template=exercise_template(),
+                self.reply(dict(token=console.token, **console.configuration(), exercise_template=exercise_template(),
                                 exercise_setups=setup_templates(exercise_setup),
-                                targets=TARGETS, modes=MODES, max_ranks=MAX_RANKS,
+                                modes=MODES,
                                 default_ranks=DEFAULT_RANKS, gpu_choices=GPU_CHOICES,
                                 default_gpus=GPUS_PER_TASK["single"],
                                 final_exercise=dict(FINAL_EXERCISE, visuals=FINAL_VISUALS,
@@ -1487,6 +1526,12 @@ def main():
     parser.add_argument("--port", type=int, help="Local port (default: 8767, or the next free one)")
     parser.add_argument("--ssh-host", help="SSH alias; reuse `odo` when it already points at Odo, "
                                            "otherwise the console manages `sc26-odo-<user>`")
+    parser.add_argument("--backend", choices=("odo", "cpu"), default="odo",
+                        help="Odo/Slurm (default), or a CPU VM with Julia and SSH")
+    parser.add_argument("--threads", type=int, default=8, help="CPU VM's vCPUs (default: 8)")
+    parser.add_argument("--via-relay", action="store_true", help="Execute through host/relay.py on --ssh-host")
+    parser.add_argument("--relay-script", default="/home/ubuntu/sc26/host/relay.py")
+    parser.add_argument("--relay-socket", default="/home/ubuntu/.sc26-relay/socket")
     parser.add_argument("--odo-user", help="OLCF/UCAMS username (skips the prompt; also SC26_ODO_USER)")
     parser.add_argument("--ssh-config", type=Path, default=Path.home() / ".ssh/config",
                         help="SSH config to read and update (default: ~/.ssh/config)")
@@ -1507,16 +1552,33 @@ def main():
     if args.ssh_host and (not re.fullmatch(r"[\w@.-]+", args.ssh_host) or args.ssh_host.startswith("-")):
         parser.error("Invalid SSH host alias")
     args.ssh_config = args.ssh_config.expanduser()
-    try:
-        args.odo_user, args.ssh_host = bootstrap_ssh(args)
-    except (ValueError, RuntimeError, OSError) as exc:
-        parser.error(str(exc))
+    if args.threads < 1:
+        parser.error("--threads must be positive")
+    if args.backend == "cpu" or args.via_relay:
+        if not args.ssh_host:
+            parser.error("--ssh-host is required for a CPU VM or relay")
+        if args.backend == "cpu" and args.via_relay:
+            parser.error("--via-relay is for Odo; CPU VMs use SSH directly")
+        if args.via_relay:
+            args.odo_user = args.odo_user or os.environ.get("SC26_ODO_USER")
+            if not args.odo_user:
+                parser.error("--odo-user is required for the shared Odo identity through the relay")
+        else:
+            args.odo_user = ssh_config_values(args.ssh_host, args.ssh_config).get("user", "ubuntu")
+        if not re.fullmatch(r"[A-Za-z0-9_.-]+", args.odo_user):
+            parser.error("Invalid remote username")
+    else:
+        try:
+            args.odo_user, args.ssh_host = bootstrap_ssh(args)
+        except (ValueError, RuntimeError, OSError) as exc:
+            parser.error(str(exc))
     own_socket = args.control_path is None
     args.control_path = (console_socket(args.odo_user) if own_socket
                          else args.control_path.expanduser().resolve())
     use_final_workspace(args.odo_user)
     ensure_final_workspace()
-    args.remote_root = args.remote_root or default_remote_root(args.account, args.odo_user)
+    args.remote_root = args.remote_root or (f"/home/{args.odo_user}/sc26-dagger/sessions" if args.backend == "cpu"
+                                          else default_remote_root(args.account, args.odo_user))
     if not args.remote_root.startswith("/"):
         parser.error("--remote-root must be an absolute path")
     authenticated = False if args.no_auth else ensure_master(args)
@@ -1556,11 +1618,12 @@ def main():
         connection_note = "\nSSH login skipped (--no-auth); Connect needs an existing connection"
     else:
         connection_note = "\nSSH login failed; use Connect after fixing SSH"
-    print(f"Tutorial console: {url}\nOdo user: {args.odo_user} via {args.ssh_host}"
-          f"\nOdo sessions: {args.remote_root} (each Connect makes its own folder){connection_note}"
-          + "\nEvery run is its own Slurm job; Ctrl-C cancels a run in progress.", flush=True)
+    print(f"Tutorial console: {url}\nBackend: {args.backend}; user: {args.odo_user} via {args.ssh_host}"
+          f"\nSessions: {args.remote_root} (each Connect makes its own folder){connection_note}"
+          + ("\nCPU runs execute on the VM; MPI ranks share its CPUs." if args.backend == "cpu" else
+             "\nEvery run is its own Slurm job; Ctrl-C cancels a run in progress."), flush=True)
     if authenticated and not args.no_auto_connect:
-        print("Preparing Julia and compiling packages in a short job, in the background…", flush=True)
+        print("Preparing Julia packages in the background…", flush=True)
     if args.host == "0.0.0.0":
         for ip in tailscale_ips:
             print(f"Tailscale: http://{ip}:{port}", flush=True)

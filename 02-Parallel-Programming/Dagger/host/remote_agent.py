@@ -24,6 +24,8 @@ MAX_GPUS = 8          # GPUs on one Odo node
 MAX_RANKS = 32        # MPI ranks, one per Odo node
 THREADS = {"single": 7, "mpi": 56}   # an MPI rank has its whole node
 HEARTBEAT = 30        # seconds between heartbeats to the console
+CPU = os.environ.get("SC26_BACKEND") == "cpu"
+CPU_THREADS = int(os.environ.get("SC26_THREADS", "8"))
 write_lock = threading.Lock()
 lock = threading.Lock()
 current = None        # the run in progress: dict(proc, id, done, cancelled)
@@ -71,6 +73,10 @@ def resources(command):
         raise ValueError("Choose 1 to {} MPI ranks, not {!r}".format(MAX_RANKS, ranks))
     if not isinstance(gpus, int) or not 0 <= gpus <= MAX_GPUS:
         raise ValueError("Cannot give a process {!r} GPUs".format(gpus))
+    if CPU and gpus:
+        raise ValueError("This CPU fallback has no GPUs; choose CPU")
+    if CPU and ranks > CPU_THREADS:
+        raise ValueError("This VM supports at most {} MPI ranks".format(CPU_THREADS))
     return mpi, ranks, gpus
 
 
@@ -100,7 +106,7 @@ def stop(proc):
 def precompile():
     """Compile the packages once per connection, in a short job of its own."""
     global compiling
-    if os.environ.get("SC26_PRECOMPILE", "1") == "0":
+    if CPU or os.environ.get("SC26_PRECOMPILE", "1") == "0":
         emit("ready")
         return
     emit("status", message="Compiling packages in a short Slurm job…")
@@ -159,7 +165,8 @@ def relay(run):
             current = None
     if not run["done"] and not run["cancelled"] and not stopping.is_set():
         emit("done", run=run["id"], ok=False,
-             error="The Slurm job ended with status {} before the run finished; see the output.".format(rc))
+             error="The {} ended with status {} before the run finished; see the output.".format(
+                 "CPU process" if CPU else "Slurm job", rc))
     emit("worker_exit", returncode=rc, expected=run["done"] or run["cancelled"])
 
 
@@ -178,7 +185,7 @@ def execute(command):
         except ValueError as exc:
             emit("done", run=run_id, ok=False, error=str(exc))
             return
-        args = ["bash", str(ROOT / "frontier/launch.sh"), str(ranks),
+        args = ["bash", str(ROOT / ("cpu/launch.sh" if CPU else "frontier/launch.sh")), str(ranks),
                 "--startup-file=no", str(ROOT / "host/worker.jl")]
         if mpi:
             args.append("--mpi")
@@ -191,7 +198,11 @@ def execute(command):
                    SC26_THREADS=str(THREADS["mpi" if mpi else "single"]))
         # A job of its own, not a step of some allocation.
         env.pop("SLURM_JOB_ID", None)
-        emit("status", message="Submitting to Slurm: {}…".format(describe(mpi, ranks, gpus)))
+        if CPU:
+            env.update(SC26_CPU_MPI="1" if mpi else "0",
+                       SC26_THREADS=str(max(1, CPU_THREADS // ranks)))
+        emit("status", message=("Starting CPU run: {} rank(s), {} threads each…".format(
+            ranks, env["SC26_THREADS"]) if CPU else "Submitting to Slurm: {}…".format(describe(mpi, ranks, gpus))))
         proc = subprocess.Popen(args, cwd=str(ROOT), env=env, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                 universal_newlines=True, bufsize=1, start_new_session=True)
@@ -217,12 +228,13 @@ def cancel(final=False):
     # Cancel the job through Slurm first, so it ends as CANCELLED and srun
     # exits by itself; then make sure the launcher is gone. The job carries
     # this session's unique name, and a session runs one job at a time.
-    subprocess.run(["scancel", "--name", session_name(), "--user", os.environ.get("USER", "")],
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-    try:
-        run["proc"].wait(timeout=15)
-    except subprocess.TimeoutExpired:
-        pass
+    if not CPU:
+        subprocess.run(["scancel", "--name", session_name(), "--user", os.environ.get("USER", "")],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        try:
+            run["proc"].wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            pass
     stop(run["proc"])
     if not final:
         emit("cancelled", run=run["id"])

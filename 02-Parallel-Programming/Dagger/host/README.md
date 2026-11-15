@@ -1,5 +1,10 @@
 # Local tutorial console
 
+Direct Odo is the default. Optional [AWS fallbacks](../aws/README.md) add
+`--via-relay --ssh-host sc26-relay --odo-user SHARED_USER` for a single shared
+Odo transport, or `--backend cpu --ssh-host sc26-cpu --threads 8` for CPU VMs.
+The fallback guide includes provisioning, capacity, live test results and cleanup.
+
 From `02-Parallel-Programming/Dagger` on your **own computer**:
 
 ```bash

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 454" role="img" aria-label="A splits into two block rows; each multiplied by replicated B on its own GPU; the block rows form C">
+<title>A splits into two block rows; each multiplied by replicated B on its own GPU; the block rows form C</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10" fill="#adbdc9"/></marker></defs>
+<rect x="232" y="87" width="122" height="180" rx="12" fill="none" stroke="#415b6b" stroke-width="1.5"/>
+<rect x="238" y="93" width="110" height="80" rx="8" fill="#182530" stroke="#73e2bd" stroke-width="1.5"/>
+<rect x="238" y="181" width="110" height="80" rx="8" fill="#182530" stroke="#b8a0f5" stroke-width="1.5"/>
+<line x1="232" y1="177" x2="354" y2="177" stroke="#adbdc9" stroke-width="1.5" stroke-dasharray="4 5"/>
+<text x="293" y="143" fill="#73e2bd" font-size="30" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">A₁</text>
+<text x="293" y="231" fill="#b8a0f5" font-size="30" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">A₂</text>
+<text x="293" y="64" fill="#adbdc9" font-size="19" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">A · 1024 × 512</text>
+<text x="220" y="147" fill="#73e2bd" font-size="21" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="end">GPU 1</text>
+<text x="220" y="235" fill="#b8a0f5" font-size="21" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="end">GPU 2</text>
+<text x="400" y="198" fill="#edf3f5" font-size="60" font-family="DejaVu Sans, sans-serif" font-weight="700" text-anchor="middle">×</text>
+<text x="624" y="198" fill="#edf3f5" font-size="60" font-family="DejaVu Sans, sans-serif" font-weight="700" text-anchor="middle">=</text>
+<rect x="459" y="131" width="116" height="124" rx="10" fill="#182530" stroke="#ffc184" stroke-width="1.4" opacity="0.6"/>
+<rect x="447" y="115" width="116" height="124" rx="10" fill="#182530" stroke="#ffc184" stroke-width="1.5"/>
+<text x="505" y="190" fill="#ffc184" font-size="38" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">B</text>
+<text x="505" y="64" fill="#adbdc9" font-size="19" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">B · 512 × 512</text>
+<text x="587" y="127" fill="#ffc184" font-size="21" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="start">× 2</text>
+<text x="505" y="278" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">replicated · read by both GPUs</text>
+<rect x="686" y="87" width="122" height="180" rx="12" fill="none" stroke="#415b6b" stroke-width="1.5"/>
+<rect x="692" y="93" width="110" height="80" rx="8" fill="#182530" stroke="#73e2bd" stroke-width="1.5"/>
+<rect x="692" y="181" width="110" height="80" rx="8" fill="#182530" stroke="#b8a0f5" stroke-width="1.5"/>
+<line x1="686" y1="177" x2="808" y2="177" stroke="#adbdc9" stroke-width="1.5" stroke-dasharray="4 5"/>
+<text x="747" y="143" fill="#73e2bd" font-size="30" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">C₁</text>
+<text x="747" y="231" fill="#b8a0f5" font-size="30" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">C₂</text>
+<text x="747" y="64" fill="#adbdc9" font-size="19" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">C · 1024 × 512</text>
+<text x="824" y="147" fill="#73e2bd" font-size="21" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="start">GPU 1</text>
+<text x="824" y="235" fill="#b8a0f5" font-size="21" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="start">GPU 2</text>
+<rect x="90" y="320" width="340" height="85" rx="14" fill="#182530" stroke="#73e2bd" stroke-width="1.5"/>
+<text x="260.0" y="361.5" fill="#73e2bd" font-size="28" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">GPU 1</text>
+<text x="260.0" y="392.5" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">C₁ = A₁ × B</text>
+<rect x="610" y="320" width="340" height="85" rx="14" fill="#182530" stroke="#b8a0f5" stroke-width="1.5"/>
+<text x="780.0" y="361.5" fill="#b8a0f5" font-size="28" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">GPU 2</text>
+<text x="780.0" y="392.5" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">C₂ = A₂ × B</text>
+<text x="520" y="444" fill="#adbdc9" font-size="21" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">One Julia process · one scope · two GPUs · one product C = A × B</text>
+</svg>

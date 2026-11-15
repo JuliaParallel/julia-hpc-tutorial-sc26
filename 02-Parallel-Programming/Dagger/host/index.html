@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dagger · Tutorial console</title>
+<link rel="stylesheet" href="/xterm.css">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+<div>
+<span class="eyebrow">JULIA HPC / SC26</span>
+<h1>Dagger lab<span class="dot">.</span>
+</h1>
+</div>
+<div class="connection">
+<span id="status">Disconnected</span>
+<button id="cancel" disabled>Cancel run</button>
+<button id="connect" class="primary">Connect</button>
+<button id="disconnect" disabled>Disconnect</button>
+</div>
+</header>
+<div class="layout">
+<aside>
+<section class="side-section" id="side-demos">
+<div class="side-head">
+<span class="eyebrow" id="side-demos-title">EXPLORE THE HARDWARE</span>
+<button class="collapse" type="button" aria-expanded="true" aria-controls="side-demos-body" aria-labelledby="side-demos-title" title="Collapse section">
+<span class="chevron" aria-hidden="true">▾</span>
+</button>
+</div>
+<div class="section-body" id="side-demos-body">
+<nav id="demos" aria-label="Demos">
+</nav>
+</div>
+</section>
+<section class="side-section allocation" id="side-workspace">
+<div class="side-head">
+<span class="eyebrow" id="side-workspace-title">YOUR WORKSPACE</span>
+<button class="collapse" type="button" aria-expanded="true" aria-controls="side-workspace-body" aria-labelledby="side-workspace-title" title="Collapse section">
+<span class="chevron" aria-hidden="true">▾</span>
+</button>
+</div>
+<div class="section-body" id="side-workspace-body">
+<p>One Slurm job per run. Nothing held in between.</p>
+<small id="remote">
+</small>
+<p class="muted">MPI runs put each rank on its own Odo node, with all eight of its GPUs when the run uses GPUs. Choose 1 to 32 ranks.</p>
+</div>
+</section>
+</aside>
+<main>
+<section class="intro">
+<div>
+<span class="eyebrow" id="layout-label">ONE JULIA PROCESS</span>
+<h2 id="demo-title">Tasks & dependencies</h2>
+<p>See the algorithm. Run it. Explore where the work happened.</p>
+</div>
+</section>
+<div id="alert" role="alert" hidden>
+</div>
+<div id="consoles">
+</div>
+</main>
+</div>
+<footer>The webpage and plots run on your computer. Julia runs on Odo, one Slurm job per run.</footer>
+<div id="task-tooltip" role="tooltip" hidden></div>
+<script src="/xterm.js"></script>
+<script src="/addon-fit.js"></script>
+<script src="/timeline.js"></script>
+<script src="/ansi.js"></script>
+<script src="/highlight.js"></script>
+<script src="/visuals.js"></script>
+<script src="/app.js">
+</script>
+</body>
+</html>

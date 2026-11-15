@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1130 400" role="img" aria-label="Selected Cholesky dependencies for panel one and the next diagonal factor">
+<title>Selected Cholesky dependencies for panel one and the next diagonal factor</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10" fill="#adbdc9"/></marker></defs>
+<line x1="190" y1="195" x2="290" y2="90" stroke="#415b6b" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="190" y1="195" x2="290" y2="290" stroke="#415b6b" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="485" y1="90" x2="605" y2="65" stroke="#415b6b" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="485" y1="90" x2="605" y2="190" stroke="#415b6b" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="485" y1="290" x2="605" y2="190" stroke="#415b6b" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="485" y1="290" x2="605" y2="315" stroke="#415b6b" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="800" y1="65" x2="900" y2="65" stroke="#415b6b" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="10" y="155" width="180" height="80" rx="14" fill="#182530" stroke="#73e2bd" stroke-width="1.5"/>
+<text x="100.0" y="203.0" fill="#73e2bd" font-size="25" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">P(1,1)</text>
+<rect x="295" y="50" width="185" height="80" rx="14" fill="#182530" stroke="#b8a0f5" stroke-width="1.5"/>
+<text x="387.5" y="98.0" fill="#b8a0f5" font-size="25" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">S(2,1)</text>
+<rect x="295" y="250" width="185" height="80" rx="14" fill="#182530" stroke="#b8a0f5" stroke-width="1.5"/>
+<text x="387.5" y="298.0" fill="#b8a0f5" font-size="25" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">S(3,1)</text>
+<rect x="610" y="25" width="185" height="80" rx="14" fill="#182530" stroke="#ffc184" stroke-width="1.5"/>
+<text x="702.5" y="73.0" fill="#ffc184" font-size="25" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">U(2,2)</text>
+<rect x="610" y="150" width="185" height="80" rx="14" fill="#182530" stroke="#8abdea" stroke-width="1.5"/>
+<text x="702.5" y="198.0" fill="#8abdea" font-size="25" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">G(3,2)</text>
+<rect x="610" y="275" width="185" height="80" rx="14" fill="#182530" stroke="#ffc184" stroke-width="1.5"/>
+<text x="702.5" y="323.0" fill="#ffc184" font-size="25" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">U(3,3)</text>
+<rect x="905" y="25" width="200" height="80" rx="14" fill="#182530" stroke="#73e2bd" stroke-width="1.5"/>
+<text x="1005.0" y="73.0" fill="#73e2bd" font-size="25" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">P(2,2)</text>
+<text x="1005" y="145" fill="#73e2bd" font-size="20" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">next panel</text>
+<text x="10" y="390" fill="#adbdc9" font-size="19" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">Selected dependencies · P factor / S solve / U diagonal update / G off-diagonal update</text>
+</svg>

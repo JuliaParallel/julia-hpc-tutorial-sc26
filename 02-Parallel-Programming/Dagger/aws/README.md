@@ -1,5 +1,11 @@
 # AWS fallbacks for the tutorial console
 
+For attendee access without individual SSH keys or IP setup, use the
+[shared-password workshop gateway](GATEWAY.md). Attendees run
+`python3 host/app.py --gateway`, choose Odo relay or AWS CPU, and paste one
+workshop password. CPU VMs are assigned and released automatically.
+The instructions below also retain the original manual fleet/relay workflow.
+
 Direct Odo remains the default (`python3 host/app.py`). These fallbacks are
 explicit options and do not modify Odo's launchers, GPU setup, or SSH aliases.
 Run the commands below from `02-Parallel-Programming/Dagger`.

@@ -327,14 +327,14 @@ def gray_scott():
     """Three frames of the activator v from data/gray-scott-v.bin
     (gray_scott_data.jl), drawn as the console draws them."""
     import base64
-    n, scale = 256, 2
+    n, scale = 512, 1
     data = (ROOT / "data" / "gray-scott-v.bin").read_bytes()
     colours = [magma(i / 255) for i in range(256)]
     captions = [("t = 200", "the seeded squares react"), ("t = 1000", "spots grow and split"),
                 ("t = 6000", "a labyrinth, for F = 0.055, k = 0.062")]
     size = n * scale
     s = SVG("gray-scott.svg", 3 * size + 2 * 40, size + 90,
-            "The activator v of the final exercise at t = 200, 1000 and 6000: fourteen seeded "
+            "The activator v of the final exercise at t = 200, 1000 and 6000: 56 seeded "
             "squares become spots, the spots split, and they fill the grid with a labyrinth of stripes.")
     for frame, (time_label, what) in enumerate(captions):
         v = data[frame * n * n:(frame + 1) * n * n]

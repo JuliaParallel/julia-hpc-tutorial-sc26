@@ -295,6 +295,26 @@ def exercise_setup(target, mode):
     return "\n".join(lines) + "\n"
 
 
+def _panel_lines(target, mode):
+    """How many panels of grid lines, for the final exercise: one task per
+    panel and field, so enough panels to keep every processor busy, and no
+    more, since each task costs scheduling time. It must divide n."""
+    if target == "gpus":
+        return ["# Panels: one per GPU, so every GPU solves its share of the lines.",
+                "panels = length(AMDGPU.devices())"]
+    if target == "gpu":
+        return ["# Panels: one GPU runs the tasks one after another, so a few large",
+                "# panels (256 lines each) keep the GPU busy with little overhead.",
+                "panels = 2"]
+    if mode == "mpi" and target == "cpu":
+        return ["# Panels: one task per panel and field; 16 panels of 32 lines spread",
+                "# the work over a rank's 56 CPU threads.",
+                "panels = 16"]
+    return ["# Panels: one task per panel and field; 8 panels of 64 lines give each",
+            "# CPU thread one panel of each field (a one-process run has 7 threads).",
+            "panels = 8"]
+
+
 def final_setup(target, mode):
     """Runnable Setup and Use for the final exercise."""
     lines = ["# Setup and Use: where the tasks run, the parameters, the initial fields,",
@@ -307,18 +327,19 @@ def final_setup(target, mode):
               ""] + _scope_lines(target, mode)
     lines += ["",
               "# (2) Parameters: grid size, time step, diffusion rates, feed and kill rates.",
-              "n, dt = 256, 1.0",
+              "n, dt = 512, 1.0",
               "Du, Dv = 0.16, 0.08",
               "F, k = 0.055, 0.062",
               "nsteps = 3600",
+              ""] + _panel_lines(target, mode) + [
               "",
-              "# (3) Initial fields: substrate u = 1 and a little activator v, plus 14",
+              "# (3) Initial fields: substrate u = 1 and a little activator v, plus 56",
               "#     seeded squares where the reaction starts. The seed makes every MPI",
               "#     rank start from the same fields.",
               "Random.seed!(42)",
               "u = ones(n, n)",
               "v = 0.01 .* rand(n, n)",
-              "for _ in 1:14",
+              "for _ in 1:56",
               "    cx, cy = rand(6:n-5, 2)",
               "    v[cx-3:cx+3, cy-3:cy+3] .= 1.0",
               "    u[cx-3:cx+3, cy-3:cy+3] .= 0.5",
@@ -326,7 +347,7 @@ def final_setup(target, mode):
               "",
               "# (4) Run the simulation where the scope says; it updates u and v in place.",
               "Dagger.with_options(scope=scope) do",
-              "    simulate!(u, v, (; n, dt, Du, Dv, F, k), nsteps)",
+              "    simulate!(u, v, (; n, dt, Du, Dv, F, k, panels), nsteps)",
               "end",
               "",
               "# (5) Check and report: both fields must stay finite.",
@@ -351,69 +372,116 @@ FINAL_EXERCISE = dict(
     prompt=textwrap.dedent("""\
         Final exercise: Gray-Scott reaction-diffusion
 
-        Two chemicals diffuse and react on a periodic 2D grid:
+        Two chemicals diffuse and react on a periodic 512 x 512 grid:
             du/dt = Du laplacian(u) - u v^2 + F (1 - u)
             dv/dt = Dv laplacian(v) + u v^2 - (F + k) v
 
-        The feed and kill rates F = 0.055 and k = 0.062 produce a
-        labyrinth of spots and stripes. Use ADI splitting: each time
-        step is two half steps. In the first, x is implicit and y is
-        explicit; in the second, y is implicit and x is explicit.
-        Each half step solves one independent 1D system per column
-        or row, which is exactly the loop to parallelize with Dagger.
-        For the first half step,
-            rhs = u + dt/2 * (Du * (u * L) + reaction(u, v))
-        then solve with Fu for every column j; repeat for v with
-        Fv. The second half step uses L * u and solves rows i.
+        The substrate u is fed in; the activator v feeds on it and
+        decays. F = 0.055 and k = 0.062 grow a labyrinth of stripes
+        from the 56 seeded squares.
 
-        The 1D periodic Laplacian L is symmetric. The two implicit
-        operators
-            A_u = I - (dt/2) Du L       A_v = I - (dt/2) Dv L
-        are symmetric positive definite, so factor each once with
-        cholesky(Symmetric(A)) and reuse the factors every step. The
-        1D systems are small; the parallel work is the line solves.
+        ADI splitting: each time step is two half steps. A half step
+        is explicit across the grid lines and implicit along them, so
+        its implicit part is one small 1D system per line:
+            A_u x = rhs,   A_u = I - (dt/2) Du L
+        (A_v likewise, with Dv). L is the 1D periodic Laplacian. A_u
+        and A_v are symmetric positive definite and never change:
+        factor each once with Cholesky, then every solve is two
+        triangular solves with the factor.
 
-        Fill in L, Fu, Fv, and the two half steps of simulate!,
-        updating u and v in place. Setup and Use sets the parameters
-        and the initial fields, calls simulate!(u, v, p, nsteps) where
-        the scope says, and checks the result; Target and Processes
-        choose the hardware and whether it runs on MPI ranks. The
-        Visualization panel draws substrate u and activator v side by
-        side and animates the sampled time steps; no plotting code
-        belongs in your script.
+        The lines are independent: that is the parallel work. Split
+        the columns into `panels` blocks (Setup and Use sets how many)
+        and spawn one Dagger task per panel and field that builds the
+        right-hand side of its lines and solves them all. One task per
+        column would be 512 tiny tasks per field per half step, far
+        more scheduling than work.
+
+        Both half steps run the same code: solve along the columns,
+        then store the result transposed, so the next half step solves
+        along the other direction. After two half steps the fields are
+        the right way round again.
+
+        Fill in the TODOs in simulate! and the two panel functions.
+        Setup and Use sets the parameters, the panels and the initial
+        fields, calls simulate!(u, v, p, nsteps) where the scope says,
+        and checks the result; Target and Processes choose the
+        hardware. Keep the `for step in 1:nsteps` loop and the names
+        u and v: the Visualization panel samples them there and draws
+        substrate u and activator v; no plotting code belongs in your
+        script.
     """),
     template=textwrap.dedent("""\
         # Final exercise: Gray-Scott reaction-diffusion on a periodic grid.
-        # Fill in simulate! below. Setup and Use sets the parameters and the
-        # initial fields, calls simulate!, and checks the result.
+        # Fill in the TODOs. Setup and Use sets the parameters, the panels and
+        # the initial fields, calls simulate!, and checks the result.
 
         using Dagger, LinearAlgebra
 
+        # Solve A X = R for every column of R, in place, from the lower Cholesky
+        # factor C of A = C * C': two triangular solves (they work on GPUs too).
+        function solve_lines!(R, C)
+            ldiv!(LowerTriangular(C), R)
+            ldiv!(LowerTriangular(C)', R)
+            return nothing
+        end
+
+        # One half step of the substrate u on one panel: the columns `cols`, with
+        # `left` and `right` the columns next to each of them (wrapping around).
+        # out[:, j] = u + dt/2 * (Du * (left - 2 * middle + right) - u v^2 + F (1 - u))
+        # for the panel's columns, then solve the lines of out with the factor C.
+        function substrate_panel!(out, u, v, C, cols, left, right, p)
+            (; dt, Du, F) = p
+            # TODO: the right-hand side (use views and a dotted @. expression)
+            # TODO: solve_lines!(out, C)
+        end
+
+        # The same for the activator v:
+        # out = v + dt/2 * (Dv * (left - 2 * middle + right) + u v^2 - (F + k) v)
+        function activator_panel!(out, u, v, C, cols, left, right, p)
+            (; dt, Dv, F, k) = p
+            # TODO
+        end
+
         # Advance the substrate u and the activator v by nsteps ADI time steps,
-        # in place. p holds the parameters from Setup and Use: n, dt, Du, Dv, F, k.
+        # in place. p holds the parameters from Setup and Use:
+        # n, dt, Du, Dv, F, k and panels.
         function simulate!(u, v, p, nsteps)
-            (; n, dt, Du, Dv, F, k) = p
+            (; n, dt, Du, Dv, panels) = p
+            n % panels == 0 || error("panels must divide n")
 
             # 1. Build the 1D periodic Laplacian L: diagonal -2, neighbour
             #    entries +1, and the first/last rows wrap around.
             L = ???
 
             # 2. Factor the implicit operators A_u = I - (dt/2) Du L and
-            #    A_v = I - (dt/2) Dv L with Cholesky. They are SPD and
-            #    constant, so one factorization serves every time step.
-            Fu = ???
-            Fv = ???
+            #    A_v = I - (dt/2) Dv L with Cholesky, once; keep the lower
+            #    factors as plain matrices: Matrix(cholesky(Symmetric(A)).L).
+            Cu = ???
+            Cv = ???
 
-            # 3. Time loop with ADI splitting. Each column/row solve is
-            #    independent; this is the loop to spawn as Dagger tasks.
-            ru = similar(u)
-            rv = similar(v)
+            # 3. The panels: their columns, each column's neighbours, and one
+            #    output array per panel and field.
+            width = n ÷ panels
+            cols = [(q - 1) * width + 1:q * width for q in 1:panels]
+            left = [mod1.(c .- 1, n) for c in cols]
+            right = [mod1.(c .+ 1, n) for c in cols]
+            new_u = [zeros(n, width) for _ in 1:panels]
+            new_v = [zeros(n, width) for _ in 1:panels]
+
+            # 4. Time loop: two ADI half steps per time step.
             for step in 1:nsteps
-                # First half step: y explicit (u * L), x implicit (Fu).
-                # TODO
+                for half in 1:2
+                    # (a) In a Datadeps region, spawn substrate_panel! and
+                    #     activator_panel! for every panel q. They read u, v and
+                    #     the factor (In) and write their panel (InOut), so Dagger
+                    #     runs them all at once.
+                    # TODO
 
-                # Second half step: x explicit (L * u), y implicit (Fv).
-                # TODO
+                    # (b) Store each panel transposed, u[cols[q], :] .= transpose(new_u[q]),
+                    #     and the same for v. The next half step then solves
+                    #     along the other direction.
+                    # TODO
+                end
             end
             return u, v
         end

@@ -2,6 +2,11 @@
 # Diff this against exercise/serial_cholesky.jl: the loops are identical;
 # only `spawn_datadeps`, `Dagger.@spawn`, and In/InOut were added.
 #
+# The file has both halves of a console exercise: the Function (my_cholesky!)
+# and, at the end, its Setup and Use for the CPU in one process. Run it on its
+# own with   julia --project -t 4 solution/my_cholesky.jl
+# (the harness, harness/run.jl --impl=solution, loads only the Function).
+#
 # The four tile operations are `const` aliases of the BLAS/LAPACK functions.
 # Keep them as aliases: Dagger selects the rocBLAS/rocSOLVER version only when
 # the spawned function *is* the BLAS/LAPACK function.
@@ -52,4 +57,46 @@ function my_cholesky!(T::AbstractMatrix)
         end
     end
     return T
+end
+
+# Other targets change only the scope line (1); the Function stays the same:
+#   one GPU:        using AMDGPU;  scope = Dagger.scope(rocm_gpu=1)
+#   every GPU:      using AMDGPU;  scope = Dagger.scope(rocm_gpus=:)
+#   CPU and GPU:    scope = Dagger.UnionScope(Dagger.scope(worker=1), Dagger.scope(rocm_gpu=1))
+#   MPI ranks:      using MPI; Dagger.accelerate!(:mpi)
+#                   scope = Dagger.constrain(Dagger.scope(mpi_ranks=:), Dagger.DefaultScope())
+#                   (start with srun or mpiexec, one process per rank)
+
+if abspath(PROGRAM_FILE) == @__FILE__
+    # Setup and Use: where the tasks run, the test matrix, the call to
+    # my_cholesky!, and the check. Run exercise runs the Function first,
+    # then this code.
+
+    using Dagger, LinearAlgebra, Random
+
+    BLAS.set_num_threads(1)   # Dagger runs one tile operation per thread
+
+    # (1) Where the tasks run: the CPU threads.
+    scope = Dagger.scope(worker=1)
+
+    # (2) A symmetric positive-definite test matrix. It is seeded, so every
+    #     MPI rank builds the same one.
+    n, bs = 1024, 256
+    A = rand(Xoshiro(1234), n, n)
+    A = A + A'
+    A[diagind(A)] .+= 2n
+
+    # (3) Tile A, factor the tiles in place, and gather the lower factor L.
+    L = Dagger.with_options(scope=scope) do
+        DA = DArray(A, Blocks(bs, bs))
+        my_cholesky!(DA.chunks)
+        LowerTriangular(collect(DA))
+    end
+
+    # (4) Check A = L * L' with a scaled residual; it passes below 16.
+    x = rand(Xoshiro(7), n)
+    residual = norm(A * x - L * (L' * x), Inf) / (norm(A, Inf) * norm(x, Inf) * n * eps())
+    status = residual < 16 ? "PASS" : "FAIL"
+    println("$status: n = $n, tiles of $bs, residual ", round(residual; sigdigits=3))
+    residual < 16 || error("my_cholesky! returned a wrong factor")
 end

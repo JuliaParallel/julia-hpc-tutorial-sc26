@@ -67,6 +67,15 @@ $presentation-slide-text-align: left;
 .reveal .task-demo .demo-output pre { border: 1px solid #4d806d; padding: 12px 18px; }
 .reveal .task-demo .demo-output code { color: var(--mint); }
 .reveal .closing h2 { font-size: 2.4em; }
+.reveal .qr { display: block; width: 100%; max-width: 360px; margin: 10px auto 0; border-radius: 14px; }
+.reveal .qr-link { font-size: .78em; margin-top: 18px; }
+.reveal .qr-link a { color: var(--mint); }
+.reveal .console-callout { position: absolute; top: -2px; right: 0; z-index: 5; padding: 6px 14px;
+  border: 1px solid #4d806d; border-radius: 100px; background: #17232d; font-size: .5em; color: var(--muted); }
+.reveal .console-callout p { margin: 0; }
+.reveal .install-command pre { font-size: .6em; }
+.reveal .install-command pre.sourceCode { padding: 16px 18px; }
+.reveal .console-callout b { color: var(--mint); font-weight: 650; }
 .reveal .checkpoint { display: inline-block; border: 1px solid #4d806d; border-radius: 100px; padding: 6px 16px; color: var(--mint); font-size: .55em; margin-bottom: 20px; }
 .reveal .exercise-title { display: flex; justify-content: space-between; align-items: baseline; }
 .reveal .exercise-title h2 { margin-bottom: 22px; }

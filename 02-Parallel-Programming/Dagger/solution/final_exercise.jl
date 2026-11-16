@@ -50,9 +50,11 @@ function activator_panel!(out, u, v, C, cols, left, right, p)
 end
 
 # Advance the substrate u and the activator v by nsteps ADI time steps,
-# in place. p holds the parameters from Setup and Use: n, dt, Du, Dv, F, k.
-function simulate!(u, v, p, nsteps; panels = 4)
-    (; n, dt, Du, Dv) = p
+# in place. p holds the parameters from Setup and Use:
+# n, dt, Du, Dv, F, k and panels.
+function simulate!(u, v, p, nsteps)
+    (; n, dt, Du, Dv, panels) = p
+    n % panels == 0 || error("panels must divide n")
 
     # 1. 1D periodic Laplacian. L is symmetric negative semidefinite and the
     #    first/last rows wrap around.
@@ -113,18 +115,22 @@ BLAS.set_num_threads(1)   # Dagger runs one panel of line solves per thread
 scope = Dagger.scope(worker=1)
 
 # (2) Parameters: grid size, time step, diffusion rates, feed and kill rates.
-n, dt = 256, 1.0
+n, dt = 512, 1.0
 Du, Dv = 0.16, 0.08
 F, k = 0.055, 0.062
 nsteps = 3600
 
-# (3) Initial fields: substrate u = 1 and a little activator v, plus 14
+# Panels: one task per panel and field; 8 panels of 64 lines give each
+# CPU thread one panel of each field (a one-process run has 7 threads).
+panels = 8
+
+# (3) Initial fields: substrate u = 1 and a little activator v, plus 56
 #     seeded squares where the reaction starts. The seed makes every MPI
 #     rank start from the same fields.
 Random.seed!(42)
 u = ones(n, n)
 v = 0.01 .* rand(n, n)
-for _ in 1:14
+for _ in 1:56
     cx, cy = rand(6:n-5, 2)
     v[cx-3:cx+3, cy-3:cy+3] .= 1.0
     u[cx-3:cx+3, cy-3:cy+3] .= 0.5
@@ -132,7 +138,7 @@ end
 
 # (4) Run the simulation where the scope says; it updates u and v in place.
 Dagger.with_options(scope=scope) do
-    simulate!(u, v, (; n, dt, Du, Dv, F, k), nsteps)
+    simulate!(u, v, (; n, dt, Du, Dv, F, k, panels), nsteps)
 end
 
 # (5) Check and report: both fields must stay finite.

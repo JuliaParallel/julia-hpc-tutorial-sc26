@@ -125,8 +125,18 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn("mpi_ranks=:", app.exercise_setup("cpu", "mpi"))
         # The visualization reads these globals after the final exercise runs.
         final = app.final_setup("cpu", "single")
-        for name in ("u = ", "v = ", "F, k = ", "nsteps = "):
+        for name in ("u = ", "v = ", "F, k = ", "nsteps = ", "panels = ", "n, dt = 512"):
             self.assertIn(name, final)
+        # Panels fit the target: one per GPU for All GPUs, and they divide n = 512.
+        self.assertIn("panels = length(AMDGPU.devices())", app.final_setup("gpus", "single"))
+        for target in app.TARGETS:
+            for mode in app.MODES:
+                import re
+                found = re.search(r"^panels = (\d+)$", app.final_setup(target, mode), re.M)
+                self.assertTrue(found is None or 512 % int(found.group(1)) == 0)
+        # The reference solution carries the console's own Setup and Use.
+        solution = (BASE / "solution/final_exercise.jl").read_text()
+        self.assertTrue(solution.endswith(final), "solution/final_exercise.jl is out of date")
 
     def test_console_generates_a_shared_exercise_editor(self):
         page = (BASE / "host/app.js").read_text()
@@ -195,8 +205,9 @@ class ConsoleTests(unittest.TestCase):
         self.assertEqual(final["title"], "Final Exercise")
         self.assertIn("Gray-Scott", final["prompt"])
         self.assertIn("L = ???", final["template"])
-        self.assertIn("Fu = ???", final["template"])
-        self.assertIn("Fv = ???", final["template"])
+        self.assertIn("Cu = ???", final["template"])
+        self.assertIn("Cv = ???", final["template"])
+        self.assertIn("panels", final["template"])
         self.assertIn("function simulate!(u, v, p, nsteps)", final["template"])
         self.assertIn("for step in 1:nsteps", final["template"])
         # The visualization code lives in the harness, not in the template.

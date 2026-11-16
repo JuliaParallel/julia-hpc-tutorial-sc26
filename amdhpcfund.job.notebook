@@ -3,9 +3,10 @@
 #SBATCH -J notebook           # Job name
 #SBATCH -o job.%j.out         # Name of stdout output file (%j expands to jobId)
 #SBATCH -N 1                  # Total number of nodes requested
-#SBATCH -n 4                  # Number of tasks requested
+#SBATCH -n 1                  # Number of tasks requested
 #SBATCH -t 02:00:00           # Run time (hh:mm:ss) - 2 hours
 #SBATCH -p mi2101x            # Desired partition
+#SBATCH --reservation=sc26julia
 
 # ---------------------------- Input ------------------------------
 # The following defines an available port to use on your local

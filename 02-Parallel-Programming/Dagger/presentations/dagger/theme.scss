@@ -70,12 +70,11 @@ $presentation-slide-text-align: left;
 .reveal .qr { display: block; width: 100%; max-width: 360px; margin: 10px auto 0; border-radius: 14px; }
 .reveal .qr-link { font-size: .78em; margin-top: 18px; }
 .reveal .qr-link a { color: var(--mint); }
-.reveal .console-callout { position: absolute; bottom: 60px; right: 0; z-index: 5; padding: 3px 18px;
-  border: 2px solid var(--mint); border-radius: 100px; background: #17232d; font-size: .72em; color: #d3dfe6; }
-.reveal .console-callout p { margin: 0; }
 .reveal .install-command pre { font-size: .6em; }
 .reveal .install-command pre.sourceCode { padding: 16px 18px; }
-.reveal .console-callout b { color: var(--mint); font-weight: 650; }
+.reveal .footer .console-callout { display: inline-block; padding: 3px 18px; border: 2px solid var(--mint);
+  border-radius: 100px; background: #17232d; font-size: 20px; color: #d3dfe6; }
+.reveal .footer .console-callout b { color: var(--mint); font-weight: 650; }
 .reveal .checkpoint { display: inline-block; border: 1px solid #4d806d; border-radius: 100px; padding: 6px 16px; color: var(--mint); font-size: .55em; margin-bottom: 20px; }
 .reveal .exercise-title { display: flex; justify-content: space-between; align-items: baseline; }
 .reveal .exercise-title h2 { margin-bottom: 22px; }
@@ -103,3 +102,16 @@ $presentation-slide-text-align: left;
 .reveal .gs-key b { display: block; color: var(--mint); margin-bottom: 2px; }
 .reveal .gs-key code { font-size: .95em; }
 .reveal .gs-frames { max-height: 345px; margin-top: 14px; }
+// Print (PDF): Quarto prints the deck footer on every page and hides each
+// slide's own footer. Print a demo slide's call-out footer over it instead.
+// In print the slide box sits half a margin (38px, 21.5px) inside the page, so
+// shift the call-out back to the page's bottom centre.
+// The deck footer is one fixed element printed on every page, so in print hide
+// it and draw each page's own: the call-out on demo slides, the deck text
+// elsewhere.
+html.print-pdf .reveal > .footer-default { display: none !important; }
+html.print-pdf .reveal .slides section > .footer { display: block !important; position: absolute !important;
+  left: -38px; right: 38px; bottom: 28px; text-align: center; z-index: 30; }
+html.print-pdf .reveal .slides section:not(:has(> .footer))::after {
+  content: "JULIA FOR HPC · SC26 / DAGGER"; position: absolute; left: -38px; right: 38px; bottom: 37px;
+  text-align: center; color: #adbdc9; font-size: 18px; line-height: 1; }

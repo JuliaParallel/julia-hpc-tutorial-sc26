@@ -184,8 +184,8 @@ constrained by available processors and scopes. It does not guarantee a speedup.
 
 ## A task result is also a dependency
 
-::: {.console-callout}
-<b>▶ Run it in the console</b> · Tasks & dependencies
+::: footer
+[<b>▶ Run it in the console</b> · Tasks & dependencies]{.console-callout}
 :::
 
 :::: {.columns}
@@ -218,8 +218,8 @@ Ask: which two tasks could overlap? Use the graph rather than terminology.
 
 ## Run the graph. See the threads. {.demo .task-demo}
 
-::: {.console-callout}
-<b>▶ Run it in the console</b> · Tasks & dependencies
+::: footer
+[<b>▶ Run it in the console</b> · Tasks & dependencies]{.console-callout}
 :::
 
 ```julia-repl
@@ -336,8 +336,8 @@ Out is appropriate for copyto!'s destination; not for accumulation.
 
 ## Predict the dependency
 
-::: {.console-callout}
-<b>▶ Run it in the console</b> · Mutable data & tiles
+::: footer
+[<b>▶ Run it in the console</b> · Mutable data & tiles]{.console-callout}
 :::
 
 ```julia
@@ -362,8 +362,8 @@ Demonstrate the correctness assertion in demo 2 after introducing tiles.
 
 ## Tiles give the scheduler room to work
 
-::: {.console-callout}
-<b>▶ Run it in the console</b> · Mutable data & tiles
+::: footer
+[<b>▶ Run it in the console</b> · Mutable data & tiles]{.console-callout}
 :::
 
 :::: {.columns}
@@ -396,8 +396,8 @@ The tile count exposes concurrency; it is not a promise of simultaneous executio
 
 ## One GPU: keep the algorithm
 
-::: {.console-callout}
-<b>▶ Run it in the console</b> · Single GPU
+::: footer
+[<b>▶ Run it in the console</b> · Single GPU]{.console-callout}
 :::
 
 ```julia
@@ -433,8 +433,8 @@ exercise, spawn BLAS/LAPACK calls directly so Dagger can select replacements.
 
 ## Multiple GPUs: widen the scope
 
-::: {.console-callout}
-<b>▶ Run it in the console</b> · Multiple GPUs
+::: footer
+[<b>▶ Run it in the console</b> · Multiple GPUs]{.console-callout}
 :::
 
 ```julia
@@ -499,8 +499,8 @@ No additional attendee or presenter nodes are required.
 
 ## MPI ranks: the same code
 
-::: {.console-callout}
-<b>▶ Run it in the console</b> · Multi-node · CPU MPI
+::: footer
+[<b>▶ Run it in the console</b> · Multi-node · CPU MPI]{.console-callout}
 :::
 
 ```julia
@@ -568,8 +568,8 @@ Attendee MPI exercises and optional four-rank GPU checks keep one attendee node.
 
 ## Ranks and GPUs: the same code
 
-::: {.console-callout}
-<b>▶ Run it in the console</b> · Multi-node + multi-GPU
+::: footer
+[<b>▶ Run it in the console</b> · Multi-node + multi-GPU]{.console-callout}
 :::
 
 ```julia

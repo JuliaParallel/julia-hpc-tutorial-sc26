@@ -562,7 +562,7 @@ end;
 * [The Manual](https://docs.julialang.org)
 * [YouTube channel](https://www.youtube.com/@TheJuliaLanguage) (all JuliaCon talks, Computational Thinking course @ MIT, and more)
 * Engage with the [community](https://julialang.org/community/)
-  * [BoF session](https://github.com/JuliaParallel/julia-hpc-bof-sc24) (Thu 12:15pm-1:15pm @ 131)
+  * [BoF session](https://sc26.conference-program.com/presentation/?id=bof192&sess=sess371) (Tue 12:15pm-1:15pm @ W190b)
   * [Zulip](https://julialang.zulipchat.com/register/) and [Slack](https://julialang.org/slack/) workspaces
   * Ask for help on the [Discourse web forum](https://discourse.julialang.org/)
   * [Fortnightly HPC call](https://julialang.org/community/#events) at different times

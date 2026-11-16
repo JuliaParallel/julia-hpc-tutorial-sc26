@@ -2,7 +2,7 @@
 
 Steps for the parallel-programming notebooks with GPU setup: there are two options.
 
-## Local machine: if you have a MacBook or nvidia GPU
+## Local machine: if you have a MacBook or Nvidia GPU
 
 1. Install [Julia](https://julialang.org/downloads/).
 2. Clone the repo and enter the KernelAbstractions project:

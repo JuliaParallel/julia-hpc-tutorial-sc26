@@ -34,6 +34,17 @@ chmod +x hpcfund.sh
 ./hpcfund.sh cluster <username>   # AMD HPC Fund cluster
 ```
 
+On **Windows** (PowerShell, Windows 10/11), use `hpcfund.ps1` instead:
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/JuliaParallel/julia-hpc-tutorial-sc26/main/02-Parallel-Programming/KernelAbstractions/hpcfund.ps1 -OutFile hpcfund.ps1
+
+powershell -ExecutionPolicy Bypass -File hpcfund.ps1 local                # your own GPU machine
+powershell -ExecutionPolicy Bypass -File hpcfund.ps1 cluster <username>   # AMD HPC Fund cluster
+```
+
+On Windows you type your password twice (once to start the job, once for the tunnel); everything else works the same.
+
 In cluster mode the script logs in once, sets up Julia and the **GPU Julia** kernel, submits the notebook job, tunnels Jupyter to your laptop and opens your browser. Press **Ctrl-C** when you are done: it cancels the job for you. Add a folder to use other notebooks, e.g. `./hpcfund.sh cluster <username> KernelTuner/proposed_solution`. Run `./hpcfund.sh --help` for options.
 
 The manual steps follow.

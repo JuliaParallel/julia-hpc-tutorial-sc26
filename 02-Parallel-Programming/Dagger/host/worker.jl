@@ -45,6 +45,8 @@ end
 # code in the student's template: append a guarded push to the main time loop.
 contains_symbol(x, s) = x === s || (x isa Expr && any(a -> contains_symbol(a, s), x.args))
 
+const TIMELINE_STEPS = 4   # time steps of the final exercise in its task timeline
+
 function inject_frame_capture(expr)
     function find_loop(x)
         x isa Expr || return nothing
@@ -83,6 +85,11 @@ function inject_frame_capture(expr)
             __sc26_tick += 1
             if __sc26_tick == 1
                 __sc26_stride = max(1, nsteps ÷ 24)
+            end
+            # The task timeline covers the first time steps only.
+            if __sc26_tick == $TIMELINE_STEPS
+                DemoPresentation.stop_logging_early!(
+                    $("The timeline shows the first $TIMELINE_STEPS time steps; the later ones repeat them."))
             end
             if __sc26_tick > 1 && (__sc26_tick - 1) % __sc26_stride == 0
                 push!(__sc26_frames, (; u = __sc26_snapshot(u), v = __sc26_snapshot(v)))

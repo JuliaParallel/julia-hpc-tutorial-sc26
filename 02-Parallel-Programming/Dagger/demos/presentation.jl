@@ -157,6 +157,19 @@ function Dagger.show_logs(io::IO, logs::Dict, ::Val{:unicode_gantt}; kwargs...)
     plot === nothing ? println(io, "No completed compute/transfer events.") : show(io, MIME"text/plain"(), plot)
 end
 
+# A long run (the final exercise's thousands of time steps) records only its
+# first steps: logging every task of such a run costs minutes and produces a
+# timeline too large to draw. The worker calls this from the time loop.
+const EARLY_LOGS = Ref{Any}(nothing)
+const EARLY_NOTE = Ref{Any}(nothing)
+function stop_logging_early!(note)
+    EARLY_LOGS[] === nothing || return
+    EARLY_LOGS[] = Dagger.fetch_logs!()
+    EARLY_NOTE[] = note
+    Dagger.disable_logging!()
+    return
+end
+
 "Run work with source display, logging, a terminal Gantt and a JSON artifact."
 function present(f; title, files=String[], source=nothing, mpi=nothing, demo=nothing)
     rank = mpi === nothing ? 0 : mpi.Comm_rank(mpi.COMM_WORLD)
@@ -178,6 +191,7 @@ function present(f; title, files=String[], source=nothing, mpi=nothing, demo=not
     Dagger.enable_logging!(; all_task_deps=false, taskfuncnames=true,
                             taskuidtotid=true, timeline=true)
     origin = time_ns()
+    EARLY_LOGS[] = EARLY_NOTE[] = nothing
     try
         return f()
     catch err
@@ -189,11 +203,16 @@ function present(f; title, files=String[], source=nothing, mpi=nothing, demo=not
         end
         rethrow()
     finally
-        logs = try
-            Dagger.fetch_logs!()
-        finally
-            Dagger.disable_logging!()
+        logs = if EARLY_LOGS[] !== nothing
+            EARLY_LOGS[]
+        else
+            try
+                Dagger.fetch_logs!()
+            finally
+                Dagger.disable_logging!()
+            end
         end
+        EARLY_LOGS[] = nothing
         events = timeline_events(logs; rank, origin)
         if mpi !== nothing
             gathered = mpi.gather(events, mpi.COMM_WORLD)
@@ -206,6 +225,7 @@ function present(f; title, files=String[], source=nothing, mpi=nothing, demo=not
             plot === nothing ? println("No completed compute/transfer events.") :
                 show(IOContext(stdout, :color=>color), MIME"text/plain"(), plot)
             println("\ncyan: compute · yellow: data movement · host task timings, including compilation")
+            EARLY_NOTE[] === nothing || println(EARLY_NOTE[])
             # A console run is a fresh Julia in its own Slurm job; in a terminal
             # session, running again shows the warm timeline.
             get(ENV, "SC26_PORTAL", "0") == "1" ?

@@ -302,7 +302,9 @@ def final_setup(target, mode):
              "# Simulation first, then this code" + _on_every_rank(mode),
              "# The Visualization panel then draws u and v.",
              ""] + _imports(target, mode)
-    lines += [""] + _scope_lines(target, mode)
+    lines += ["",
+              "BLAS.set_num_threads(1)   # Dagger runs one panel of line solves per thread",
+              ""] + _scope_lines(target, mode)
     lines += ["",
               "# (2) Parameters: grid size, time step, diffusion rates, feed and kill rates.",
               "n, dt = 256, 1.0",

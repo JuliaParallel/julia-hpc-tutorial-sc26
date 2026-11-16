@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 435" role="img" aria-label="Measured GPU throughput at fixed tile size 1024">
+<title>Measured GPU throughput at fixed tile size 1024</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10" fill="#adbdc9"/></marker></defs>
+<line x1="110" y1="348.0" x2="1050" y2="348.0" stroke="#314653" stroke-width="1"/>
+<text x="92" y="355.0" fill="#adbdc9" font-size="20" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="end">0</text>
+<line x1="110" y1="278.88" x2="1050" y2="278.88" stroke="#314653" stroke-width="1"/>
+<text x="92" y="285.88" fill="#adbdc9" font-size="20" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="end">300</text>
+<line x1="110" y1="209.76" x2="1050" y2="209.76" stroke="#314653" stroke-width="1"/>
+<text x="92" y="216.76" fill="#adbdc9" font-size="20" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="end">600</text>
+<line x1="110" y1="140.64000000000001" x2="1050" y2="140.64000000000001" stroke="#314653" stroke-width="1"/>
+<text x="92" y="147.64000000000001" fill="#adbdc9" font-size="20" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="end">900</text>
+<line x1="110" y1="71.51999999999998" x2="1050" y2="71.51999999999998" stroke="#314653" stroke-width="1"/>
+<text x="92" y="78.51999999999998" fill="#adbdc9" font-size="20" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="end">1200</text>
+<text x="110" y="24" fill="#adbdc9" font-size="21" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">GFLOP/s  ↑ higher is better</text>
+<text x="110.0" y="390" fill="#adbdc9" font-size="22" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">2,048</text>
+<text x="580.0" y="390" fill="#adbdc9" font-size="22" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">4,096</text>
+<text x="1050.0" y="390" fill="#adbdc9" font-size="22" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">8,192</text>
+<text x="580" y="428" fill="#adbdc9" font-size="20" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">Matrix size N · logarithmic spacing</text>
+<circle cx="110.0" cy="278.748672" r="6" fill="#73e2bd"/>
+<text x="110.0" y="261.748672" fill="#73e2bd" font-size="20" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">301</text>
+<circle cx="580.0" cy="131.610624" r="6" fill="#73e2bd"/>
+<text x="580.0" y="114.610624" fill="#73e2bd" font-size="20" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">939</text>
+<circle cx="1050.0" cy="88.099584" r="6" fill="#73e2bd"/>
+<text x="1050.0" y="71.099584" fill="#73e2bd" font-size="20" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">1,128</text>
+<polyline points="110.0,278.748672 580.0,131.610624 1050.0,88.099584" fill="none" stroke="#73e2bd" stroke-width="3"/>
+<line x1="730" y1="16" x2="758" y2="16" stroke="#73e2bd" stroke-width="4"/>
+<text x="770" y="24" fill="#73e2bd" font-size="22" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">1 GPU</text>
+<circle cx="110.0" cy="302.08128" r="6" fill="#b8a0f5"/>
+<text x="110.0" y="330.08128" fill="#b8a0f5" font-size="20" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">199</text>
+<circle cx="580.0" cy="194.49139200000002" r="6" fill="#b8a0f5"/>
+<text x="580.0" y="222.49139200000002" fill="#b8a0f5" font-size="20" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">666</text>
+<circle cx="1050.0" cy="100.95820800000001" r="6" fill="#b8a0f5"/>
+<text x="1050.0" y="128.958208" fill="#b8a0f5" font-size="20" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">1,072</text>
+<polyline points="110.0,302.08128 580.0,194.49139200000002 1050.0,100.95820800000001" fill="none" stroke="#b8a0f5" stroke-width="3"/>
+<line x1="900" y1="16" x2="928" y2="16" stroke="#b8a0f5" stroke-width="4"/>
+<text x="940" y="24" fill="#b8a0f5" font-size="22" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">8 GPUs</text>
+</svg>

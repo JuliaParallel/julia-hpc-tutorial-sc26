@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 385" role="img" aria-label="First panel of a four by four tiled Cholesky factorization">
+<title>First panel of a four by four tiled Cholesky factorization</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10" fill="#adbdc9"/></marker></defs>
+<rect x="40" y="22" width="76" height="76" rx="10" fill="#182530" stroke="#73e2bd" stroke-width="1.5"/>
+<text x="78" y="72" fill="#73e2bd" font-size="31" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">P</text>
+<rect x="128" y="22" width="76" height="76" rx="10" fill="#14202a" stroke="#253a48" stroke-width="1.5"/>
+<rect x="216" y="22" width="76" height="76" rx="10" fill="#14202a" stroke="#253a48" stroke-width="1.5"/>
+<rect x="304" y="22" width="76" height="76" rx="10" fill="#14202a" stroke="#253a48" stroke-width="1.5"/>
+<rect x="40" y="110" width="76" height="76" rx="10" fill="#182530" stroke="#b8a0f5" stroke-width="1.5"/>
+<text x="78" y="160" fill="#b8a0f5" font-size="31" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">S</text>
+<rect x="128" y="110" width="76" height="76" rx="10" fill="#182530" stroke="#ffc184" stroke-width="1.5"/>
+<text x="166" y="160" fill="#ffc184" font-size="31" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">U</text>
+<rect x="216" y="110" width="76" height="76" rx="10" fill="#14202a" stroke="#253a48" stroke-width="1.5"/>
+<rect x="304" y="110" width="76" height="76" rx="10" fill="#14202a" stroke="#253a48" stroke-width="1.5"/>
+<rect x="40" y="198" width="76" height="76" rx="10" fill="#182530" stroke="#b8a0f5" stroke-width="1.5"/>
+<text x="78" y="248" fill="#b8a0f5" font-size="31" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">S</text>
+<rect x="128" y="198" width="76" height="76" rx="10" fill="#182530" stroke="#8abdea" stroke-width="1.5"/>
+<text x="166" y="248" fill="#8abdea" font-size="31" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">G</text>
+<rect x="216" y="198" width="76" height="76" rx="10" fill="#182530" stroke="#ffc184" stroke-width="1.5"/>
+<text x="254" y="248" fill="#ffc184" font-size="31" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">U</text>
+<rect x="304" y="198" width="76" height="76" rx="10" fill="#14202a" stroke="#253a48" stroke-width="1.5"/>
+<rect x="40" y="286" width="76" height="76" rx="10" fill="#182530" stroke="#b8a0f5" stroke-width="1.5"/>
+<text x="78" y="336" fill="#b8a0f5" font-size="31" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">S</text>
+<rect x="128" y="286" width="76" height="76" rx="10" fill="#182530" stroke="#8abdea" stroke-width="1.5"/>
+<text x="166" y="336" fill="#8abdea" font-size="31" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">G</text>
+<rect x="216" y="286" width="76" height="76" rx="10" fill="#182530" stroke="#8abdea" stroke-width="1.5"/>
+<text x="254" y="336" fill="#8abdea" font-size="31" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">G</text>
+<rect x="304" y="286" width="76" height="76" rx="10" fill="#182530" stroke="#ffc184" stroke-width="1.5"/>
+<text x="342" y="336" fill="#ffc184" font-size="31" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">U</text>
+</svg>

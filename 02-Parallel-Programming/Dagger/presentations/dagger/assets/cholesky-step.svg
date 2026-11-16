@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 470" role="img" aria-label="Step k equals 2 of a five by five tiled Cholesky: column 1 is finished; POTRF factors tile 2,2; TRSM solves tiles 3,2 to 5,2; SYRK updates diagonal tiles 3,3 to 5,5; GEMM updates tiles 4,3, 5,3 and 5,4. GEMM of tile 5,3 reads tiles 5,2 and 3,2.">
+<title>Step k equals 2 of a five by five tiled Cholesky: column 1 is finished; POTRF factors tile 2,2; TRSM solves tiles 3,2 to 5,2; SYRK updates diagonal tiles 3,3 to 5,5; GEMM updates tiles 4,3, 5,3 and 5,4. GEMM of tile 5,3 reads tiles 5,2 and 3,2.</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10" fill="#adbdc9"/></marker></defs>
+<text x="77.0" y="36" fill="#adbdc9" font-size="17" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">1</text>
+<text x="30" y="87.0" fill="#adbdc9" font-size="17" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">1</text>
+<text x="149.0" y="36" fill="#73e2bd" font-size="17" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">k = 2</text>
+<text x="30" y="159.0" fill="#adbdc9" font-size="17" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">2</text>
+<text x="221.0" y="36" fill="#adbdc9" font-size="17" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">3</text>
+<text x="30" y="231.0" fill="#adbdc9" font-size="17" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">3</text>
+<text x="293.0" y="36" fill="#adbdc9" font-size="17" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">4</text>
+<text x="30" y="303.0" fill="#adbdc9" font-size="17" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">4</text>
+<text x="365.0" y="36" fill="#adbdc9" font-size="17" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">5</text>
+<text x="30" y="375.0" fill="#adbdc9" font-size="17" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">5</text>
+<rect x="46" y="50" width="62" height="62" rx="10" fill="#1b2a35" stroke="#2c4250" stroke-width="1.5"/>
+<text x="77.0" y="91" fill="#6d8291" font-size="24" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">L</text>
+<rect x="118" y="50" width="62" height="62" rx="10" fill="#14202a" stroke="#253a48" stroke-width="1.5"/>
+<rect x="190" y="50" width="62" height="62" rx="10" fill="#14202a" stroke="#253a48" stroke-width="1.5"/>
+<rect x="262" y="50" width="62" height="62" rx="10" fill="#14202a" stroke="#253a48" stroke-width="1.5"/>
+<rect x="334" y="50" width="62" height="62" rx="10" fill="#14202a" stroke="#253a48" stroke-width="1.5"/>
+<rect x="46" y="122" width="62" height="62" rx="10" fill="#1b2a35" stroke="#2c4250" stroke-width="1.5"/>
+<text x="77.0" y="163" fill="#6d8291" font-size="24" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">L</text>
+<rect x="118" y="122" width="62" height="62" rx="10" fill="#182530" stroke="#73e2bd" stroke-width="1.5"/>
+<text x="149.0" y="164" fill="#73e2bd" font-size="28" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">P</text>
+<rect x="190" y="122" width="62" height="62" rx="10" fill="#14202a" stroke="#253a48" stroke-width="1.5"/>
+<rect x="262" y="122" width="62" height="62" rx="10" fill="#14202a" stroke="#253a48" stroke-width="1.5"/>
+<rect x="334" y="122" width="62" height="62" rx="10" fill="#14202a" stroke="#253a48" stroke-width="1.5"/>
+<rect x="46" y="194" width="62" height="62" rx="10" fill="#1b2a35" stroke="#2c4250" stroke-width="1.5"/>
+<text x="77.0" y="235" fill="#6d8291" font-size="24" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">L</text>
+<rect x="118" y="194" width="62" height="62" rx="10" fill="#182530" stroke="#b8a0f5" stroke-width="1.5"/>
+<text x="149.0" y="236" fill="#b8a0f5" font-size="28" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">S</text>
+<rect x="190" y="194" width="62" height="62" rx="10" fill="#182530" stroke="#ffc184" stroke-width="1.5"/>
+<text x="221.0" y="236" fill="#ffc184" font-size="28" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">U</text>
+<rect x="262" y="194" width="62" height="62" rx="10" fill="#14202a" stroke="#253a48" stroke-width="1.5"/>
+<rect x="334" y="194" width="62" height="62" rx="10" fill="#14202a" stroke="#253a48" stroke-width="1.5"/>
+<rect x="46" y="266" width="62" height="62" rx="10" fill="#1b2a35" stroke="#2c4250" stroke-width="1.5"/>
+<text x="77.0" y="307" fill="#6d8291" font-size="24" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">L</text>
+<rect x="118" y="266" width="62" height="62" rx="10" fill="#182530" stroke="#b8a0f5" stroke-width="1.5"/>
+<text x="149.0" y="308" fill="#b8a0f5" font-size="28" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">S</text>
+<rect x="190" y="266" width="62" height="62" rx="10" fill="#182530" stroke="#8abdea" stroke-width="1.5"/>
+<text x="221.0" y="308" fill="#8abdea" font-size="28" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">G</text>
+<rect x="262" y="266" width="62" height="62" rx="10" fill="#182530" stroke="#ffc184" stroke-width="1.5"/>
+<text x="293.0" y="308" fill="#ffc184" font-size="28" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">U</text>
+<rect x="334" y="266" width="62" height="62" rx="10" fill="#14202a" stroke="#253a48" stroke-width="1.5"/>
+<rect x="46" y="338" width="62" height="62" rx="10" fill="#1b2a35" stroke="#2c4250" stroke-width="1.5"/>
+<text x="77.0" y="379" fill="#6d8291" font-size="24" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">L</text>
+<rect x="118" y="338" width="62" height="62" rx="10" fill="#182530" stroke="#b8a0f5" stroke-width="1.5"/>
+<text x="149.0" y="380" fill="#b8a0f5" font-size="28" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">S</text>
+<rect x="190" y="338" width="62" height="62" rx="10" fill="#182530" stroke="#8abdea" stroke-width="1.5"/>
+<text x="221.0" y="380" fill="#8abdea" font-size="28" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">G</text>
+<rect x="262" y="338" width="62" height="62" rx="10" fill="#182530" stroke="#8abdea" stroke-width="1.5"/>
+<text x="293.0" y="380" fill="#8abdea" font-size="28" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">G</text>
+<rect x="334" y="338" width="62" height="62" rx="10" fill="#182530" stroke="#ffc184" stroke-width="1.5"/>
+<text x="365.0" y="380" fill="#ffc184" font-size="28" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">U</text>
+<line x1="171.0" y1="369.0" x2="195.0" y2="369.0" stroke="#8abdea" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="158.8" y1="244.7" x2="209.4" y2="345.7" stroke="#8abdea" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="46" y="432" fill="#8abdea" font-size="17" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">G(5,3) reads S(5,2) and S(3,2)</text>
+<rect x="470" y="58" width="50" height="50" rx="9" fill="#182530" stroke="#73e2bd" stroke-width="1.5"/>
+<text x="495" y="93" fill="#73e2bd" font-size="26" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">P</text>
+<text x="545" y="79" fill="#edf3f5" font-size="22" font-family="DejaVu Sans Mono, monospace">T[k,k] = chol(T[k,k])</text>
+<text x="545" y="106" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">factor the diagonal tile</text>
+<rect x="470" y="150" width="50" height="50" rx="9" fill="#182530" stroke="#b8a0f5" stroke-width="1.5"/>
+<text x="495" y="185" fill="#b8a0f5" font-size="26" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">S</text>
+<text x="545" y="171" fill="#edf3f5" font-size="22" font-family="DejaVu Sans Mono, monospace">T[m,k] = T[m,k] / T[k,k]&#x27;</text>
+<text x="545" y="198" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">each tile below it: reads T[k,k]</text>
+<rect x="470" y="242" width="50" height="50" rx="9" fill="#182530" stroke="#ffc184" stroke-width="1.5"/>
+<text x="495" y="277" fill="#ffc184" font-size="26" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">U</text>
+<text x="545" y="263" fill="#edf3f5" font-size="22" font-family="DejaVu Sans Mono, monospace">T[n,n] -= T[n,k] * T[n,k]&#x27;</text>
+<text x="545" y="290" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">each later diagonal tile: reads T[n,k]</text>
+<rect x="470" y="334" width="50" height="50" rx="9" fill="#182530" stroke="#8abdea" stroke-width="1.5"/>
+<text x="495" y="369" fill="#8abdea" font-size="26" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">G</text>
+<text x="545" y="355" fill="#edf3f5" font-size="22" font-family="DejaVu Sans Mono, monospace">T[m,n] -= T[m,k] * T[n,k]&#x27;</text>
+<text x="545" y="382" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">each tile below that: reads T[m,k], T[n,k]</text>
+<text x="470" y="448" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="start">L = finished columns of the factor. Step k + 1 works on column k + 1.</text>
+</svg>

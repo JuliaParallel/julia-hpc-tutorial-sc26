@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 165" role="img" aria-label="A write of B precedes the next read of B">
+<title>A write of B precedes the next read of B</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10" fill="#adbdc9"/></marker></defs>
+<rect x="45" y="25" width="310" height="95" rx="14" fill="#182530" stroke="#73e2bd" stroke-width="1.5"/>
+<text x="200.0" y="71.5" fill="#73e2bd" font-size="25" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">B ← B + A</text>
+<text x="200.0" y="102.5" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">reads A, updates B</text>
+<line x1="365" y1="72" x2="725" y2="72" stroke="#415b6b" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="550" y="55" fill="#adbdc9" font-size="21" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">B must be ready</text>
+<rect x="740" y="25" width="310" height="95" rx="14" fill="#182530" stroke="#b8a0f5" stroke-width="1.5"/>
+<text x="895.0" y="71.5" fill="#b8a0f5" font-size="25" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">C ← B</text>
+<text x="895.0" y="102.5" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">reads B, overwrites C</text>
+</svg>

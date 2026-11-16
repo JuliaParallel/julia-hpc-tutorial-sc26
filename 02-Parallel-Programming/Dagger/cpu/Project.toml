@@ -1,0 +1,22 @@
+[deps]
+Dagger = "d58978e5-989f-55fb-8d15-ea34adc7bf54"
+Highlights = "eafb193a-b7ab-5a9e-9068-77385905fa72"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
+MPIPreferences = "3da0fdf6-3ccc-4f1b-acd9-58baa6c99267"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
+tree_sitter_julia_jll = "52be201e-a5e9-5cfe-8bf2-2dc4b062171c"
+
+[sources]
+Dagger = {rev = "d74b4c53392a5847a322e7b7ec1d5f0647430427", url = "https://github.com/JuliaParallel/Dagger.jl"}
+
+[compat]
+Dagger = "0.22.7"
+Highlights = "0.6.3"
+JSON3 = "1"
+MPI = "0.20.22"
+UnicodePlots = "3"
+tree_sitter_julia_jll = "0.25"
+julia = "1.11"

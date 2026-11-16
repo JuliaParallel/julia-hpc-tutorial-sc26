@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 260" role="img" aria-label="Two servers execute one Dagger program through MPI ranks on CPU threads">
+<title>Two servers execute one Dagger program through MPI ranks on CPU threads</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10" fill="#adbdc9"/></marker></defs>
+<rect x="20" y="15" width="430" height="200" rx="14" fill="#182530" stroke="#415b6b" stroke-width="1.5"/>
+<text x="45" y="55" fill="#adbdc9" font-size="20" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="start">SERVER A</text>
+<rect x="60" y="80" width="350" height="100" rx="14" fill="#182530" stroke="#73e2bd" stroke-width="1.5"/>
+<text x="235.0" y="129.0" fill="#73e2bd" font-size="28" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">MPI rank 0</text>
+<text x="235.0" y="160.0" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">CPU threads</text>
+<rect x="670" y="15" width="430" height="200" rx="14" fill="#182530" stroke="#415b6b" stroke-width="1.5"/>
+<text x="695" y="55" fill="#adbdc9" font-size="20" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="start">SERVER B</text>
+<rect x="710" y="80" width="350" height="100" rx="14" fill="#182530" stroke="#73e2bd" stroke-width="1.5"/>
+<text x="885.0" y="129.0" fill="#73e2bd" font-size="28" font-family="DejaVu Sans, sans-serif" font-weight="600" text-anchor="middle">MPI rank 1</text>
+<text x="885.0" y="160.0" fill="#adbdc9" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">CPU threads</text>
+<line x1="460" y1="130" x2="660" y2="130" stroke="#415b6b" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<text x="560" y="105" fill="#ffc184" font-size="21" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">network</text>
+<text x="560" y="250" fill="#edf3f5" font-size="23" font-family="DejaVu Sans, sans-serif" font-weight="400" text-anchor="middle">Every rank builds the same task graph</text>
+</svg>

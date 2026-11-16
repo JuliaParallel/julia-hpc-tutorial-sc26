@@ -1,0 +1,11 @@
+#!/bin/sh
+# Start the local console from any working directory; preserve every argument.
+console_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 1
+for console_python in python3 python; do
+    if command -v "$console_python" >/dev/null 2>&1 &&
+       "$console_python" -c 'import sys; sys.exit(sys.version_info < (3, 9))' 2>/dev/null; then
+        exec "$console_python" "$console_dir/host/app.py" "$@"
+    fi
+done
+echo 'The console needs Python 3.9 or newer. Install Python, then run ./console again.' >&2
+exit 1

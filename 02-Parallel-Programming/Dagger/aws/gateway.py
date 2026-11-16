@@ -204,7 +204,7 @@ rm -f /home/ubuntu/gateway-config.json /home/ubuntu/sc26.tar.gz /home/ubuntu/aws
         access = args.state.parent / "gateway-access.txt"
         fd = os.open(access, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as f:
-            f.write("Workshop gateway: {}\nPassword: {}\n\nAttendee command:\npython3 host/app.py --gateway\n".format(vm["ip"], state["password"]))
+            f.write("Workshop gateway: {}\nPassword: {}\n\nAttendee command (Dagger folder on main):\n./console --gateway\nWindows with WSL: console.cmd --gateway\n".format(vm["ip"], state["password"]))
         print("Gateway deployed at {}. Password handout: {}".format(vm["ip"], access))
 
 

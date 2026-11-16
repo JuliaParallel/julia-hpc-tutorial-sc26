@@ -75,3 +75,7 @@ job.notebook
 # Local Python bytecode for the host console and its tests
 __pycache__/
 *.pyc
+
+# Local source-archive update revision (not a credential)
+/02-Parallel-Programming/Dagger/.console-update.json
+/02-Parallel-Programming/Dagger/.console-update.tmp

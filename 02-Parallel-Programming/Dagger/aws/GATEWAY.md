@@ -2,20 +2,50 @@
 
 The deployed gateway runs the Odo relay and the AWS CPU allocator. Attendees
 use one workshop password for both backends. They need Python 3.9+, OpenSSH,
-a browser, and this repository on a Unix environment (for example Linux or
-WSL). They need no AWS account, AWS CLI, `awsmcp`, local Julia, SSH keys, or Odo
+a browser, and this repository on macOS, Linux, or Windows with WSL. On
+Windows install Python and OpenSSH inside WSL. They need no AWS account,
+AWS CLI, `awsmcp`, local Julia, SSH keys, or Odo
 password. The local console obtains its gateway address and pinned SSH host
 key from the public `host/workshop.json` descriptor.
 
 ## Attendee instructions
 
-Start from a fresh checkout of the instructor's branch:
+Use the latest merged code on **main**:
 
 ```bash
-git clone --branch jps/workshop-gateway https://github.com/JuliaParallel/julia-hpc-tutorial-sc26.git sc26-workshop
+git clone --branch main https://github.com/JuliaParallel/julia-hpc-tutorial-sc26.git sc26-workshop
 cd sc26-workshop/02-Parallel-Programming/Dagger
-python3 host/app.py --gateway
+./console --gateway
 ```
+
+On Windows, run `console.cmd --gateway` from Command Prompt, or
+`.\console.cmd --gateway` from PowerShell. It starts the console in your default
+WSL distribution. You can also run `./console --gateway` from a WSL terminal.
+Both launchers forward all server arguments, for example
+`./console --gateway --port 8770 --no-browser`. Relative paths are interpreted
+in the current directory on macOS/Linux. The Windows launcher starts in the
+Dagger folder; use WSL paths for file arguments (for example `/mnt/c/...`).
+
+For an existing checkout, save or commit any tracked-file edits first, then run
+`git switch main` and `git pull --ff-only origin main` before starting. If Git
+is unavailable, [download the main ZIP](https://github.com/JuliaParallel/julia-hpc-tutorial-sc26/archive/refs/heads/main.zip),
+extract it, and open its `02-Parallel-Programming/Dagger` folder. If your ZIP
+extractor dropped executable permissions, run `chmod +x console` on macOS/Linux.
+
+The console checks main at startup and every five minutes while the page is
+open. A notice offers **Update and restart** when newer merged code exists;
+**Check for updates** runs a check immediately. Disconnect and close any agent
+terminals before updating. The server restarts on the same port with your
+options, and the page reloads. Reconnect using the workshop password.
+
+Git checkouts use a fast-forward pull and require tracked files to be clean.
+Without Git, the console downloads public source archives using Python and
+updates the Dagger folder only. It preserves local changes when upstream has
+not changed those files, and stops if changes overlap. New local files,
+browser-saved exercise edits, `results/`, `dev/`, and credentials are preserved.
+Archive updates leave Git history untouched; continue using the archive
+updater or reconcile that checkout before returning to Git. An offline check
+shows an error and leaves the installed console usable.
 
 Open the local URL printed by the command (usually http://127.0.0.1:8767).
 Choose **Odo relay · GPUs** or **AWS CPU · personal VM**, paste the workshop
@@ -70,7 +100,7 @@ rerun `connect-odo`; affected attendees reconnect their consoles. CPU mode is
 available while Odo is offline.
 
 Only the instructor runs the `aws/gateway` commands. Attendees run the local
-Python console. Use `--gateway FILE` for an alternate descriptor; a raw host
+console launcher. Use `--gateway FILE` for an alternate descriptor; a raw host
 also requires `--gateway-host-key 'ssh-ed25519 ...'` and optionally
 `--gateway-port PORT`.
 

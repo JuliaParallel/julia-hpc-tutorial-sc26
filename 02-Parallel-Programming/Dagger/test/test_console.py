@@ -366,6 +366,63 @@ class ConsoleTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
 
+    def test_update_requires_idle_console_and_blocks_new_connections(self):
+        c = console()
+        c.updater = Mock()
+        c.updater.status.return_value = dict(status="available")
+        restart = threading.Event()
+        finish = threading.Event()
+        c.updater.apply.side_effect = lambda: finish.wait(3)
+        for attribute in ("connecting", "busy"):
+            setattr(c, attribute, True)
+            with self.assertRaisesRegex(ValueError, "Disconnect"):
+                c.start_update(restart.set)
+            setattr(c, attribute, False)
+        with patch.dict(app.TERMINALS, {"test": dict(alive=True)}, clear=True):
+            with self.assertRaisesRegex(ValueError, "Close agent terminals"):
+                c.start_update(restart.set)
+        c.start_update(restart.set)
+        try:
+            with self.assertRaisesRegex(ValueError, "update to finish"):
+                c.connect()
+            c.updater.apply.assert_called_once()
+        finally:
+            finish.set()
+            self.assertTrue(restart.wait(3))
+
+    def test_update_api_requires_token_and_reports_failures_without_restart(self):
+        c = console()
+        c.updater = Mock()
+        c.updater.status.return_value = dict(status="available", available=True)
+        failed = threading.Event()
+        def fail():
+            failed.set()
+            raise ValueError("local edits")
+        c.updater.apply.side_effect = fail
+        server = app.ThreadingHTTPServer(("127.0.0.1", 0), app.handler_for(c))
+        server.request_restart = Mock()
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            url = f"http://127.0.0.1:{server.server_port}/api/updates/apply"
+            request = urllib.request.Request(url, data=b"{}", headers={"Content-Type": "application/json"})
+            with self.assertRaises(urllib.error.HTTPError) as caught:
+                urllib.request.urlopen(request)
+            self.assertEqual(caught.exception.code, 403)
+            caught.exception.close()
+            c.updater.apply.assert_not_called()
+            request.add_header("X-Console-Token", c.token)
+            with urllib.request.urlopen(request) as response:
+                self.assertTrue(json.load(response)["ok"])
+            self.assertTrue(failed.wait(3))
+            server.request_restart.assert_not_called()
+            deadline = time.monotonic() + 3
+            while c.updating and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertFalse(c.updating)
+        finally:
+            server.shutdown()
+            server.server_close()
+
     def test_run_tags_events_with_demo_and_clears_after_done(self):
         c = console()
         c.process = Mock(stdin=io.StringIO())

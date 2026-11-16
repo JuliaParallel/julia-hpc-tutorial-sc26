@@ -50,6 +50,7 @@ For manual version see below.
    julia --project=. open_notebook.jl
    ```
 Follow the instructions printed to your terminal for connecting to the notebook.
+After you are done, run `jupyter notebook stop`. 
 
 #### Manual
 For automated version see above. 
@@ -67,8 +68,9 @@ cat job.<job-id>.out
 
 5. In Jupyter, pick kernel **GPU Julia** and open a notebook. In each notebook, set `DEV` in the **second cell** (`:CUDA` (NVIDIA), `:AMDGPU`, `:Metal`, or `:CPU`) before running `Pkg.add`, to match your hardware.
 
-6. When do done, do not forget to close your allocation!
+6. When you are done, do not forget to clean up!
 
 ```bash
 scancel --me
+jupyter notebook stop
 ```

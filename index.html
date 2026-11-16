@@ -476,7 +476,7 @@ R factor:
 <div id="32" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb32-1"><a href="" aria-hidden="true" tabindex="-1"></a><span class="pp">@time</span> <span class="fu">sleep</span>(<span class="fl">0.1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>  0.101182 seconds (6 allocations: 224 bytes)</code></pre>
+<pre><code>  0.101224 seconds (6 allocations: 224 bytes)</code></pre>
 </div>
 </div>
 <div class="callout callout-note callout-titled callout-style-default">
@@ -495,10 +495,10 @@ R factor:
 <span id="cb34-3"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">norm</span>(A) <span class="co"># warm up</span></span>
 <span id="cb34-4"><a href="" aria-hidden="true" tabindex="-1"></a><span class="pp">@time</span> <span class="fu">norm</span>(A)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>  0.000006 seconds (1 allocation: 16 bytes)</code></pre>
+<pre><code>  0.000008 seconds (1 allocation: 16 bytes)</code></pre>
 </div>
 <div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>11.33955619203718</code></pre>
+<pre><code>11.61880458512434</code></pre>
 </div>
 </div>
 </div>
@@ -513,14 +513,14 @@ R factor:
 <span id="cb37-2"><a href="" aria-hidden="true" tabindex="-1"></a><span class="pp">@benchmark</span> <span class="fu">norm</span>(A) setup<span class="op">=</span>(A <span class="op">=</span> <span class="fu">randn</span>(<span class="fl">100</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <div class="ansi-escaped-output">
-<pre>BenchmarkTools.Trial: 10000 samples with 977 evaluations per sample.
- Range <span class="ansi-bright-black-fg">(</span><span class="ansi-cyan-fg ansi-bold">min</span> … <span class="ansi-magenta-fg">max</span><span class="ansi-bright-black-fg">):  </span><span class="ansi-cyan-fg ansi-bold">67.014 ns</span> … <span class="ansi-magenta-fg">106.075 ns</span>  <span class="ansi-bright-black-fg">┊</span> GC <span class="ansi-bright-black-fg">(</span>min … max<span class="ansi-bright-black-fg">): </span>0.00% … 0.00%
- Time  <span class="ansi-bright-black-fg">(</span><span class="ansi-blue-fg ansi-bold">median</span><span class="ansi-bright-black-fg">):     </span><span class="ansi-blue-fg ansi-bold">70.071 ns               </span><span class="ansi-bright-black-fg">┊</span> GC <span class="ansi-bright-black-fg">(</span>median<span class="ansi-bright-black-fg">):    </span>0.00%
- Time  <span class="ansi-bright-black-fg">(</span><span class="ansi-green-fg ansi-bold">mean</span> ± <span class="ansi-green-fg">σ</span><span class="ansi-bright-black-fg">):   </span><span class="ansi-green-fg ansi-bold">70.506 ns</span> ± <span class="ansi-green-fg">  3.440 ns</span>  <span class="ansi-bright-black-fg">┊</span> GC <span class="ansi-bright-black-fg">(</span>mean ± σ<span class="ansi-bright-black-fg">):  </span>0.00% ± 0.00%
+<pre>BenchmarkTools.Trial: 10000 samples with 990 evaluations per sample.
+ Range <span class="ansi-bright-black-fg">(</span><span class="ansi-cyan-fg ansi-bold">min</span> … <span class="ansi-magenta-fg">max</span><span class="ansi-bright-black-fg">):  </span><span class="ansi-cyan-fg ansi-bold">44.825 ns</span> … <span class="ansi-magenta-fg">69.520 ns</span>  <span class="ansi-bright-black-fg">┊</span> GC <span class="ansi-bright-black-fg">(</span>min … max<span class="ansi-bright-black-fg">): </span>0.00% … 0.00%
+ Time  <span class="ansi-bright-black-fg">(</span><span class="ansi-blue-fg ansi-bold">median</span><span class="ansi-bright-black-fg">):     </span><span class="ansi-blue-fg ansi-bold">44.926 ns              </span><span class="ansi-bright-black-fg">┊</span> GC <span class="ansi-bright-black-fg">(</span>median<span class="ansi-bright-black-fg">):    </span>0.00%
+ Time  <span class="ansi-bright-black-fg">(</span><span class="ansi-green-fg ansi-bold">mean</span> ± <span class="ansi-green-fg">σ</span><span class="ansi-bright-black-fg">):   </span><span class="ansi-green-fg ansi-bold">45.257 ns</span> ± <span class="ansi-green-fg"> 1.343 ns</span>  <span class="ansi-bright-black-fg">┊</span> GC <span class="ansi-bright-black-fg">(</span>mean ± σ<span class="ansi-bright-black-fg">):  </span>0.00% ± 0.00%
 
-    ▅▄▄▄▄▄▄▅<span class="ansi-blue-fg">█</span> <span class="ansi-green-fg"> </span>▂                     ▁▁▁▂▁                     ▂
-  ▅▄████████<span class="ansi-blue-fg">█</span>▇<span class="ansi-green-fg">▇</span>█▅▅▆▇▅▄▅▅▁▄▃▃▄▅▄▅▇█▇███████▇▇▇▇▇▇██▇▇▆▇▆▅▃▅▆▅▅▅ █
-  67 ns<span class="ansi-bright-black-fg">         </span><span class="ansi-bright-black-fg">Histogram: </span><span class="ansi-bright-black-fg ansi-bold">log(</span><span class="ansi-bright-black-fg">frequency</span><span class="ansi-bright-black-fg ansi-bold">)</span><span class="ansi-bright-black-fg"> by time</span>      84.8 ns <span class="ansi-bold">&lt;</span>
+  █<span class="ansi-blue-fg">█</span>▃▂<span class="ansi-green-fg">▂</span>▂▂▂▁                                            ▂▂     ▂
+  █<span class="ansi-blue-fg">█</span>██<span class="ansi-green-fg">█</span>████▅▆▇▆▅▄▁▅▄▄▅▃▅▅▅▅▅▅▁▁▁▃▃▁▃▃▃▁▁▁▁▁▁▃▁▁▁▁▁▁▁▁▁▆████▇▇ █
+  44.8 ns<span class="ansi-bright-black-fg">      </span><span class="ansi-bright-black-fg">Histogram: </span><span class="ansi-bright-black-fg ansi-bold">log(</span><span class="ansi-bright-black-fg">frequency</span><span class="ansi-bright-black-fg ansi-bold">)</span><span class="ansi-bright-black-fg"> by time</span>      50.8 ns <span class="ansi-bold">&lt;</span>
 
  Memory estimate<span class="ansi-bright-black-fg">: </span><span class="ansi-yellow-fg">0 bytes</span>, allocs estimate<span class="ansi-bright-black-fg">: </span><span class="ansi-yellow-fg">0</span>.</pre>
 </div>
@@ -669,7 +669,7 @@ R factor:
 <div class="ansi-escaped-output">
 <pre><span class="ansi-bright-black-fg">; Function Signature: add(Int64, Int64)</span>
 <span class="ansi-bright-black-fg">;  @ /home/runner/work/julia-hpc-tutorial-sc26/julia-hpc-tutorial-sc26/01-Intro-to-Julia/presentations/intro-julia/index.qmd:48 within `add`</span>
-<span class="ansi-bright-magenta-fg">define</span> <span class="ansi-cyan-fg">i64</span> <span class="ansi-bright-yellow-fg">@julia_add_9296</span><span class="ansi-yellow-fg">(</span><span class="ansi-cyan-fg">i64</span> <span class="ansi-bright-magenta-fg">signext</span> %"x::Int64", <span class="ansi-cyan-fg">i64</span> <span class="ansi-bright-magenta-fg">signext</span> %"y::Int64"<span class="ansi-yellow-fg">)</span> <span class="ansi-bright-magenta-fg">local_unnamed_addr</span> #0 <span class="ansi-yellow-fg">{</span>
+<span class="ansi-bright-magenta-fg">define</span> <span class="ansi-cyan-fg">i64</span> <span class="ansi-bright-yellow-fg">@julia_add_8671</span><span class="ansi-yellow-fg">(</span><span class="ansi-cyan-fg">i64</span> <span class="ansi-bright-magenta-fg">signext</span> %"x::Int64", <span class="ansi-cyan-fg">i64</span> <span class="ansi-bright-magenta-fg">signext</span> %"y::Int64"<span class="ansi-yellow-fg">)</span> <span class="ansi-bright-magenta-fg">local_unnamed_addr</span> #0 <span class="ansi-yellow-fg">{</span>
 <span class="ansi-bright-red-fg">top:</span>
 <span class="ansi-bright-black-fg">; ┌ @ int.jl:87 within `+`</span>
    %0 = <span class="ansi-bright-cyan-fg ansi-bold">add</span> <span class="ansi-cyan-fg">i64</span> %"y::Int64", %"x::Int64"
@@ -686,7 +686,7 @@ R factor:
 <div class="ansi-escaped-output">
 <pre><span class="ansi-bright-black-fg">; Function Signature: add(Float64, Float64)</span>
 <span class="ansi-bright-black-fg">;  @ /home/runner/work/julia-hpc-tutorial-sc26/julia-hpc-tutorial-sc26/01-Intro-to-Julia/presentations/intro-julia/index.qmd:48 within `add`</span>
-<span class="ansi-bright-magenta-fg">define</span> <span class="ansi-cyan-fg">double</span> <span class="ansi-bright-yellow-fg">@julia_add_9353</span><span class="ansi-yellow-fg">(</span><span class="ansi-cyan-fg">double</span> %"x::Float64", <span class="ansi-cyan-fg">double</span> %"y::Float64"<span class="ansi-yellow-fg">)</span> <span class="ansi-bright-magenta-fg">local_unnamed_addr</span> #0 <span class="ansi-yellow-fg">{</span>
+<span class="ansi-bright-magenta-fg">define</span> <span class="ansi-cyan-fg">double</span> <span class="ansi-bright-yellow-fg">@julia_add_8675</span><span class="ansi-yellow-fg">(</span><span class="ansi-cyan-fg">double</span> %"x::Float64", <span class="ansi-cyan-fg">double</span> %"y::Float64"<span class="ansi-yellow-fg">)</span> <span class="ansi-bright-magenta-fg">local_unnamed_addr</span> #0 <span class="ansi-yellow-fg">{</span>
 <span class="ansi-bright-red-fg">top:</span>
 <span class="ansi-bright-black-fg">; ┌ @ float.jl:492 within `+`</span>
    %0 = <span class="ansi-bright-cyan-fg ansi-bold">fadd</span> <span class="ansi-cyan-fg">double</span> %"x::Float64", %"y::Float64"
@@ -705,90 +705,90 @@ R factor:
 <div class="cell-output cell-output-stdout">
 <div class="ansi-escaped-output">
 <pre><span class="ansi-bright-black-fg">; Function Signature: axpy!(Array{Float32, 1}, Float32, Array{Float32, 1})</span>
-<span class="ansi-bright-magenta-fg">define</span> <span class="ansi-bright-magenta-fg">nonnull</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-bright-yellow-fg">@"julia_axpy!_9386"</span><span class="ansi-yellow-fg">(</span><span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-bright-magenta-fg">noundef</span> <span class="ansi-bright-magenta-fg">nonnull</span> <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">8</span> <span class="ansi-bright-magenta-fg">dereferenceable</span><span class="ansi-yellow-fg">(</span><span class="ansi-yellow-fg">24</span><span class="ansi-yellow-fg">)</span> %"y::Array", <span class="ansi-cyan-fg">float</span> %"a::Float32", <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-bright-magenta-fg">noundef</span> <span class="ansi-bright-magenta-fg">nonnull</span> <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">8</span> <span class="ansi-bright-magenta-fg">dereferenceable</span><span class="ansi-yellow-fg">(</span><span class="ansi-yellow-fg">24</span><span class="ansi-yellow-fg">)</span> %"x::Array"<span class="ansi-yellow-fg">)</span> <span class="ansi-bright-magenta-fg">local_unnamed_addr</span> #0 <span class="ansi-yellow-fg">{</span>
+<span class="ansi-bright-magenta-fg">define</span> <span class="ansi-bright-magenta-fg">nonnull</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-bright-yellow-fg">@"julia_axpy!_8708"</span><span class="ansi-yellow-fg">(</span><span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-bright-magenta-fg">noundef</span> <span class="ansi-bright-magenta-fg">nonnull</span> <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">8</span> <span class="ansi-bright-magenta-fg">dereferenceable</span><span class="ansi-yellow-fg">(</span><span class="ansi-yellow-fg">24</span><span class="ansi-yellow-fg">)</span> %"y::Array", <span class="ansi-cyan-fg">float</span> %"a::Float32", <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-bright-magenta-fg">noundef</span> <span class="ansi-bright-magenta-fg">nonnull</span> <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">8</span> <span class="ansi-bright-magenta-fg">dereferenceable</span><span class="ansi-yellow-fg">(</span><span class="ansi-yellow-fg">24</span><span class="ansi-yellow-fg">)</span> %"x::Array"<span class="ansi-yellow-fg">)</span> <span class="ansi-bright-magenta-fg">local_unnamed_addr</span> #0 <span class="ansi-yellow-fg">{</span>
 <span class="ansi-bright-red-fg">top:</span>
   %"new::OneTo" = <span class="ansi-bright-cyan-fg ansi-bold">alloca</span> <span class="ansi-yellow-fg">[</span><span class="ansi-yellow-fg">1</span> x <span class="ansi-cyan-fg">i64</span><span class="ansi-yellow-fg">]</span>, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">8</span>
   %"new::OneTo1" = <span class="ansi-bright-cyan-fg ansi-bold">alloca</span> <span class="ansi-yellow-fg">[</span><span class="ansi-yellow-fg">1</span> x <span class="ansi-cyan-fg">i64</span><span class="ansi-yellow-fg">]</span>, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">8</span>
   %"x::Array.size_ptr" = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-bright-magenta-fg">inbounds</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %"x::Array", <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">16</span>
-  %"x::Array.size.0.copyload" = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-cyan-fg">i64</span>, <span class="ansi-bright-magenta-fg">ptr</span> %"x::Array.size_ptr", <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">8</span>
-  <span class="ansi-bright-cyan-fg ansi-bold">store</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size.0.copyload", <span class="ansi-bright-magenta-fg">ptr</span> %"new::OneTo", <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">8</span>
+  %"x::Array.size_ptr.copyload" = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-cyan-fg">i64</span>, <span class="ansi-bright-magenta-fg">ptr</span> %"x::Array.size_ptr", <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">8</span>
+  <span class="ansi-bright-cyan-fg ansi-bold">store</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size_ptr.copyload", <span class="ansi-bright-magenta-fg">ptr</span> %"new::OneTo", <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">8</span>
   %"y::Array.size_ptr" = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-bright-magenta-fg">inbounds</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %"y::Array", <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">16</span>
-  %"y::Array.size.0.copyload" = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-cyan-fg">i64</span>, <span class="ansi-bright-magenta-fg">ptr</span> %"y::Array.size_ptr", <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">8</span>
-  <span class="ansi-bright-cyan-fg ansi-bold">store</span> <span class="ansi-cyan-fg">i64</span> %"y::Array.size.0.copyload", <span class="ansi-bright-magenta-fg">ptr</span> %"new::OneTo1", <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">8</span>
-  %.not.not = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-cyan-fg ansi-bold">eq</span> <span class="ansi-cyan-fg">i64</span> %"y::Array.size.0.copyload", %"x::Array.size.0.copyload"
+  %"y::Array.size_ptr.copyload" = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-cyan-fg">i64</span>, <span class="ansi-bright-magenta-fg">ptr</span> %"y::Array.size_ptr", <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">8</span>
+  <span class="ansi-bright-cyan-fg ansi-bold">store</span> <span class="ansi-cyan-fg">i64</span> %"y::Array.size_ptr.copyload", <span class="ansi-bright-magenta-fg">ptr</span> %"new::OneTo1", <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">8</span>
+  %.not.not = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-cyan-fg ansi-bold">eq</span> <span class="ansi-cyan-fg">i64</span> %"y::Array.size_ptr.copyload", %"x::Array.size_ptr.copyload"
   <span class="ansi-bright-cyan-fg ansi-bold">br</span> <span class="ansi-cyan-fg">i1</span> %.not.not, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%L22</span>, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%L19</span>
 
 <span class="ansi-bright-red-fg">L19:</span>                                              <span class="ansi-bright-black-fg">; preds = %top</span>
-  <span class="ansi-bright-cyan-fg ansi-bold">call</span> <span class="ansi-cyan-fg">void</span> <span class="ansi-bright-yellow-fg">@j_throw_eachindex_mismatch_indices_9389</span><span class="ansi-yellow-fg">(</span><span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-bright-magenta-fg">nonnull</span> <span class="ansi-bright-yellow-fg">@"jl_global#9390.jit"</span>, <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-bright-magenta-fg">nocapture</span> <span class="ansi-bright-magenta-fg">nonnull</span> <span class="ansi-bright-magenta-fg">readonly</span> %"new::OneTo", <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-bright-magenta-fg">nocapture</span> <span class="ansi-bright-magenta-fg">nonnull</span> <span class="ansi-bright-magenta-fg">readonly</span> %"new::OneTo1"<span class="ansi-yellow-fg">)</span> #7
+  <span class="ansi-bright-cyan-fg ansi-bold">call</span> <span class="ansi-cyan-fg">void</span> <span class="ansi-bright-yellow-fg">@j_throw_eachindex_mismatch_indices_8711</span><span class="ansi-yellow-fg">(</span><span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-bright-magenta-fg">nonnull</span> <span class="ansi-bright-yellow-fg">@"jl_global#8712.jit"</span>, <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-bright-magenta-fg">nocapture</span> <span class="ansi-bright-magenta-fg">nonnull</span> <span class="ansi-bright-magenta-fg">readonly</span> %"new::OneTo", <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-bright-magenta-fg">nocapture</span> <span class="ansi-bright-magenta-fg">nonnull</span> <span class="ansi-bright-magenta-fg">readonly</span> %"new::OneTo1"<span class="ansi-yellow-fg">)</span> #7
   <span class="ansi-bright-cyan-fg ansi-bold">unreachable</span>
 
 <span class="ansi-bright-red-fg">L22:</span>                                              <span class="ansi-bright-black-fg">; preds = %top</span>
-  %0 = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-cyan-fg ansi-bold">slt</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size.0.copyload", <span class="ansi-yellow-fg">1</span>
+  %0 = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-cyan-fg ansi-bold">slt</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size_ptr.copyload", <span class="ansi-yellow-fg">1</span>
   <span class="ansi-bright-cyan-fg ansi-bold">br</span> <span class="ansi-cyan-fg">i1</span> %0, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%L99</span>, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%iter.check</span>
 
 <span class="ansi-bright-red-fg">iter.check:</span>                                       <span class="ansi-bright-black-fg">; preds = %L22</span>
   %memoryref_data = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-bright-magenta-fg">ptr</span>, <span class="ansi-bright-magenta-fg">ptr</span> %"x::Array", <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">8</span>
   %memoryref_data14 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-bright-magenta-fg">ptr</span>, <span class="ansi-bright-magenta-fg">ptr</span> %"y::Array", <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">8</span>
-  %min.iters.check = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-magenta-fg">samesign</span> <span class="ansi-bright-cyan-fg ansi-bold">ult</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size.0.copyload", <span class="ansi-yellow-fg">4</span>
+  %min.iters.check = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-magenta-fg">samesign</span> <span class="ansi-bright-cyan-fg ansi-bold">ult</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size_ptr.copyload", <span class="ansi-yellow-fg">8</span>
   <span class="ansi-bright-cyan-fg ansi-bold">br</span> <span class="ansi-cyan-fg">i1</span> %min.iters.check, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%L31.preheader</span>, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%vector.memcheck</span>
 
 <span class="ansi-bright-red-fg">vector.memcheck:</span>                                  <span class="ansi-bright-black-fg">; preds = %iter.check</span>
-  %1 = <span class="ansi-bright-cyan-fg ansi-bold">shl</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size.0.copyload", <span class="ansi-yellow-fg">2</span>
+  %1 = <span class="ansi-bright-cyan-fg ansi-bold">shl</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size_ptr.copyload", <span class="ansi-yellow-fg">2</span>
   %scevgep = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %memoryref_data14, <span class="ansi-cyan-fg">i64</span> %1
-  %scevgep67 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %memoryref_data, <span class="ansi-cyan-fg">i64</span> %1
-  %bound0 = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-cyan-fg ansi-bold">ult</span> <span class="ansi-bright-magenta-fg">ptr</span> %memoryref_data14, %scevgep67
+  %scevgep69 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %memoryref_data, <span class="ansi-cyan-fg">i64</span> %1
+  %bound0 = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-cyan-fg ansi-bold">ult</span> <span class="ansi-bright-magenta-fg">ptr</span> %memoryref_data14, %scevgep69
   %bound1 = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-cyan-fg ansi-bold">ult</span> <span class="ansi-bright-magenta-fg">ptr</span> %memoryref_data, %scevgep
   %found.conflict = <span class="ansi-bright-cyan-fg ansi-bold">and</span> <span class="ansi-cyan-fg">i1</span> %bound0, %bound1
   <span class="ansi-bright-cyan-fg ansi-bold">br</span> <span class="ansi-cyan-fg">i1</span> %found.conflict, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%L31.preheader</span>, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%vector.main.loop.iter.check</span>
 
 <span class="ansi-bright-red-fg">vector.main.loop.iter.check:</span>                      <span class="ansi-bright-black-fg">; preds = %vector.memcheck</span>
-  %min.iters.check68 = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-magenta-fg">samesign</span> <span class="ansi-bright-cyan-fg ansi-bold">ult</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size.0.copyload", <span class="ansi-yellow-fg">32</span>
-  <span class="ansi-bright-cyan-fg ansi-bold">br</span> <span class="ansi-cyan-fg">i1</span> %min.iters.check68, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%vec.epilog.ph</span>, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%vector.ph</span>
+  %min.iters.check70 = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-magenta-fg">samesign</span> <span class="ansi-bright-cyan-fg ansi-bold">ult</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size_ptr.copyload", <span class="ansi-yellow-fg">64</span>
+  <span class="ansi-bright-cyan-fg ansi-bold">br</span> <span class="ansi-cyan-fg">i1</span> %min.iters.check70, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%vec.epilog.ph</span>, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%vector.ph</span>
 
 <span class="ansi-bright-red-fg">vector.ph:</span>                                        <span class="ansi-bright-black-fg">; preds = %vector.main.loop.iter.check</span>
-  %n.mod.vf = <span class="ansi-bright-cyan-fg ansi-bold">and</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size.0.copyload", <span class="ansi-yellow-fg">28</span>
-  %n.vec = <span class="ansi-bright-cyan-fg ansi-bold">and</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size.0.copyload", <span class="ansi-yellow-fg">9223372036854775776</span>
-  %broadcast.splatinsert = <span class="ansi-bright-cyan-fg ansi-bold">insertelement</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> <span class="ansi-bright-magenta-fg">poison</span>, <span class="ansi-cyan-fg">float</span> %"a::Float32", <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">0</span>
-  %broadcast.splat = <span class="ansi-bright-cyan-fg ansi-bold">shufflevector</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %broadcast.splatinsert, <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> <span class="ansi-bright-magenta-fg">poison</span>, <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">i32</span><span class="ansi-yellow-fg">&gt;</span> <span class="ansi-bright-magenta-fg">zeroinitializer</span>
+  %n.mod.vf = <span class="ansi-bright-cyan-fg ansi-bold">and</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size_ptr.copyload", <span class="ansi-yellow-fg">56</span>
+  %n.vec = <span class="ansi-bright-cyan-fg ansi-bold">and</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size_ptr.copyload", <span class="ansi-yellow-fg">9223372036854775744</span>
+  %broadcast.splatinsert = <span class="ansi-bright-cyan-fg ansi-bold">insertelement</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> <span class="ansi-bright-magenta-fg">poison</span>, <span class="ansi-cyan-fg">float</span> %"a::Float32", <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">0</span>
+  %broadcast.splat = <span class="ansi-bright-cyan-fg ansi-bold">shufflevector</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %broadcast.splatinsert, <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> <span class="ansi-bright-magenta-fg">poison</span>, <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">i32</span><span class="ansi-yellow-fg">&gt;</span> <span class="ansi-bright-magenta-fg">zeroinitializer</span>
   <span class="ansi-bright-cyan-fg ansi-bold">br</span> <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%vector.body</span>
 
 <span class="ansi-bright-red-fg">vector.body:</span>                                      <span class="ansi-bright-black-fg">; preds = %vector.body, %vector.ph</span>
   %index = <span class="ansi-bright-cyan-fg ansi-bold">phi</span> <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">[</span> <span class="ansi-yellow-fg">0</span>, <span class="ansi-bright-red-fg">%vector.ph</span> <span class="ansi-yellow-fg">]</span>, <span class="ansi-yellow-fg">[</span> %index.next, <span class="ansi-bright-red-fg">%vector.body</span> <span class="ansi-yellow-fg">]</span>
   %.reass = <span class="ansi-bright-cyan-fg ansi-bold">shl</span> <span class="ansi-cyan-fg">i64</span> %index, <span class="ansi-yellow-fg">2</span>
   %2 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-bright-magenta-fg">inbounds</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %memoryref_data, <span class="ansi-cyan-fg">i64</span> %.reass
-  %3 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-bright-magenta-fg">inbounds</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %2, <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">32</span>
-  %4 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-bright-magenta-fg">inbounds</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %2, <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">64</span>
-  %5 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-bright-magenta-fg">inbounds</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %2, <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">96</span>
-  %wide.load = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %2, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
-  %wide.load69 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %3, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
-  %wide.load70 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %4, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
-  %wide.load71 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %5, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
-  %6 = <span class="ansi-bright-cyan-fg ansi-bold">fmul</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %broadcast.splat, %wide.load
-  %7 = <span class="ansi-bright-cyan-fg ansi-bold">fmul</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %broadcast.splat, %wide.load69
-  %8 = <span class="ansi-bright-cyan-fg ansi-bold">fmul</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %broadcast.splat, %wide.load70
-  %9 = <span class="ansi-bright-cyan-fg ansi-bold">fmul</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %broadcast.splat, %wide.load71
+  %3 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-bright-magenta-fg">inbounds</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %2, <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">64</span>
+  %4 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-bright-magenta-fg">inbounds</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %2, <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">128</span>
+  %5 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-bright-magenta-fg">inbounds</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %2, <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">192</span>
+  %wide.load = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %2, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
+  %wide.load71 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %3, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
+  %wide.load72 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %4, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
+  %wide.load73 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %5, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
+  %6 = <span class="ansi-bright-cyan-fg ansi-bold">fmul</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %broadcast.splat, %wide.load
+  %7 = <span class="ansi-bright-cyan-fg ansi-bold">fmul</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %broadcast.splat, %wide.load71
+  %8 = <span class="ansi-bright-cyan-fg ansi-bold">fmul</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %broadcast.splat, %wide.load72
+  %9 = <span class="ansi-bright-cyan-fg ansi-bold">fmul</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %broadcast.splat, %wide.load73
   %10 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-bright-magenta-fg">inbounds</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %memoryref_data14, <span class="ansi-cyan-fg">i64</span> %.reass
-  %11 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-bright-magenta-fg">inbounds</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %10, <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">32</span>
-  %12 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-bright-magenta-fg">inbounds</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %10, <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">64</span>
-  %13 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-bright-magenta-fg">inbounds</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %10, <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">96</span>
-  %wide.load72 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %10, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
-  %wide.load73 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %11, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
-  %wide.load74 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %12, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
-  %wide.load75 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %13, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
-  %14 = <span class="ansi-bright-cyan-fg ansi-bold">fadd</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %6, %wide.load72
-  %15 = <span class="ansi-bright-cyan-fg ansi-bold">fadd</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %7, %wide.load73
-  %16 = <span class="ansi-bright-cyan-fg ansi-bold">fadd</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %8, %wide.load74
-  %17 = <span class="ansi-bright-cyan-fg ansi-bold">fadd</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %9, %wide.load75
-  <span class="ansi-bright-cyan-fg ansi-bold">store</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %14, <span class="ansi-bright-magenta-fg">ptr</span> %10, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
-  <span class="ansi-bright-cyan-fg ansi-bold">store</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %15, <span class="ansi-bright-magenta-fg">ptr</span> %11, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
-  <span class="ansi-bright-cyan-fg ansi-bold">store</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %16, <span class="ansi-bright-magenta-fg">ptr</span> %12, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
-  <span class="ansi-bright-cyan-fg ansi-bold">store</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %17, <span class="ansi-bright-magenta-fg">ptr</span> %13, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
-  %index.next = <span class="ansi-bright-cyan-fg ansi-bold">add</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i64</span> %index, <span class="ansi-yellow-fg">32</span>
+  %11 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-bright-magenta-fg">inbounds</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %10, <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">64</span>
+  %12 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-bright-magenta-fg">inbounds</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %10, <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">128</span>
+  %13 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-bright-magenta-fg">inbounds</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %10, <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">192</span>
+  %wide.load74 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %10, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
+  %wide.load75 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %11, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
+  %wide.load76 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %12, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
+  %wide.load77 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %13, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
+  %14 = <span class="ansi-bright-cyan-fg ansi-bold">fadd</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %6, %wide.load74
+  %15 = <span class="ansi-bright-cyan-fg ansi-bold">fadd</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %7, %wide.load75
+  %16 = <span class="ansi-bright-cyan-fg ansi-bold">fadd</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %8, %wide.load76
+  %17 = <span class="ansi-bright-cyan-fg ansi-bold">fadd</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %9, %wide.load77
+  <span class="ansi-bright-cyan-fg ansi-bold">store</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %14, <span class="ansi-bright-magenta-fg">ptr</span> %10, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
+  <span class="ansi-bright-cyan-fg ansi-bold">store</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %15, <span class="ansi-bright-magenta-fg">ptr</span> %11, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
+  <span class="ansi-bright-cyan-fg ansi-bold">store</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %16, <span class="ansi-bright-magenta-fg">ptr</span> %12, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
+  <span class="ansi-bright-cyan-fg ansi-bold">store</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">16</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %17, <span class="ansi-bright-magenta-fg">ptr</span> %13, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
+  %index.next = <span class="ansi-bright-cyan-fg ansi-bold">add</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i64</span> %index, <span class="ansi-yellow-fg">64</span>
   %18 = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-cyan-fg ansi-bold">eq</span> <span class="ansi-cyan-fg">i64</span> %index.next, %n.vec
   <span class="ansi-bright-cyan-fg ansi-bold">br</span> <span class="ansi-cyan-fg">i1</span> %18, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%middle.block</span>, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%vector.body</span>
 
 <span class="ansi-bright-red-fg">middle.block:</span>                                     <span class="ansi-bright-black-fg">; preds = %vector.body</span>
-  %cmp.n = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-cyan-fg ansi-bold">eq</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size.0.copyload", %n.vec
+  %cmp.n = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-cyan-fg ansi-bold">eq</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size_ptr.copyload", %n.vec
   <span class="ansi-bright-cyan-fg ansi-bold">br</span> <span class="ansi-cyan-fg">i1</span> %cmp.n, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%L99</span>, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%vec.epilog.iter.check</span>
 
 <span class="ansi-bright-red-fg">vec.epilog.iter.check:</span>                            <span class="ansi-bright-black-fg">; preds = %middle.block</span>
@@ -798,35 +798,35 @@ R factor:
 
 <span class="ansi-bright-red-fg">vec.epilog.ph:</span>                                    <span class="ansi-bright-black-fg">; preds = %vec.epilog.iter.check, %vector.main.loop.iter.check</span>
   %vec.epilog.resume.val = <span class="ansi-bright-cyan-fg ansi-bold">phi</span> <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">[</span> %n.vec, <span class="ansi-bright-red-fg">%vec.epilog.iter.check</span> <span class="ansi-yellow-fg">]</span>, <span class="ansi-yellow-fg">[</span> <span class="ansi-yellow-fg">0</span>, <span class="ansi-bright-red-fg">%vector.main.loop.iter.check</span> <span class="ansi-yellow-fg">]</span>
-  %n.vec77 = <span class="ansi-bright-cyan-fg ansi-bold">and</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size.0.copyload", <span class="ansi-yellow-fg">9223372036854775804</span>
-  %19 = <span class="ansi-bright-cyan-fg ansi-bold">or</span> <span class="ansi-bright-magenta-fg">disjoint</span> <span class="ansi-cyan-fg">i64</span> %n.vec77, <span class="ansi-yellow-fg">1</span>
-  %broadcast.splatinsert80 = <span class="ansi-bright-cyan-fg ansi-bold">insertelement</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">4</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> <span class="ansi-bright-magenta-fg">poison</span>, <span class="ansi-cyan-fg">float</span> %"a::Float32", <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">0</span>
-  %broadcast.splat81 = <span class="ansi-bright-cyan-fg ansi-bold">shufflevector</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">4</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %broadcast.splatinsert80, <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">4</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> <span class="ansi-bright-magenta-fg">poison</span>, <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">4</span> x <span class="ansi-cyan-fg">i32</span><span class="ansi-yellow-fg">&gt;</span> <span class="ansi-bright-magenta-fg">zeroinitializer</span>
+  %n.vec79 = <span class="ansi-bright-cyan-fg ansi-bold">and</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size_ptr.copyload", <span class="ansi-yellow-fg">9223372036854775800</span>
+  %19 = <span class="ansi-bright-cyan-fg ansi-bold">or</span> <span class="ansi-bright-magenta-fg">disjoint</span> <span class="ansi-cyan-fg">i64</span> %n.vec79, <span class="ansi-yellow-fg">1</span>
+  %broadcast.splatinsert82 = <span class="ansi-bright-cyan-fg ansi-bold">insertelement</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> <span class="ansi-bright-magenta-fg">poison</span>, <span class="ansi-cyan-fg">float</span> %"a::Float32", <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">0</span>
+  %broadcast.splat83 = <span class="ansi-bright-cyan-fg ansi-bold">shufflevector</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %broadcast.splatinsert82, <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> <span class="ansi-bright-magenta-fg">poison</span>, <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">i32</span><span class="ansi-yellow-fg">&gt;</span> <span class="ansi-bright-magenta-fg">zeroinitializer</span>
   <span class="ansi-bright-cyan-fg ansi-bold">br</span> <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%vec.epilog.vector.body</span>
 
 <span class="ansi-bright-red-fg">vec.epilog.vector.body:</span>                           <span class="ansi-bright-black-fg">; preds = %vec.epilog.vector.body, %vec.epilog.ph</span>
-  %index78 = <span class="ansi-bright-cyan-fg ansi-bold">phi</span> <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">[</span> %vec.epilog.resume.val, <span class="ansi-bright-red-fg">%vec.epilog.ph</span> <span class="ansi-yellow-fg">]</span>, <span class="ansi-yellow-fg">[</span> %index.next83, <span class="ansi-bright-red-fg">%vec.epilog.vector.body</span> <span class="ansi-yellow-fg">]</span>
-  %.reass85 = <span class="ansi-bright-cyan-fg ansi-bold">shl</span> <span class="ansi-cyan-fg">i64</span> %index78, <span class="ansi-yellow-fg">2</span>
-  %gep = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %memoryref_data, <span class="ansi-cyan-fg">i64</span> %.reass85
-  %wide.load79 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">4</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %gep, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
-  %20 = <span class="ansi-bright-cyan-fg ansi-bold">fmul</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">4</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %broadcast.splat81, %wide.load79
-  %gep87 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %memoryref_data14, <span class="ansi-cyan-fg">i64</span> %.reass85
-  %wide.load82 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">4</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %gep87, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
-  %21 = <span class="ansi-bright-cyan-fg ansi-bold">fadd</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">4</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %20, %wide.load82
-  <span class="ansi-bright-cyan-fg ansi-bold">store</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">4</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %21, <span class="ansi-bright-magenta-fg">ptr</span> %gep87, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
-  %index.next83 = <span class="ansi-bright-cyan-fg ansi-bold">add</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i64</span> %index78, <span class="ansi-yellow-fg">4</span>
-  %22 = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-cyan-fg ansi-bold">eq</span> <span class="ansi-cyan-fg">i64</span> %index.next83, %n.vec77
+  %index80 = <span class="ansi-bright-cyan-fg ansi-bold">phi</span> <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">[</span> %vec.epilog.resume.val, <span class="ansi-bright-red-fg">%vec.epilog.ph</span> <span class="ansi-yellow-fg">]</span>, <span class="ansi-yellow-fg">[</span> %index.next85, <span class="ansi-bright-red-fg">%vec.epilog.vector.body</span> <span class="ansi-yellow-fg">]</span>
+  %.reass87 = <span class="ansi-bright-cyan-fg ansi-bold">shl</span> <span class="ansi-cyan-fg">i64</span> %index80, <span class="ansi-yellow-fg">2</span>
+  %gep = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %memoryref_data, <span class="ansi-cyan-fg">i64</span> %.reass87
+  %wide.load81 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %gep, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
+  %20 = <span class="ansi-bright-cyan-fg ansi-bold">fmul</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %broadcast.splat83, %wide.load81
+  %gep89 = <span class="ansi-bright-cyan-fg ansi-bold">getelementptr</span> <span class="ansi-cyan-fg">i8</span>, <span class="ansi-bright-magenta-fg">ptr</span> %memoryref_data14, <span class="ansi-cyan-fg">i64</span> %.reass87
+  %wide.load84 = <span class="ansi-bright-cyan-fg ansi-bold">load</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span>, <span class="ansi-bright-magenta-fg">ptr</span> %gep89, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
+  %21 = <span class="ansi-bright-cyan-fg ansi-bold">fadd</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %20, %wide.load84
+  <span class="ansi-bright-cyan-fg ansi-bold">store</span> <span class="ansi-yellow-fg">&lt;</span><span class="ansi-yellow-fg">8</span> x <span class="ansi-cyan-fg">float</span><span class="ansi-yellow-fg">&gt;</span> %21, <span class="ansi-bright-magenta-fg">ptr</span> %gep89, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
+  %index.next85 = <span class="ansi-bright-cyan-fg ansi-bold">add</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i64</span> %index80, <span class="ansi-yellow-fg">8</span>
+  %22 = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-cyan-fg ansi-bold">eq</span> <span class="ansi-cyan-fg">i64</span> %index.next85, %n.vec79
   <span class="ansi-bright-cyan-fg ansi-bold">br</span> <span class="ansi-cyan-fg">i1</span> %22, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%vec.epilog.middle.block</span>, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%vec.epilog.vector.body</span>
 
 <span class="ansi-bright-red-fg">vec.epilog.middle.block:</span>                          <span class="ansi-bright-black-fg">; preds = %vec.epilog.vector.body</span>
-  %cmp.n84 = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-cyan-fg ansi-bold">eq</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size.0.copyload", %n.vec77
-  <span class="ansi-bright-cyan-fg ansi-bold">br</span> <span class="ansi-cyan-fg">i1</span> %cmp.n84, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%L99</span>, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%L31.preheader</span>
+  %cmp.n86 = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-cyan-fg ansi-bold">eq</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size_ptr.copyload", %n.vec79
+  <span class="ansi-bright-cyan-fg ansi-bold">br</span> <span class="ansi-cyan-fg">i1</span> %cmp.n86, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%L99</span>, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%L31.preheader</span>
 
 <span class="ansi-bright-red-fg">L31.preheader:</span>                                    <span class="ansi-bright-black-fg">; preds = %vec.epilog.middle.block, %vec.epilog.iter.check, %vector.memcheck, %iter.check</span>
-  %value_phi6.ph = <span class="ansi-bright-cyan-fg ansi-bold">phi</span> <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">[</span> %ind.end, <span class="ansi-bright-red-fg">%vec.epilog.iter.check</span> <span class="ansi-yellow-fg">]</span>, <span class="ansi-yellow-fg">[</span> <span class="ansi-yellow-fg">1</span>, <span class="ansi-bright-red-fg">%iter.check</span> <span class="ansi-yellow-fg">]</span>, <span class="ansi-yellow-fg">[</span> <span class="ansi-yellow-fg">1</span>, <span class="ansi-bright-red-fg">%vector.memcheck</span> <span class="ansi-yellow-fg">]</span>, <span class="ansi-yellow-fg">[</span> %19, <span class="ansi-bright-red-fg">%vec.epilog.middle.block</span> <span class="ansi-yellow-fg">]</span>
-  %23 = <span class="ansi-bright-cyan-fg ansi-bold">add</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size.0.copyload", <span class="ansi-yellow-fg">1</span>
+  %value_phi6.ph = <span class="ansi-bright-cyan-fg ansi-bold">phi</span> <span class="ansi-cyan-fg">i64</span> <span class="ansi-yellow-fg">[</span> %19, <span class="ansi-bright-red-fg">%vec.epilog.middle.block</span> <span class="ansi-yellow-fg">]</span>, <span class="ansi-yellow-fg">[</span> <span class="ansi-yellow-fg">1</span>, <span class="ansi-bright-red-fg">%vector.memcheck</span> <span class="ansi-yellow-fg">]</span>, <span class="ansi-yellow-fg">[</span> <span class="ansi-yellow-fg">1</span>, <span class="ansi-bright-red-fg">%iter.check</span> <span class="ansi-yellow-fg">]</span>, <span class="ansi-yellow-fg">[</span> %ind.end, <span class="ansi-bright-red-fg">%vec.epilog.iter.check</span> <span class="ansi-yellow-fg">]</span>
+  %23 = <span class="ansi-bright-cyan-fg ansi-bold">add</span> <span class="ansi-bright-magenta-fg">nuw</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size_ptr.copyload", <span class="ansi-yellow-fg">1</span>
   %24 = <span class="ansi-bright-cyan-fg ansi-bold">sub</span> <span class="ansi-cyan-fg">i64</span> %23, %value_phi6.ph
-  %25 = <span class="ansi-bright-cyan-fg ansi-bold">sub</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size.0.copyload", %value_phi6.ph
+  %25 = <span class="ansi-bright-cyan-fg ansi-bold">sub</span> <span class="ansi-cyan-fg">i64</span> %"x::Array.size_ptr.copyload", %value_phi6.ph
   %xtraiter = <span class="ansi-bright-cyan-fg ansi-bold">and</span> <span class="ansi-cyan-fg">i64</span> %24, <span class="ansi-yellow-fg">7</span>
   %lcmp.mod.not = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-cyan-fg ansi-bold">eq</span> <span class="ansi-cyan-fg">i64</span> %xtraiter, <span class="ansi-yellow-fg">0</span>
   <span class="ansi-bright-cyan-fg ansi-bold">br</span> <span class="ansi-cyan-fg">i1</span> %lcmp.mod.not, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%L31.prol.loopexit</span>, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%L31.prol</span>
@@ -922,7 +922,7 @@ R factor:
   %67 = <span class="ansi-bright-cyan-fg ansi-bold">fadd</span> <span class="ansi-bright-magenta-fg">contract</span> <span class="ansi-cyan-fg">float</span> %65, %66
   <span class="ansi-bright-cyan-fg ansi-bold">store</span> <span class="ansi-cyan-fg">float</span> %67, <span class="ansi-bright-magenta-fg">ptr</span> %memoryref_data22.7, <span class="ansi-bright-magenta-fg">align</span> <span class="ansi-yellow-fg">4</span>
   %68 = <span class="ansi-bright-cyan-fg ansi-bold">add</span> <span class="ansi-cyan-fg">i64</span> %value_phi6, <span class="ansi-yellow-fg">8</span>
-  %exitcond.not.7 = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-cyan-fg ansi-bold">eq</span> <span class="ansi-cyan-fg">i64</span> %62, %"x::Array.size.0.copyload"
+  %exitcond.not.7 = <span class="ansi-bright-cyan-fg ansi-bold">icmp</span> <span class="ansi-bright-cyan-fg ansi-bold">eq</span> <span class="ansi-cyan-fg">i64</span> %62, %"x::Array.size_ptr.copyload"
   <span class="ansi-bright-cyan-fg ansi-bold">br</span> <span class="ansi-cyan-fg">i1</span> %exitcond.not.7, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%L99</span>, <span class="ansi-cyan-fg">label</span> <span class="ansi-bright-red-fg">%L31</span>
 
 <span class="ansi-bright-red-fg">L99:</span>                                              <span class="ansi-bright-black-fg">; preds = %L31, %L31.prol.loopexit, %vec.epilog.middle.block, %middle.block, %L22</span>
@@ -941,10 +941,10 @@ R factor:
 <div class="ansi-escaped-output">
 <pre>   .file   "add"
     .section    .ltext,"axl",@progbits
-    .globl  julia_add_9459                  <span class="ansi-bright-black-fg"># -- Begin function julia_add_9459</span>
+    .globl  julia_add_8781                  <span class="ansi-bright-black-fg"># -- Begin function julia_add_8781</span>
     .p2align    <span class="ansi-yellow-fg">4</span>
-    .type   julia_add_9459,@function
-<span class="ansi-bright-red-fg">julia_add_9459:</span>                         <span class="ansi-bright-black-fg"># @julia_add_9459</span>
+    .type   julia_add_8781,@function
+<span class="ansi-bright-red-fg">julia_add_8781:</span>                         <span class="ansi-bright-black-fg"># @julia_add_8781</span>
 <span class="ansi-bright-black-fg">; Function Signature: add(Int64, Int64)</span>
 <span class="ansi-bright-black-fg">; ┌ @ /home/runner/work/julia-hpc-tutorial-sc26/julia-hpc-tutorial-sc26/01-Intro-to-Julia/presentations/intro-julia/index.qmd:48 within `add`</span>
 <span class="ansi-bright-black-fg"># %bb.0:                                # %top</span>
@@ -957,7 +957,7 @@ R factor:
     <span class="ansi-bright-cyan-fg ansi-bold">pop</span>  rbp
     <span class="ansi-bright-cyan-fg ansi-bold">ret</span>
 <span class="ansi-bright-red-fg">.Lfunc_end0:</span>
-    .size   julia_add_9459, .Lfunc_end0-julia_add_9459
+    .size   julia_add_8781, .Lfunc_end0-julia_add_8781
 <span class="ansi-bright-black-fg">; └└</span>
                                         <span class="ansi-bright-black-fg"># -- End function</span>
     .section    ".note.GNU-stack","",@progbits
@@ -971,10 +971,10 @@ R factor:
 <div class="ansi-escaped-output">
 <pre>   .file   "add"
     .section    .ltext,"axl",@progbits
-    .globl  julia_add_9512                  <span class="ansi-bright-black-fg"># -- Begin function julia_add_9512</span>
+    .globl  julia_add_8834                  <span class="ansi-bright-black-fg"># -- Begin function julia_add_8834</span>
     .p2align    <span class="ansi-yellow-fg">4</span>
-    .type   julia_add_9512,@function
-<span class="ansi-bright-red-fg">julia_add_9512:</span>                         <span class="ansi-bright-black-fg"># @julia_add_9512</span>
+    .type   julia_add_8834,@function
+<span class="ansi-bright-red-fg">julia_add_8834:</span>                         <span class="ansi-bright-black-fg"># @julia_add_8834</span>
 <span class="ansi-bright-black-fg">; Function Signature: add(Float64, Float64)</span>
 <span class="ansi-bright-black-fg">; ┌ @ /home/runner/work/julia-hpc-tutorial-sc26/julia-hpc-tutorial-sc26/01-Intro-to-Julia/presentations/intro-julia/index.qmd:48 within `add`</span>
 <span class="ansi-bright-black-fg"># %bb.0:                                # %top</span>
@@ -987,18 +987,18 @@ R factor:
     <span class="ansi-bright-cyan-fg ansi-bold">pop</span>  rbp
     <span class="ansi-bright-cyan-fg ansi-bold">ret</span>
 <span class="ansi-bright-red-fg">.Lfunc_end0:</span>
-    .size   julia_add_9512, .Lfunc_end0-julia_add_9512
+    .size   julia_add_8834, .Lfunc_end0-julia_add_8834
 <span class="ansi-bright-black-fg">; └└</span>
                                         <span class="ansi-bright-black-fg"># -- End function</span>
-    .type   ".L+Core.Float64#9514",@object  <span class="ansi-bright-black-fg"># @"+Core.Float64#9514"</span>
+    .type   ".L+Core.Float64#8836",@object  <span class="ansi-bright-black-fg"># @"+Core.Float64#8836"</span>
     .section    .lrodata,"al",@progbits
     .p2align    <span class="ansi-yellow-fg">3</span>, <span class="ansi-yellow-fg">0x0</span>
-<span class="ansi-bright-red-fg">".L+Core.Float64#9514":</span>
-    .quad   ".L+Core.Float64#9514.jit"
-    .size   ".L+Core.Float64#9514", <span class="ansi-yellow-fg">8</span>
+<span class="ansi-bright-red-fg">".L+Core.Float64#8836":</span>
+    .quad   ".L+Core.Float64#8836.jit"
+    .size   ".L+Core.Float64#8836", <span class="ansi-yellow-fg">8</span>
 
-.set ".L+Core.Float64#9514.jit", <span class="ansi-yellow-fg">140647856963424</span>
-    .size   ".L+Core.Float64#9514.jit", <span class="ansi-yellow-fg">8</span>
+.set ".L+Core.Float64#8836.jit", <span class="ansi-yellow-fg">134360273317824</span>
+    .size   ".L+Core.Float64#8836.jit", <span class="ansi-yellow-fg">8</span>
     .section    ".note.GNU-stack","",@progbits
 </pre>
 </div>
@@ -1013,10 +1013,10 @@ R factor:
 <div class="ansi-escaped-output">
 <pre>   .file   "axpy!"
     .section    .ltext,"axl",@progbits
-    .globl  "julia_axpy!_9540"              <span class="ansi-bright-black-fg"># -- Begin function julia_axpy!_9540</span>
+    .globl  "julia_axpy!_8862"              <span class="ansi-bright-black-fg"># -- Begin function julia_axpy!_8862</span>
     .p2align    <span class="ansi-yellow-fg">4</span>
-    .type   "julia_axpy!_9540",@function
-<span class="ansi-bright-red-fg">"julia_axpy!_9540":</span>                     <span class="ansi-bright-black-fg"># @"julia_axpy!_9540"</span>
+    .type   "julia_axpy!_8862",@function
+<span class="ansi-bright-red-fg">"julia_axpy!_8862":</span>                     <span class="ansi-bright-black-fg"># @"julia_axpy!_8862"</span>
 <span class="ansi-bright-black-fg">; Function Signature: axpy!(Array{Float32, 1}, Float32, Array{Float32, 1})</span>
 <span class="ansi-bright-black-fg"># %bb.0:                                # %top</span>
     <span class="ansi-bright-red-fg">#DEBUG_VALUE:</span> <span class="ansi-bright-cyan-fg ansi-bold">axpy</span>!:y &lt;- <span class="ansi-yellow-fg">[</span><span class="ansi-bright-yellow-fg">$rdi+0</span><span class="ansi-yellow-fg">]</span>
@@ -1038,7 +1038,7 @@ R factor:
     <span class="ansi-bright-cyan-fg ansi-bold">mov</span>  rcx, <span class="ansi-bright-magenta-fg">qword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rsi<span class="ansi-yellow-fg">]</span>
     <span class="ansi-bright-cyan-fg ansi-bold">mov</span>  rdx, <span class="ansi-bright-magenta-fg">qword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdi<span class="ansi-yellow-fg">]</span>
     <span class="ansi-bright-cyan-fg ansi-bold">mov</span>  esi, <span class="ansi-yellow-fg">1</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">cmp</span>  rax, <span class="ansi-yellow-fg">4</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">cmp</span>  rax, <span class="ansi-yellow-fg">8</span>
     <span class="ansi-bright-cyan-fg ansi-bold">jb</span>   .LBB0_14
 <span class="ansi-bright-black-fg"># %bb.3:                                # %vector.memcheck</span>
     <span class="ansi-bright-cyan-fg ansi-bold">lea</span>  r9, <span class="ansi-yellow-fg">[</span>rcx + <span class="ansi-yellow-fg">4</span>*rax<span class="ansi-yellow-fg">]</span>
@@ -1050,54 +1050,54 @@ R factor:
     <span class="ansi-bright-cyan-fg ansi-bold">test</span> r9b, r8b
     <span class="ansi-bright-cyan-fg ansi-bold">jne</span>  .LBB0_14
 <span class="ansi-bright-black-fg"># %bb.4:                                # %vector.main.loop.iter.check</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">movabs</span>   r8, <span class="ansi-yellow-fg">9223372036854775776</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">cmp</span>  rax, <span class="ansi-yellow-fg">32</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">movabs</span>   r8, <span class="ansi-yellow-fg">9223372036854775744</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">cmp</span>  rax, <span class="ansi-yellow-fg">64</span>
     <span class="ansi-bright-cyan-fg ansi-bold">jae</span>  .LBB0_9
 <span class="ansi-bright-black-fg"># %bb.5:</span>
     <span class="ansi-bright-cyan-fg ansi-bold">xor</span>  r9d, r9d
     <span class="ansi-bright-cyan-fg ansi-bold">jmp</span>  .LBB0_6
 <span class="ansi-bright-red-fg">.LBB0_9:</span>                                <span class="ansi-bright-black-fg"># %vector.ph</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">vbroadcastss</span> ymm1, xmm0
+    <span class="ansi-bright-cyan-fg ansi-bold">vbroadcastss</span> zmm1, xmm0
     <span class="ansi-bright-cyan-fg ansi-bold">mov</span>  r9, rax
     <span class="ansi-bright-cyan-fg ansi-bold">and</span>  r9, r8
     <span class="ansi-bright-cyan-fg ansi-bold">xor</span>  esi, esi
     .p2align    <span class="ansi-yellow-fg">4</span>
 <span class="ansi-bright-red-fg">.LBB0_10:</span>                               <span class="ansi-bright-black-fg"># %vector.body</span>
                                         <span class="ansi-bright-black-fg"># =&gt;This Inner Loop Header: Depth=1</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  ymm2, <span class="ansi-bright-magenta-fg">ymmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rcx + <span class="ansi-yellow-fg">4</span>*rsi<span class="ansi-yellow-fg">]</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  ymm3, <span class="ansi-bright-magenta-fg">ymmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rcx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">32</span><span class="ansi-yellow-fg">]</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  ymm4, <span class="ansi-bright-magenta-fg">ymmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rcx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">64</span><span class="ansi-yellow-fg">]</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  ymm5, <span class="ansi-bright-magenta-fg">ymmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rcx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">96</span><span class="ansi-yellow-fg">]</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">vfmadd213ps</span>  ymm2, ymm1, <span class="ansi-bright-magenta-fg">ymmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*rsi<span class="ansi-yellow-fg">]</span> <span class="ansi-bright-black-fg"># ymm2 = (ymm1 * ymm2) + mem</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">vfmadd213ps</span>  ymm3, ymm1, <span class="ansi-bright-magenta-fg">ymmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">32</span><span class="ansi-yellow-fg">]</span> <span class="ansi-bright-black-fg"># ymm3 = (ymm1 * ymm3) + mem</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">vfmadd213ps</span>  ymm4, ymm1, <span class="ansi-bright-magenta-fg">ymmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">64</span><span class="ansi-yellow-fg">]</span> <span class="ansi-bright-black-fg"># ymm4 = (ymm1 * ymm4) + mem</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">vfmadd213ps</span>  ymm5, ymm1, <span class="ansi-bright-magenta-fg">ymmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">96</span><span class="ansi-yellow-fg">]</span> <span class="ansi-bright-black-fg"># ymm5 = (ymm1 * ymm5) + mem</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  <span class="ansi-bright-magenta-fg">ymmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*rsi<span class="ansi-yellow-fg">]</span>, ymm2
-    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  <span class="ansi-bright-magenta-fg">ymmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">32</span><span class="ansi-yellow-fg">]</span>, ymm3
-    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  <span class="ansi-bright-magenta-fg">ymmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">64</span><span class="ansi-yellow-fg">]</span>, ymm4
-    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  <span class="ansi-bright-magenta-fg">ymmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">96</span><span class="ansi-yellow-fg">]</span>, ymm5
-    <span class="ansi-bright-cyan-fg ansi-bold">add</span>  rsi, <span class="ansi-yellow-fg">32</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  zmm2, <span class="ansi-bright-magenta-fg">zmmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rcx + <span class="ansi-yellow-fg">4</span>*rsi<span class="ansi-yellow-fg">]</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  zmm3, <span class="ansi-bright-magenta-fg">zmmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rcx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">64</span><span class="ansi-yellow-fg">]</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  zmm4, <span class="ansi-bright-magenta-fg">zmmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rcx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">128</span><span class="ansi-yellow-fg">]</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  zmm5, <span class="ansi-bright-magenta-fg">zmmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rcx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">192</span><span class="ansi-yellow-fg">]</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">vfmadd213ps</span>  zmm2, zmm1, <span class="ansi-bright-magenta-fg">zmmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*rsi<span class="ansi-yellow-fg">]</span> <span class="ansi-bright-black-fg"># zmm2 = (zmm1 * zmm2) + mem</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">vfmadd213ps</span>  zmm3, zmm1, <span class="ansi-bright-magenta-fg">zmmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">64</span><span class="ansi-yellow-fg">]</span> <span class="ansi-bright-black-fg"># zmm3 = (zmm1 * zmm3) + mem</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">vfmadd213ps</span>  zmm4, zmm1, <span class="ansi-bright-magenta-fg">zmmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">128</span><span class="ansi-yellow-fg">]</span> <span class="ansi-bright-black-fg"># zmm4 = (zmm1 * zmm4) + mem</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">vfmadd213ps</span>  zmm5, zmm1, <span class="ansi-bright-magenta-fg">zmmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">192</span><span class="ansi-yellow-fg">]</span> <span class="ansi-bright-black-fg"># zmm5 = (zmm1 * zmm5) + mem</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  <span class="ansi-bright-magenta-fg">zmmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*rsi<span class="ansi-yellow-fg">]</span>, zmm2
+    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  <span class="ansi-bright-magenta-fg">zmmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">64</span><span class="ansi-yellow-fg">]</span>, zmm3
+    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  <span class="ansi-bright-magenta-fg">zmmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">128</span><span class="ansi-yellow-fg">]</span>, zmm4
+    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  <span class="ansi-bright-magenta-fg">zmmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*rsi + <span class="ansi-yellow-fg">192</span><span class="ansi-yellow-fg">]</span>, zmm5
+    <span class="ansi-bright-cyan-fg ansi-bold">add</span>  rsi, <span class="ansi-yellow-fg">64</span>
     <span class="ansi-bright-cyan-fg ansi-bold">cmp</span>  r9, rsi
     <span class="ansi-bright-cyan-fg ansi-bold">jne</span>  .LBB0_10
 <span class="ansi-bright-black-fg"># %bb.11:                               # %middle.block</span>
     <span class="ansi-bright-cyan-fg ansi-bold">cmp</span>  rax, r9
     <span class="ansi-bright-cyan-fg ansi-bold">je</span>   .LBB0_19
 <span class="ansi-bright-black-fg"># %bb.12:                               # %vec.epilog.iter.check</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">test</span> al, <span class="ansi-yellow-fg">28</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">test</span> al, <span class="ansi-yellow-fg">56</span>
     <span class="ansi-bright-cyan-fg ansi-bold">je</span>   .LBB0_13
 <span class="ansi-bright-red-fg">.LBB0_6:</span>                                <span class="ansi-bright-black-fg"># %vec.epilog.ph</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">add</span>  r8, <span class="ansi-yellow-fg">28</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">vbroadcastss</span> xmm1, xmm0
+    <span class="ansi-bright-cyan-fg ansi-bold">add</span>  r8, <span class="ansi-yellow-fg">56</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">vbroadcastss</span> ymm1, xmm0
     <span class="ansi-bright-cyan-fg ansi-bold">and</span>  r8, rax
     <span class="ansi-bright-cyan-fg ansi-bold">mov</span>  rsi, r8
     <span class="ansi-bright-cyan-fg ansi-bold">or</span>   rsi, <span class="ansi-yellow-fg">1</span>
     .p2align    <span class="ansi-yellow-fg">4</span>
 <span class="ansi-bright-red-fg">.LBB0_7:</span>                                <span class="ansi-bright-black-fg"># %vec.epilog.vector.body</span>
                                         <span class="ansi-bright-black-fg"># =&gt;This Inner Loop Header: Depth=1</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  xmm2, <span class="ansi-bright-magenta-fg">xmmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rcx + <span class="ansi-yellow-fg">4</span>*r9<span class="ansi-yellow-fg">]</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">vfmadd213ps</span>  xmm2, xmm1, <span class="ansi-bright-magenta-fg">xmmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*r9<span class="ansi-yellow-fg">]</span> <span class="ansi-bright-black-fg"># xmm2 = (xmm1 * xmm2) + mem</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  <span class="ansi-bright-magenta-fg">xmmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*r9<span class="ansi-yellow-fg">]</span>, xmm2
-    <span class="ansi-bright-cyan-fg ansi-bold">add</span>  r9, <span class="ansi-yellow-fg">4</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  ymm2, <span class="ansi-bright-magenta-fg">ymmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rcx + <span class="ansi-yellow-fg">4</span>*r9<span class="ansi-yellow-fg">]</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">vfmadd213ps</span>  ymm2, ymm1, <span class="ansi-bright-magenta-fg">ymmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*r9<span class="ansi-yellow-fg">]</span> <span class="ansi-bright-black-fg"># ymm2 = (ymm1 * ymm2) + mem</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">vmovups</span>  <span class="ansi-bright-magenta-fg">ymmword</span> <span class="ansi-bright-magenta-fg">ptr</span> <span class="ansi-yellow-fg">[</span>rdx + <span class="ansi-yellow-fg">4</span>*r9<span class="ansi-yellow-fg">]</span>, ymm2
+    <span class="ansi-bright-cyan-fg ansi-bold">add</span>  r9, <span class="ansi-yellow-fg">8</span>
     <span class="ansi-bright-cyan-fg ansi-bold">cmp</span>  r8, r9
     <span class="ansi-bright-cyan-fg ansi-bold">jne</span>  .LBB0_7
 <span class="ansi-bright-black-fg"># %bb.8:                                # %vec.epilog.middle.block</span>
@@ -1169,16 +1169,16 @@ R factor:
     <span class="ansi-bright-cyan-fg ansi-bold">vzeroupper</span>
     <span class="ansi-bright-cyan-fg ansi-bold">ret</span>
 <span class="ansi-bright-red-fg">.LBB0_20:</span>                               <span class="ansi-bright-black-fg"># %L19</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">movabs</span>   rdi, <span class="ansi-bright-magenta-fg">offset</span> <span class="ansi-bright-yellow-fg">".Ljl_global#9544.jit"</span>
-    <span class="ansi-bright-cyan-fg ansi-bold">movabs</span>   rax, <span class="ansi-bright-magenta-fg">offset</span> <span class="ansi-bright-yellow-fg">j_throw_eachindex_mismatch_indices_9543</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">movabs</span>   rdi, <span class="ansi-bright-magenta-fg">offset</span> <span class="ansi-bright-yellow-fg">".Ljl_global#8866.jit"</span>
+    <span class="ansi-bright-cyan-fg ansi-bold">movabs</span>   rax, <span class="ansi-bright-magenta-fg">offset</span> <span class="ansi-bright-yellow-fg">j_throw_eachindex_mismatch_indices_8865</span>
     <span class="ansi-bright-cyan-fg ansi-bold">lea</span>  rsi, <span class="ansi-yellow-fg">[</span>rbp - <span class="ansi-yellow-fg">16</span><span class="ansi-yellow-fg">]</span>
     <span class="ansi-bright-cyan-fg ansi-bold">lea</span>  rdx, <span class="ansi-yellow-fg">[</span>rbp - <span class="ansi-yellow-fg">8</span><span class="ansi-yellow-fg">]</span>
     <span class="ansi-bright-cyan-fg ansi-bold">call</span> rax
 <span class="ansi-bright-red-fg">.Lfunc_end0:</span>
-    .size   "julia_axpy!_9540", .Lfunc_end0-"julia_axpy!_9540"
+    .size   "julia_axpy!_8862", .Lfunc_end0-"julia_axpy!_8862"
                                         <span class="ansi-bright-black-fg"># -- End function</span>
-.set ".Ljl_global#9544.jit", <span class="ansi-yellow-fg">140647879754544</span>
-    .size   ".Ljl_global#9544.jit", <span class="ansi-yellow-fg">8</span>
+.set ".Ljl_global#8866.jit", <span class="ansi-yellow-fg">134360296476864</span>
+    .size   ".Ljl_global#8866.jit", <span class="ansi-yellow-fg">8</span>
     .section    ".note.GNU-stack","",@progbits
 </pre>
 </div>
@@ -1213,8 +1213,8 @@ R factor:
 <span id="cb46-7"><a href="" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb46-8"><a href="" aria-hidden="true" tabindex="-1"></a><span class="pp">@time</span> <span class="fu">fetch</span>(t) <span class="co"># `fetch` waits for the task to finish</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>  0.000098 seconds (70 allocations: 3.703 KiB)
-  1.969231 seconds (10 allocations: 544 bytes)</code></pre>
+<pre><code>  0.000125 seconds (74 allocations: 3.891 KiB)
+  1.978169 seconds (11 allocations: 832 bytes)</code></pre>
 </div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <pre><code>6</code></pre>
@@ -1243,8 +1243,8 @@ R factor:
 <span id="cb49-17"><a href="" aria-hidden="true" tabindex="-1"></a><span class="pp">@btime</span> <span class="fu">tmap</span>(svdvals, <span class="op">$</span>M) samples<span class="op">=</span><span class="fl">10</span> evals<span class="op">=</span><span class="fl">3</span>;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>nthreads() = 4
-  16.478 ms (418 allocations: 4.31 MiB)
-  6.941 ms (587 allocations: 4.32 MiB)</code></pre>
+  9.865 ms (418 allocations: 4.31 MiB)
+  4.203 ms (587 allocations: 4.32 MiB)</code></pre>
 </div>
 </div>
 </section>
@@ -1266,8 +1266,8 @@ R factor:
 <span id="cb51-13"><a href="" aria-hidden="true" tabindex="-1"></a><span class="pp">@btime</span> <span class="fu">sum</span>(sin, <span class="op">$</span>v);</span>
 <span id="cb51-14"><a href="" aria-hidden="true" tabindex="-1"></a><span class="pp">@btime</span> <span class="fu">sum_threads</span>(sin, <span class="op">$</span>v);</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>  256.206 ms (0 allocations: 0 bytes)
-  82.882 ms (27 allocations: 1.75 KiB)</code></pre>
+<pre><code>  180.848 ms (0 allocations: 0 bytes)
+  55.051 ms (27 allocations: 1.69 KiB)</code></pre>
 </div>
 </div>
 </section></section>
@@ -1329,7 +1329,7 @@ R factor:
 <p><code>Manifest.toml</code>:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb55"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb55-1"><a href="" aria-hidden="true" tabindex="-1"></a><span class="co"># This file is machine-generated - editing it directly is not advised</span></span>
 <span id="cb55-2"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-3"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">julia_version</span> <span class="op">=</span> <span class="st">"1.13.0"</span></span>
+<span id="cb55-3"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">julia_version</span> <span class="op">=</span> <span class="st">"1.13.4"</span></span>
 <span id="cb55-4"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">manifest_format</span> <span class="op">=</span> <span class="st">"2.1"</span></span>
 <span id="cb55-5"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">project_hash</span> <span class="op">=</span> <span class="st">"5a75629e977f736554d543dc8c97367508941dd3"</span></span>
 <span id="cb55-6"><a href="" aria-hidden="true" tabindex="-1"></a></span>
@@ -1389,157 +1389,165 @@ R factor:
 <span id="cb55-60"><a href="" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb55-61"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.JSON]]</span></span>
 <span id="cb55-62"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Dates"</span><span class="op">,</span> <span class="st">"Logging"</span><span class="op">,</span> <span class="st">"Parsers"</span><span class="op">,</span> <span class="st">"PrecompileTools"</span><span class="op">,</span> <span class="st">"StructUtils"</span><span class="op">,</span> <span class="st">"UUIDs"</span><span class="op">,</span> <span class="st">"Unicode"</span><span class="op">]</span></span>
-<span id="cb55-63"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">git-tree-sha1</span> <span class="op">=</span> <span class="st">"88352712893ec50bee3680605891eaf0e9ed6368"</span></span>
+<span id="cb55-63"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">git-tree-sha1</span> <span class="op">=</span> <span class="st">"06d90f699285d055e34f0b014636a75a17ff2252"</span></span>
 <span id="cb55-64"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">registries</span> <span class="op">=</span> <span class="st">"General"</span></span>
 <span id="cb55-65"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"682c06a0-de6a-54ab-a142-c8b1cf79cde6"</span></span>
-<span id="cb55-66"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.8.0"</span></span>
+<span id="cb55-66"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.13.4"</span></span>
 <span id="cb55-67"><a href="" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb55-68"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="kw">[deps.JSON.extensions]</span></span>
 <span id="cb55-69"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">JSONArrowExt</span> <span class="op">=</span> <span class="op">[</span><span class="st">"ArrowTypes"</span><span class="op">]</span></span>
-<span id="cb55-70"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-71"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="kw">[deps.JSON.weakdeps]</span></span>
-<span id="cb55-72"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">ArrowTypes</span> <span class="op">=</span> <span class="st">"31f734f8-188a-4ce0-8406-c8a06bd891cd"</span></span>
-<span id="cb55-73"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-74"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.JuliaSyntaxHighlighting]]</span></span>
-<span id="cb55-75"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"StyledStrings"</span><span class="op">]</span></span>
-<span id="cb55-76"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"ac6e5ff7-fb65-4e79-a425-ec3bc9c03011"</span></span>
-<span id="cb55-77"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.12.0"</span></span>
-<span id="cb55-78"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-79"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Libdl]]</span></span>
-<span id="cb55-80"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"8f399da3-3557-5675-b5ff-fb832c97cbdb"</span></span>
-<span id="cb55-81"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
-<span id="cb55-82"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-83"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.LinearAlgebra]]</span></span>
-<span id="cb55-84"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Libdl"</span><span class="op">,</span> <span class="st">"OpenBLAS_jll"</span><span class="op">,</span> <span class="st">"libblastrampoline_jll"</span><span class="op">]</span></span>
-<span id="cb55-85"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"37e2e46d-f89d-539d-b4ee-838fcccc9c8e"</span></span>
-<span id="cb55-86"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.13.0"</span></span>
-<span id="cb55-87"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-88"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Logging]]</span></span>
-<span id="cb55-89"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"56ddb016-857b-54e1-b83d-db4d58db5568"</span></span>
-<span id="cb55-90"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
-<span id="cb55-91"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-92"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Markdown]]</span></span>
-<span id="cb55-93"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Base64"</span><span class="op">,</span> <span class="st">"JuliaSyntaxHighlighting"</span><span class="op">,</span> <span class="st">"StyledStrings"</span><span class="op">]</span></span>
-<span id="cb55-94"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"d6f4376e-aef5-505a-96c1-9c027394607a"</span></span>
-<span id="cb55-95"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
-<span id="cb55-96"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-97"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.OpenBLAS_jll]]</span></span>
-<span id="cb55-98"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Artifacts"</span><span class="op">,</span> <span class="st">"CompilerSupportLibraries_jll"</span><span class="op">,</span> <span class="st">"Libdl"</span><span class="op">]</span></span>
-<span id="cb55-99"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"4536629a-c528-5b80-bd46-f80d51c5b363"</span></span>
-<span id="cb55-100"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"0.3.30+0"</span></span>
-<span id="cb55-101"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-102"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Parsers]]</span></span>
-<span id="cb55-103"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Dates"</span><span class="op">,</span> <span class="st">"PrecompileTools"</span><span class="op">]</span></span>
-<span id="cb55-104"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">git-tree-sha1</span> <span class="op">=</span> <span class="st">"663e8b48b789916221e0765393b289ca6c88f24e"</span></span>
-<span id="cb55-105"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">registries</span> <span class="op">=</span> <span class="st">"General"</span></span>
-<span id="cb55-106"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"69de0a69-1ddd-5017-9359-2bf0b02dc9f0"</span></span>
-<span id="cb55-107"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"3.0.0"</span></span>
-<span id="cb55-108"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-109"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.PrecompileTools]]</span></span>
-<span id="cb55-110"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Preferences"</span><span class="op">]</span></span>
-<span id="cb55-111"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">git-tree-sha1</span> <span class="op">=</span> <span class="st">"edbeefc7a4889f528644251bdb5fc9ab5348bc2c"</span></span>
-<span id="cb55-112"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">registries</span> <span class="op">=</span> <span class="st">"General"</span></span>
-<span id="cb55-113"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"aea7be01-6a6a-4083-8856-8a6e6704d82a"</span></span>
-<span id="cb55-114"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.3.4"</span></span>
-<span id="cb55-115"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-116"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Preferences]]</span></span>
-<span id="cb55-117"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"TOML"</span><span class="op">]</span></span>
-<span id="cb55-118"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">git-tree-sha1</span> <span class="op">=</span> <span class="st">"8b770b60760d4451834fe79dd483e318eee709c4"</span></span>
-<span id="cb55-119"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">registries</span> <span class="op">=</span> <span class="st">"General"</span></span>
-<span id="cb55-120"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"21216c6a-2e73-6563-6e65-726566657250"</span></span>
-<span id="cb55-121"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.5.2"</span></span>
-<span id="cb55-122"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-123"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Printf]]</span></span>
-<span id="cb55-124"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Unicode"</span><span class="op">]</span></span>
-<span id="cb55-125"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"de0858da-6303-5e67-8744-51eddeeeb8d7"</span></span>
-<span id="cb55-126"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
-<span id="cb55-127"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-128"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Profile]]</span></span>
-<span id="cb55-129"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"StyledStrings"</span><span class="op">]</span></span>
-<span id="cb55-130"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"</span></span>
-<span id="cb55-131"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
-<span id="cb55-132"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-133"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Random]]</span></span>
-<span id="cb55-134"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"SHA"</span><span class="op">]</span></span>
-<span id="cb55-135"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"9a3f8284-a2c9-5f02-9a11-845980a1fd5c"</span></span>
-<span id="cb55-136"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
-<span id="cb55-137"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-138"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.SHA]]</span></span>
-<span id="cb55-139"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"ea8e919c-243c-51af-8825-aaa63cd721ce"</span></span>
-<span id="cb55-140"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.0.0"</span></span>
-<span id="cb55-141"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-142"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Serialization]]</span></span>
-<span id="cb55-143"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"9e88b42a-f829-5b0c-bbe9-9e923198166b"</span></span>
-<span id="cb55-144"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
-<span id="cb55-145"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-146"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Statistics]]</span></span>
-<span id="cb55-147"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"LinearAlgebra"</span><span class="op">]</span></span>
-<span id="cb55-148"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">git-tree-sha1</span> <span class="op">=</span> <span class="st">"e2b53ce13a53367e96601081e33d34746b571bad"</span></span>
-<span id="cb55-149"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">registries</span> <span class="op">=</span> <span class="st">"General"</span></span>
-<span id="cb55-150"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"10745b16-79ce-11e8-11f9-7d13ad32a3b2"</span></span>
-<span id="cb55-151"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.5"</span></span>
-<span id="cb55-152"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-153"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="kw">[deps.Statistics.extensions]</span></span>
-<span id="cb55-154"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">SparseArraysExt</span> <span class="op">=</span> <span class="op">[</span><span class="st">"SparseArrays"</span><span class="op">]</span></span>
-<span id="cb55-155"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-156"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="kw">[deps.Statistics.weakdeps]</span></span>
-<span id="cb55-157"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">SparseArrays</span> <span class="op">=</span> <span class="st">"2f01184e-e22b-5df5-ae63-d93ebab69eaf"</span></span>
-<span id="cb55-158"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-159"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.StructUtils]]</span></span>
-<span id="cb55-160"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Dates"</span><span class="op">,</span> <span class="st">"UUIDs"</span><span class="op">]</span></span>
-<span id="cb55-161"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">git-tree-sha1</span> <span class="op">=</span> <span class="st">"2d0fc55c61321ba245c47be599570d11bac50303"</span></span>
-<span id="cb55-162"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">registries</span> <span class="op">=</span> <span class="st">"General"</span></span>
-<span id="cb55-163"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"ec057cc2-7a8d-4b58-b3b3-92acb9f63b42"</span></span>
-<span id="cb55-164"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"2.8.5"</span></span>
-<span id="cb55-165"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-166"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="kw">[deps.StructUtils.extensions]</span></span>
-<span id="cb55-167"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">StructUtilsMeasurementsExt</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Measurements"</span><span class="op">]</span></span>
-<span id="cb55-168"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">StructUtilsStaticArraysCoreExt</span> <span class="op">=</span> <span class="op">[</span><span class="st">"StaticArraysCore"</span><span class="op">]</span></span>
-<span id="cb55-169"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">StructUtilsTablesExt</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Tables"</span><span class="op">]</span></span>
-<span id="cb55-170"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-171"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="kw">[deps.StructUtils.weakdeps]</span></span>
-<span id="cb55-172"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Measurements</span> <span class="op">=</span> <span class="st">"eff96d63-e80a-5855-80a2-b1b0885c5ab7"</span></span>
-<span id="cb55-173"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">StaticArraysCore</span> <span class="op">=</span> <span class="st">"1e83bf80-4336-4d27-bf5d-d5a4f845583c"</span></span>
-<span id="cb55-174"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Tables</span> <span class="op">=</span> <span class="st">"bd369af6-aec1-5ad0-b16a-f7cc5008161c"</span></span>
+<span id="cb55-70"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">JSONSerializationExt</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Serialization"</span><span class="op">]</span></span>
+<span id="cb55-71"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-72"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="kw">[deps.JSON.weakdeps]</span></span>
+<span id="cb55-73"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">ArrowTypes</span> <span class="op">=</span> <span class="st">"31f734f8-188a-4ce0-8406-c8a06bd891cd"</span></span>
+<span id="cb55-74"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Serialization</span> <span class="op">=</span> <span class="st">"9e88b42a-f829-5b0c-bbe9-9e923198166b"</span></span>
+<span id="cb55-75"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-76"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.JuliaSyntaxHighlighting]]</span></span>
+<span id="cb55-77"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"StyledStrings"</span><span class="op">]</span></span>
+<span id="cb55-78"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"ac6e5ff7-fb65-4e79-a425-ec3bc9c03011"</span></span>
+<span id="cb55-79"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.12.0"</span></span>
+<span id="cb55-80"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-81"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Libdl]]</span></span>
+<span id="cb55-82"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"8f399da3-3557-5675-b5ff-fb832c97cbdb"</span></span>
+<span id="cb55-83"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
+<span id="cb55-84"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-85"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.LinearAlgebra]]</span></span>
+<span id="cb55-86"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Libdl"</span><span class="op">,</span> <span class="st">"OpenBLAS_jll"</span><span class="op">,</span> <span class="st">"libblastrampoline_jll"</span><span class="op">]</span></span>
+<span id="cb55-87"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"37e2e46d-f89d-539d-b4ee-838fcccc9c8e"</span></span>
+<span id="cb55-88"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.13.0"</span></span>
+<span id="cb55-89"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-90"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Logging]]</span></span>
+<span id="cb55-91"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"56ddb016-857b-54e1-b83d-db4d58db5568"</span></span>
+<span id="cb55-92"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
+<span id="cb55-93"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-94"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Markdown]]</span></span>
+<span id="cb55-95"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Base64"</span><span class="op">,</span> <span class="st">"JuliaSyntaxHighlighting"</span><span class="op">,</span> <span class="st">"StyledStrings"</span><span class="op">]</span></span>
+<span id="cb55-96"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"d6f4376e-aef5-505a-96c1-9c027394607a"</span></span>
+<span id="cb55-97"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
+<span id="cb55-98"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-99"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.OpenBLAS_jll]]</span></span>
+<span id="cb55-100"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Artifacts"</span><span class="op">,</span> <span class="st">"CompilerSupportLibraries_jll"</span><span class="op">,</span> <span class="st">"Libdl"</span><span class="op">]</span></span>
+<span id="cb55-101"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"4536629a-c528-5b80-bd46-f80d51c5b363"</span></span>
+<span id="cb55-102"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"0.3.30+1"</span></span>
+<span id="cb55-103"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-104"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Parsers]]</span></span>
+<span id="cb55-105"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Dates"</span><span class="op">,</span> <span class="st">"PrecompileTools"</span><span class="op">]</span></span>
+<span id="cb55-106"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">git-tree-sha1</span> <span class="op">=</span> <span class="st">"e5ae52d1f4f19a9591d615cb0f1ef8d415b40933"</span></span>
+<span id="cb55-107"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">registries</span> <span class="op">=</span> <span class="st">"General"</span></span>
+<span id="cb55-108"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"69de0a69-1ddd-5017-9359-2bf0b02dc9f0"</span></span>
+<span id="cb55-109"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"3.0.6"</span></span>
+<span id="cb55-110"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-111"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.PrecompileTools]]</span></span>
+<span id="cb55-112"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Preferences"</span><span class="op">]</span></span>
+<span id="cb55-113"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">git-tree-sha1</span> <span class="op">=</span> <span class="st">"1e697ad6f68af89cd3651bbe9b4a7b5d800adf5a"</span></span>
+<span id="cb55-114"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">registries</span> <span class="op">=</span> <span class="st">"General"</span></span>
+<span id="cb55-115"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"aea7be01-6a6a-4083-8856-8a6e6704d82a"</span></span>
+<span id="cb55-116"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.4.0"</span></span>
+<span id="cb55-117"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-118"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Preferences]]</span></span>
+<span id="cb55-119"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"TOML"</span><span class="op">]</span></span>
+<span id="cb55-120"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">git-tree-sha1</span> <span class="op">=</span> <span class="st">"aef1987d90dcc2e2cbd919ad10b2d25bcce4f418"</span></span>
+<span id="cb55-121"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">registries</span> <span class="op">=</span> <span class="st">"General"</span></span>
+<span id="cb55-122"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"21216c6a-2e73-6563-6e65-726566657250"</span></span>
+<span id="cb55-123"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.6.1"</span></span>
+<span id="cb55-124"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-125"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Printf]]</span></span>
+<span id="cb55-126"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Unicode"</span><span class="op">]</span></span>
+<span id="cb55-127"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"de0858da-6303-5e67-8744-51eddeeeb8d7"</span></span>
+<span id="cb55-128"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
+<span id="cb55-129"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-130"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Profile]]</span></span>
+<span id="cb55-131"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"StyledStrings"</span><span class="op">]</span></span>
+<span id="cb55-132"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"</span></span>
+<span id="cb55-133"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
+<span id="cb55-134"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-135"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Random]]</span></span>
+<span id="cb55-136"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"SHA"</span><span class="op">]</span></span>
+<span id="cb55-137"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"9a3f8284-a2c9-5f02-9a11-845980a1fd5c"</span></span>
+<span id="cb55-138"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
+<span id="cb55-139"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-140"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.SHA]]</span></span>
+<span id="cb55-141"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"ea8e919c-243c-51af-8825-aaa63cd721ce"</span></span>
+<span id="cb55-142"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.0.0"</span></span>
+<span id="cb55-143"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-144"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Serialization]]</span></span>
+<span id="cb55-145"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"9e88b42a-f829-5b0c-bbe9-9e923198166b"</span></span>
+<span id="cb55-146"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
+<span id="cb55-147"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-148"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Statistics]]</span></span>
+<span id="cb55-149"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"LinearAlgebra"</span><span class="op">]</span></span>
+<span id="cb55-150"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">git-tree-sha1</span> <span class="op">=</span> <span class="st">"e2b53ce13a53367e96601081e33d34746b571bad"</span></span>
+<span id="cb55-151"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">registries</span> <span class="op">=</span> <span class="st">"General"</span></span>
+<span id="cb55-152"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"10745b16-79ce-11e8-11f9-7d13ad32a3b2"</span></span>
+<span id="cb55-153"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.5"</span></span>
+<span id="cb55-154"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-155"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="kw">[deps.Statistics.extensions]</span></span>
+<span id="cb55-156"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">SparseArraysExt</span> <span class="op">=</span> <span class="op">[</span><span class="st">"SparseArrays"</span><span class="op">]</span></span>
+<span id="cb55-157"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-158"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="kw">[deps.Statistics.weakdeps]</span></span>
+<span id="cb55-159"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">SparseArrays</span> <span class="op">=</span> <span class="st">"2f01184e-e22b-5df5-ae63-d93ebab69eaf"</span></span>
+<span id="cb55-160"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-161"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.StructUtils]]</span></span>
+<span id="cb55-162"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Dates"</span><span class="op">,</span> <span class="st">"UUIDs"</span><span class="op">]</span></span>
+<span id="cb55-163"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">git-tree-sha1</span> <span class="op">=</span> <span class="st">"d9cfc07e1d1a8985aa9d03870d642b5d7ab2cf33"</span></span>
+<span id="cb55-164"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">registries</span> <span class="op">=</span> <span class="st">"General"</span></span>
+<span id="cb55-165"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"ec057cc2-7a8d-4b58-b3b3-92acb9f63b42"</span></span>
+<span id="cb55-166"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"2.12.1"</span></span>
+<span id="cb55-167"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-168"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="kw">[deps.StructUtils.extensions]</span></span>
+<span id="cb55-169"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">StructUtilsDBInterfaceExt</span> <span class="op">=</span> <span class="op">[</span><span class="st">"DBInterface"</span><span class="op">,</span> <span class="st">"Tables"</span><span class="op">]</span></span>
+<span id="cb55-170"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">StructUtilsDataFramesExt</span> <span class="op">=</span> <span class="op">[</span><span class="st">"DataFrames"</span><span class="op">]</span></span>
+<span id="cb55-171"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">StructUtilsLazilyInitializedFieldsExt</span> <span class="op">=</span> <span class="op">[</span><span class="st">"LazilyInitializedFields"</span><span class="op">]</span></span>
+<span id="cb55-172"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">StructUtilsMeasurementsExt</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Measurements"</span><span class="op">]</span></span>
+<span id="cb55-173"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">StructUtilsStaticArraysCoreExt</span> <span class="op">=</span> <span class="op">[</span><span class="st">"StaticArraysCore"</span><span class="op">]</span></span>
+<span id="cb55-174"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">StructUtilsTablesExt</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Tables"</span><span class="op">]</span></span>
 <span id="cb55-175"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-176"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.StyledStrings]]</span></span>
-<span id="cb55-177"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"f489334b-da3d-4c2e-b8f0-e476e12c162b"</span></span>
-<span id="cb55-178"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
-<span id="cb55-179"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-180"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.TOML]]</span></span>
-<span id="cb55-181"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Dates"</span><span class="op">]</span></span>
-<span id="cb55-182"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"fa267f1f-6049-4f14-aa54-33bafae1ed76"</span></span>
-<span id="cb55-183"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.0.3"</span></span>
-<span id="cb55-184"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-185"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Test]]</span></span>
-<span id="cb55-186"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"InteractiveUtils"</span><span class="op">,</span> <span class="st">"Logging"</span><span class="op">,</span> <span class="st">"Random"</span><span class="op">,</span> <span class="st">"Serialization"</span><span class="op">]</span></span>
-<span id="cb55-187"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"8dfed614-e22c-5e08-85e1-65c5234f0b40"</span></span>
-<span id="cb55-188"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
-<span id="cb55-189"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-190"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.UUIDs]]</span></span>
-<span id="cb55-191"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Random"</span><span class="op">,</span> <span class="st">"SHA"</span><span class="op">]</span></span>
-<span id="cb55-192"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"cf7118a7-6976-5b1a-9a39-7adc72f591a4"</span></span>
-<span id="cb55-193"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
-<span id="cb55-194"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-195"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Unicode]]</span></span>
-<span id="cb55-196"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"</span></span>
-<span id="cb55-197"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
-<span id="cb55-198"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-199"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.libblastrampoline_jll]]</span></span>
-<span id="cb55-200"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Artifacts"</span><span class="op">,</span> <span class="st">"Libdl"</span><span class="op">]</span></span>
-<span id="cb55-201"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"8e850b90-86db-534c-a0d3-1478176c7d93"</span></span>
-<span id="cb55-202"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"5.15.0+0"</span></span>
-<span id="cb55-203"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-204"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.quarto_jll]]</span></span>
-<span id="cb55-205"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Artifacts"</span><span class="op">,</span> <span class="st">"JLLWrappers"</span><span class="op">,</span> <span class="st">"Libdl"</span><span class="op">]</span></span>
-<span id="cb55-206"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">git-tree-sha1</span> <span class="op">=</span> <span class="st">"8a03ad76524ba4b6d9b073f8501756c74c2f9d39"</span></span>
-<span id="cb55-207"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">registries</span> <span class="op">=</span> <span class="st">"General"</span></span>
-<span id="cb55-208"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"b7163347-bfae-5fd9-aba4-19f139889d78"</span></span>
-<span id="cb55-209"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.9.38+0"</span></span>
-<span id="cb55-210"><a href="" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-211"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[registries.General]</span></span>
-<span id="cb55-212"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">url</span> <span class="op">=</span> <span class="st">"https://github.com/JuliaRegistries/General.git"</span></span>
-<span id="cb55-213"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"23338594-aafe-5451-b93e-139f81909106"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb55-176"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="kw">[deps.StructUtils.weakdeps]</span></span>
+<span id="cb55-177"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">DBInterface</span> <span class="op">=</span> <span class="st">"a10d1c49-ce27-4219-8d33-6db1a4562965"</span></span>
+<span id="cb55-178"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">DataFrames</span> <span class="op">=</span> <span class="st">"a93c6f00-e57d-5684-b7b6-d8193f3e46c0"</span></span>
+<span id="cb55-179"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">LazilyInitializedFields</span> <span class="op">=</span> <span class="st">"0e77f7df-68c5-4e49-93ce-4cd80f5598bf"</span></span>
+<span id="cb55-180"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Measurements</span> <span class="op">=</span> <span class="st">"eff96d63-e80a-5855-80a2-b1b0885c5ab7"</span></span>
+<span id="cb55-181"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">StaticArraysCore</span> <span class="op">=</span> <span class="st">"1e83bf80-4336-4d27-bf5d-d5a4f845583c"</span></span>
+<span id="cb55-182"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Tables</span> <span class="op">=</span> <span class="st">"bd369af6-aec1-5ad0-b16a-f7cc5008161c"</span></span>
+<span id="cb55-183"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-184"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.StyledStrings]]</span></span>
+<span id="cb55-185"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"f489334b-da3d-4c2e-b8f0-e476e12c162b"</span></span>
+<span id="cb55-186"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
+<span id="cb55-187"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-188"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.TOML]]</span></span>
+<span id="cb55-189"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Dates"</span><span class="op">]</span></span>
+<span id="cb55-190"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"fa267f1f-6049-4f14-aa54-33bafae1ed76"</span></span>
+<span id="cb55-191"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.0.3"</span></span>
+<span id="cb55-192"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-193"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Test]]</span></span>
+<span id="cb55-194"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"InteractiveUtils"</span><span class="op">,</span> <span class="st">"Logging"</span><span class="op">,</span> <span class="st">"Random"</span><span class="op">,</span> <span class="st">"Serialization"</span><span class="op">]</span></span>
+<span id="cb55-195"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"8dfed614-e22c-5e08-85e1-65c5234f0b40"</span></span>
+<span id="cb55-196"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
+<span id="cb55-197"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-198"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.UUIDs]]</span></span>
+<span id="cb55-199"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Random"</span><span class="op">,</span> <span class="st">"SHA"</span><span class="op">]</span></span>
+<span id="cb55-200"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"cf7118a7-6976-5b1a-9a39-7adc72f591a4"</span></span>
+<span id="cb55-201"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
+<span id="cb55-202"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-203"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.Unicode]]</span></span>
+<span id="cb55-204"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"</span></span>
+<span id="cb55-205"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.11.0"</span></span>
+<span id="cb55-206"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-207"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.libblastrampoline_jll]]</span></span>
+<span id="cb55-208"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Artifacts"</span><span class="op">,</span> <span class="st">"Libdl"</span><span class="op">]</span></span>
+<span id="cb55-209"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"8e850b90-86db-534c-a0d3-1478176c7d93"</span></span>
+<span id="cb55-210"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"5.15.0+0"</span></span>
+<span id="cb55-211"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-212"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[[deps.quarto_jll]]</span></span>
+<span id="cb55-213"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">deps</span> <span class="op">=</span> <span class="op">[</span><span class="st">"Artifacts"</span><span class="op">,</span> <span class="st">"JLLWrappers"</span><span class="op">,</span> <span class="st">"Libdl"</span><span class="op">]</span></span>
+<span id="cb55-214"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">git-tree-sha1</span> <span class="op">=</span> <span class="st">"8a03ad76524ba4b6d9b073f8501756c74c2f9d39"</span></span>
+<span id="cb55-215"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">registries</span> <span class="op">=</span> <span class="st">"General"</span></span>
+<span id="cb55-216"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"b7163347-bfae-5fd9-aba4-19f139889d78"</span></span>
+<span id="cb55-217"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">"1.9.38+0"</span></span>
+<span id="cb55-218"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-219"><a href="" aria-hidden="true" tabindex="-1"></a><span class="kw">[registries.General]</span></span>
+<span id="cb55-220"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">url</span> <span class="op">=</span> <span class="st">"https://github.com/JuliaRegistries/General.git"</span></span>
+<span id="cb55-221"><a href="" aria-hidden="true" tabindex="-1"></a><span class="dt">uuid</span> <span class="op">=</span> <span class="st">"23338594-aafe-5451-b93e-139f81909106"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section class="slide level2">
 <h2>Testing</h2>
@@ -1557,7 +1565,7 @@ R factor:
 <div class="cell-output cell-output-stdout">
 <div class="ansi-escaped-output">
 <pre><span class="ansi-bold">Test Summary: | </span><span class="ansi-green-fg ansi-bold">Pass  </span><span class="ansi-yellow-fg ansi-bold">Broken  </span><span class="ansi-cyan-fg ansi-bold">Total  </span><span class="ansi-bold">Time</span>
-My tests      | <span class="ansi-green-fg">   2  </span><span class="ansi-yellow-fg">     2  </span><span class="ansi-cyan-fg">    4  </span>0.2s
+My tests      | <span class="ansi-green-fg">   2  </span><span class="ansi-yellow-fg">     2  </span><span class="ansi-cyan-fg">    4  </span>0.0s
 </pre>
 </div>
 </div>
@@ -1576,7 +1584,7 @@ My tests      | <span class="ansi-green-fg">   2  </span><span class="ansi-yello
 <li><a href="https://www.youtube.com/@TheJuliaLanguage">YouTube channel</a> (all JuliaCon talks, Computational Thinking course @ MIT, and more)</li>
 <li>Engage with the <a href="https://julialang.org/community/">community</a>
 <ul>
-<li><a href="https://github.com/JuliaParallel/julia-hpc-bof-sc24">BoF session</a> (Thu 12:15pm-1:15pm @ 131)</li>
+<li><a href="https://sc26.conference-program.com/presentation/?id=bof192&amp;sess=sess371">BoF session</a> (Tue 12:15pm-1:15pm @ W190b)</li>
 <li><a href="https://julialang.zulipchat.com/register/">Zulip</a> and <a href="https://julialang.org/slack/">Slack</a> workspaces</li>
 <li>Ask for help on the <a href="https://discourse.julialang.org/">Discourse web forum</a></li>
 <li><a href="https://julialang.org/community/#events">Fortnightly HPC call</a> at different times</li>

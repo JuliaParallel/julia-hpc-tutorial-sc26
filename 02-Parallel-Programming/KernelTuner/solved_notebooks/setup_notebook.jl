@@ -76,7 +76,7 @@ sys.stdout = JuliaTextStdout(print)
 
 # Define a function to get the source of a cell by tag
 function get_cell_by_tag(tag_name)
-    notebook = JSON.parsefile("gray-scott.ipynb")
+    notebook = JSON.parsefile("kerneltuner.ipynb")
     cell_idx = findfirst(notebook["cells"]) do cell
         tags = get(get(cell, "metadata", Dict()), "tags", [])
         return tag_name in tags

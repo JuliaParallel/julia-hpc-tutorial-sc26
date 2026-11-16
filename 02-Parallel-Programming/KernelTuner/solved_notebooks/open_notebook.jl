@@ -60,6 +60,7 @@ IJulia.installkernel("GPU Julia", "--project=@.", "--threads=auto")
 
 if !amd_hpc_fund && isnothing(remote_server_port)
     notebook(dir=@__DIR__, verbose=true)
+    # if necessary run `jupyter notebook stop`
 elseif amd_hpc_fund
     launch_output = strip(read(`sbatch job.notebook`, String))
     @info launch_output

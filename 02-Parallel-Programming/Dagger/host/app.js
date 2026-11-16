@@ -388,7 +388,7 @@ ${collapseButton(pid + "-function-body", pid + "-function-title")}
 <label class="sr-only" for="${pid}-code">Final exercise code</label>
 <textarea id="${pid}-code" data-role="final-code" spellcheck="false"></textarea>
 <div class="exercise-footer">
-<span>Runs <code>simulate!</code>, then Setup and Use, on the chosen Target and Processes. Use <code>cholesky(Symmetric(A))</code> or your tiled Cholesky.</span>
+<span>Runs your <code>my_cholesky!</code> from the Exercise panels, then <code>simulate!</code>, then Setup and Use, on the chosen Target and Processes.</span>
 <div class="exercise-actions">
 <button type="button" data-role="final-reset">Reset code</button>
 <button class="primary" type="button" data-role="final-run" disabled>Run final exercise <span>↗</span></button>

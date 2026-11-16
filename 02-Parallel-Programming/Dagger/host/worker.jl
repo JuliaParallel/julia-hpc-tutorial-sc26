@@ -99,6 +99,16 @@ function inject_frame_capture(expr)
     end)
     return true
 end
+# The most common Cholesky-exercise mistake (exercise/README.md), with its fix.
+# The final exercise calls the same my_cholesky!, so it can hit it too.
+function hint(err)
+    message = sprint(showerror, err)
+    occursin(r"no method matching (potrf|trsm|syrk|gemm)!\(.*DTask", message) || return ""
+    return "\nHint: my_cholesky! calls a tile operation on a Dagger tile handle. Make it " *
+           "parallel in the Exercise panel: wrap its loops in Dagger.spawn_datadeps() do ... end " *
+           "and put Dagger.@spawn before each tile operation."
+end
+
 RANK == 0 && DemoPresentation.emit("worker_ready"; mode=USE_MPI ? "mpi" : "single",
                                    job=get(ENV, "SLURM_JOB_ID", nothing), node=gethostname())
 
@@ -206,8 +216,8 @@ while true
     catch err
         if RANK == 0
             # Show the error in the latest world: it may name functions the run defined.
-            Base.invokelatest(showerror, stdout, err, catch_backtrace()); println()
-            DemoPresentation.emit("done"; ok=false, error=sprint(showerror, err))
+            Base.invokelatest(showerror, stdout, err, catch_backtrace()); println(hint(err))
+            DemoPresentation.emit("done"; ok=false, error=sprint(showerror, err) * hint(err))
         end
         # An MPI exception may leave another rank in a collective; end the job.
         USE_MPI && MPI.Abort(MPI.COMM_WORLD, 1)

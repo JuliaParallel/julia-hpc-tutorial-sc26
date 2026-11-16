@@ -218,7 +218,10 @@ REMOTE
     else
         dest="$node:$rport"   # job script without a reverse tunnel
     fi
-    lport="$rport"
+    # Use the student's personal port on the laptop too (same number on every
+    # hop); move up only if something on this laptop already uses it.
+    lport="${login_port:-$rport}"
+    [[ "$lport" =~ ^[0-9]+$ ]] || lport="$rport"
     while ! port_free "$lport"; do lport=$((lport + 1)); done
     ssh -o ControlPath="$SSH_CTL" -O forward -L "$lport:$dest" "$TARGET" >/dev/null || die "could not open the SSH tunnel"
     local local_url="http://localhost:$lport$path"

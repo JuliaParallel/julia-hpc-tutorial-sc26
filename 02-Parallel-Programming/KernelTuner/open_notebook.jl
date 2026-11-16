@@ -27,7 +27,7 @@ if contains(gethostname(), "hpcfund")
     amd_hpc_fund = true
 end
 
-function wait_for_file_contents(filepath::String, substring::String=nothing, timeout::Real=Inf, poll_interval::Real=0.5)
+function wait_for_file_contents(filepath::String, substring::Union{AbstractString,Regex,Nothing}=nothing, timeout::Real=Inf, poll_interval::Real=0.5)
     start_time = time()
     while !isfile(filepath)
         if time() - start_time > timeout
@@ -68,10 +68,12 @@ elseif amd_hpc_fund
     length(collect(eachmatch(r"\b\d+\b", jobid))) == 1 || error("Could not determine job ID from squeue output: $jobid")
     filename = "job.$jobid.out"
     println("Waiting for job $jobid to create $filename")
-    outfile = strip(wait_for_file_contents(filename, "http://localhost:8888"))
+    # Jupyter's port differs per job (several jobs can share a node), so match any port.
+    jupyter_url = r"http://(?:localhost|127\.0\.0\.1):\d+/tree\?token=(\w+)"
+    outfile = strip(wait_for_file_contents(filename, jupyter_url))
     ssh_tunnel_command = filter(contains("ssh -t"), split(outfile, '\n'))[1]
     port_number = match(Regex("-L (.*?):"), ssh_tunnel_command).captures[1]
-    server_token = split(filter(contains("http://localhost:8888/tree?token="), split(outfile, '\n'))[1], "token=")[2]
+    server_token = match(jupyter_url, outfile).captures[1]
     @info "On your local machine, create an ssh tunnel by running the following command: \n$(ssh_tunnel_command)"
     @info "Then go to: http://localhost:$port_number/tree?token=$server_token"
     @warn "When done, please run `scancel --me && rm $filename`"

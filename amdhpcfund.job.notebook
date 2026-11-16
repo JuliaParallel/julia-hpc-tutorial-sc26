@@ -7,12 +7,13 @@
 #SBATCH -t 02:00:00           # Run time (hh:mm:ss) - 2 hours
 #SBATCH -p mi2101x            # Desired partition
 
-# ---------------------------- Input ------------------------------
-# The following defines an available port to use on your local
-# laptop/workstation for tunnelling to the remote notebook.
-# It can generally be left as is unless the port is already in use.
-
-localhost_port=7080
+# ----------------------------- Ports -----------------------------
+# Every student gets a personal port derived from their user ID, so no two
+# students ever use the same one, even when their jobs share a compute node.
+# The same number is used on all three hops (laptop -> login1 -> node), e.g.
+# a student with UID 5123 always uses port 15123. If it is busy (e.g. the
+# same student already runs another notebook job), a random free port is used.
+user_port=$(( 10000 + $(id -u) % 22000 ))
 # -----------------------------------------------------------------
 
 
@@ -22,22 +23,41 @@ module load hpcfund
 python3 -m pip install --user notebook
 export PATH="$HOME/.local/bin:$PATH"
 
-# Setup secure tunnel on random port between login node and assigned compute
+# Is this port free on this compute node?
+port_free_here() {
+    python3 -c "import socket,sys; s=socket.socket(); s.bind(('127.0.0.1', $1))" 2>/dev/null
+}
+random_port() { shuf -i 10000-32000 -n 1; }
+
+# Jupyter port on this node: the personal port, else a random free one.
+jupyter_port=${user_port}
+for i in $(seq 30); do
+    port_free_here ${jupyter_port} && break
+    jupyter_port=$(random_port)
+done
+
+# Secure tunnel login1:<login_port> -> this node:<jupyter_port>, trying the
+# personal port first. ExitOnForwardFailure makes ssh fail (and us retry with
+# another port) if the port is taken, instead of silently running without a
+# tunnel and leaving the student pointed at someone else's notebook.
 login_port=""
-for port in `shuf -i 9000-10000 -n 15`; do
-    nc -z login1 ${port}
-    if [ $? -eq 1 ];then
+for port in ${user_port} $(shuf -i 10000-32000 -n 30); do
+    nc -z login1 ${port} && continue
+    if ssh -o ExitOnForwardFailure=yes -o BatchMode=yes -N -f -R ${port}:localhost:${jupyter_port} login1; then
 	login_port=${port}
 	break
     fi
 done
+# Suggest the same number for the student's laptop end of the tunnel.
+localhost_port=${login_port}
 
 if [[ -z "${login_port}" ]];then
     echo "Unable to ascertain free port for login node tunnel"
     exit 1
 fi
 
-ssh -N -f -R ${login_port}:localhost:8888 login1
+# Close the login-node tunnel when the job ends.
+trap "pkill -u ${USER} -f 'R ${login_port}:localhost:${jupyter_port}'" EXIT
 
 
 # Hi
@@ -52,11 +72,14 @@ echo "ssh -t ${USER}@hpcfund.amd.com -L ${localhost_port}:localhost:${login_port
 echo " "
 echo "Then, point your local web browser to http://localhost:${localhost_port}/tree?token=<YOUR-TOKEN> to access"
 echo "the running notebook.  You will need to provide the notebook token shown below."
-echo "Do not use localhost 8888 shown below, replace this with ${localhost_port}."
+echo "Do not use localhost ${jupyter_port} shown below, replace this with ${localhost_port}."
 echo " "
 echo "Please remember to Quit Jupyter when done, or \"scancel\" your job in SLURM job when"
 echo "to avoid additional accounting charges."
 echo "-----"
 
 # Launch Jupyter notebook
-jupyter notebook --no-browser --port=8888
+# port_retries=0: fail instead of silently moving to another port, which would
+# leave the tunnel pointing at someone else's Jupyter. Not exec'd, so the
+# EXIT trap above still runs.
+jupyter notebook --no-browser --ip=127.0.0.1 --port=${jupyter_port} --ServerApp.port_retries=0

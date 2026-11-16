@@ -62,7 +62,11 @@ def save_state(path, data):
 @asynccontextmanager
 async def session():
     directory = Path(os.environ.get("AWSMCP_DIR", str(Path.home() / "awsmcp")))
-    async with stdio_client(StdioServerParameters(command=str(directory / "awsmcp"))) as (r, w):
+    # MCP's default child environment omits AWS's region and our state root.
+    # Forward configuration only; EC2 obtains credentials from its IAM role.
+    environment = {key: os.environ[key] for key in
+                   ("AWS_DEFAULT_REGION", "AWS_REGION", "AWSMCP_HOME") if key in os.environ}
+    async with stdio_client(StdioServerParameters(command=str(directory / "awsmcp"), env=environment)) as (r, w):
         async with ClientSession(r, w) as client:
             await client.initialize()
             yield client

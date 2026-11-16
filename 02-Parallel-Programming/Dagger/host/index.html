@@ -15,6 +15,10 @@
 </h1>
 </div>
 <div class="connection">
+<div id="gateway-login" hidden>
+<label>Run on <select id="gateway-backend"><option value="odo">Odo relay · GPUs</option><option value="cpu">AWS CPU · personal VM</option></select></label>
+<label>Workshop password <input id="gateway-password" type="password" autocomplete="off" placeholder="Paste workshop password"></label>
+</div>
 <span id="status">Disconnected</span>
 <button id="cancel" disabled>Cancel run</button>
 <button id="connect" class="primary">Connect</button>

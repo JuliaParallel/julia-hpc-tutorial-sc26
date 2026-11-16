@@ -11,6 +11,7 @@ import base64
 import json
 import os
 from pathlib import Path
+import queue
 import signal
 import socket
 import subprocess
@@ -44,11 +45,12 @@ def terminate(proc):
         pass
 
 
-def remote():
+def remote(command_factory=None):
     """One login-node process owns independent command process groups."""
     for fd in (0, 1, 2):
         os.set_blocking(fd, True)
-    processes, lock, output_lock = {}, threading.RLock(), threading.Lock()
+    processes, inputs, flowing, lock, output_lock = {}, {}, {}, threading.RLock(), threading.Lock()
+    closing = set()
 
     def emit(value):
         with output_lock:
@@ -57,17 +59,39 @@ def remote():
     def output(ident, proc):
         try:
             while True:
+                flowing[ident].wait()
                 data = proc.stdout.read1(CHUNK)
                 if not data:
                     break
                 emit(dict(id=ident, op="output", data=base64.b64encode(data).decode()))
             emit(dict(id=ident, op="exit", returncode=proc.wait()))
         finally:
+            terminate(proc)
             with lock:
                 processes.pop(ident, None)
+                inputs.pop(ident, None)
+                flowing.pop(ident, None)
+                closing.discard(ident)
             proc.stdout.close()
             if not proc.stdin.closed:
                 proc.stdin.close()
+
+    def input_stream(proc, messages):
+        # A coordinator compiling packages (or a stalled command) must not
+        # block the dispatcher from reading other attendees' commands.
+        while proc.poll() is None:
+            try:
+                msg = messages.get(timeout=1)
+            except queue.Empty:
+                continue
+            try:
+                if msg["op"] == "eof":
+                    proc.stdin.close()
+                    return
+                proc.stdin.write(base64.b64decode(msg["data"]))
+                proc.stdin.flush()
+            except (OSError, ValueError):
+                return
 
     emit(dict(id=None, op="ready"))
     try:
@@ -77,27 +101,40 @@ def remote():
             with lock:
                 proc = processes.get(ident)
                 if op == "open":
-                    proc = subprocess.Popen(["bash", "-lc", msg["command"]],
+                    if proc is not None:
+                        raise ValueError("Duplicate relay stream ID")
+                    argv = command_factory(msg["command"]) if command_factory else ["bash", "-lc", msg["command"]]
+                    proc = subprocess.Popen(argv,
                         stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                         stderr=subprocess.STDOUT, start_new_session=True)
                     processes[ident] = proc
+                    inputs[ident] = messages = queue.Queue(maxsize=64)
+                    flowing[ident] = threading.Event()
+                    flowing[ident].set()
                     threading.Thread(target=output, args=(ident, proc), daemon=True).start()
+                    threading.Thread(target=input_stream, args=(proc, messages), daemon=True).start()
                 elif proc is not None:
-                    if op == "close":
+                    if ident in closing:
+                        continue
+                    if op in ("pause", "resume"):
+                        (flowing[ident].clear if op == "pause" else flowing[ident].set)()
+                    elif op == "close":
                         # A participant disconnect only cancels that participant.
+                        flowing[ident].set()
+                        closing.add(ident)
                         threading.Thread(target=terminate, args=(proc,), daemon=True).start()
                     else:
                         try:
-                            if op == "stdin":
-                                proc.stdin.write(base64.b64decode(msg["data"]))
-                                proc.stdin.flush()
-                            elif op == "eof":
-                                proc.stdin.close()
-                        except (OSError, ValueError):
-                            pass
+                            inputs[ident].put_nowait(msg)
+                        except queue.Full:
+                            flowing[ident].set()
+                            closing.add(ident)
+                            threading.Thread(target=terminate, args=(proc,), daemon=True).start()
     finally:
         with lock:
             remaining = list(processes.values())
+            for event in flowing.values():
+                event.set()
         workers = [threading.Thread(target=terminate, args=(p,)) for p in remaining]
         for worker in workers:
             worker.start()
@@ -105,7 +142,7 @@ def remote():
             worker.join()
 
 
-def serve(args):
+def serve(args, upstream_command=None, env=None, on_ready=None, on_status=None, stop_event=None, stderr=None):
     path = Path(args.socket).expanduser()
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     if path.exists():
@@ -114,13 +151,13 @@ def serve(args):
     import shlex
     source = Path(__file__).read_text()
     command = "python3 -u -c {} remote".format(shlex.quote(source))
-    upstream = ([sys.executable, "-u", __file__, "remote"] if args.local else
+    upstream = upstream_command or ([sys.executable, "-u", __file__, "remote"] if args.local else
                 ["ssh", "-T", "-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=3"] +
                 (["-S", args.control_path, "-o", "ProxyCommand=false", "-o", "BatchMode=yes"]
                  if args.control_path else []) + [args.upstream, command])
     # Keep the controlling terminal so OpenSSH can prompt on /dev/tty while
     # its stdin/stdout carry the protocol. This also works with SSH_ASKPASS.
-    proc = subprocess.Popen(upstream, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    proc = subprocess.Popen(upstream, stdin=subprocess.PIPE, stdout=subprocess.PIPE, env=env, stderr=stderr)
     clients, lock, write_lock = {}, threading.RLock(), threading.Lock()
     listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     # Private parent AND private socket, even with a permissive caller umask.
@@ -139,34 +176,73 @@ def serve(args):
             for line in proc.stdout:
                 msg = json.loads(line)
                 if msg.get("op") == "ready":
-                    print("Odo dispatcher ready", file=sys.stderr, flush=True)
+                    if on_ready:
+                        on_ready(msg)
+                    else:
+                        print("Odo dispatcher ready", file=sys.stderr, flush=True)
+                    continue
+                if msg.get("op") in ("status", "error"):
+                    if on_status:
+                        on_status(msg)
                     continue
                 with lock:
                     target = clients.get(msg["id"])
                 if target:
-                    stream, stream_lock = target
+                    outgoing, conn, paused, flow_lock = target
                     try:
-                        with stream_lock:
-                            frame(stream, msg)
-                    except OSError:
-                        pass
+                        outgoing.put_nowait(msg)
+                        if outgoing.qsize() >= 32:
+                            with flow_lock:
+                                if not paused.is_set():
+                                    paused.set()
+                                    send(dict(id=msg["id"], op="pause"))
+                    except queue.Full:
+                        # Bound buffering and drop only the slow participant.
+                        try:
+                            conn.shutdown(socket.SHUT_RDWR)
+                        except OSError:
+                            pass
         finally:
             stopped.set()
             with lock:
-                for stream, stream_lock in list(clients.values()):
+                for outgoing, conn, _, _ in list(clients.values()):
                     try:
-                        with stream_lock:
-                            frame(stream, dict(op="exit", returncode=255))
-                    except OSError:
-                        pass
+                        outgoing.put_nowait(dict(op="exit", returncode=255))
+                    except queue.Full:
+                        try:
+                            conn.shutdown(socket.SHUT_RDWR)
+                        except OSError:
+                            pass
 
     def handle(conn):
         ident = uuid.uuid4().hex
         stream = conn.makefile("rwb")
+        outgoing, finished = queue.Queue(maxsize=256), threading.Event()
+        paused, flow_lock = threading.Event(), threading.Lock()
+        def write_client():
+            try:
+                while not finished.is_set():
+                    try:
+                        message = outgoing.get(timeout=1)
+                    except queue.Empty:
+                        continue
+                    frame(stream, message)
+                    if outgoing.qsize() <= 16:
+                        with flow_lock:
+                            if paused.is_set():
+                                paused.clear()
+                                send(dict(id=ident, op="resume"))
+            except (OSError, ValueError):
+                try:
+                    conn.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+        writer = threading.Thread(target=write_client, daemon=True)
+        writer.start()
         try:
             msg = json.loads(stream.readline())
             with lock:
-                clients[ident] = (stream, threading.Lock())
+                clients[ident] = (outgoing, conn, paused, flow_lock)
             send(dict(id=ident, op="open", command=msg["command"]))
             for line in stream:
                 msg = json.loads(line)
@@ -183,13 +259,20 @@ def serve(args):
                 send(dict(id=ident, op="close"))
             except (OSError, ValueError):
                 pass
+            finished.set()
+            try:
+                conn.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            writer.join(timeout=2)
             stream.close()
             conn.close()
 
-    threading.Thread(target=dispatch, daemon=True).start()
+    dispatch_thread = threading.Thread(target=dispatch, daemon=True)
+    dispatch_thread.start()
     print("Relay listening on {} (one upstream SSH session)".format(path), file=sys.stderr, flush=True)
     try:
-        while not stopped.is_set():
+        while not stopped.is_set() and not (stop_event and stop_event.is_set()):
             try:
                 conn, _ = listener.accept()
             except socket.timeout:
@@ -209,6 +292,8 @@ def serve(args):
             except subprocess.TimeoutExpired:
                 proc.kill()
                 proc.wait()
+        dispatch_thread.join(timeout=2)
+        proc.stdout.close()
 
 
 def client(args):

@@ -1,5 +1,10 @@
 # Local tutorial console
 
+For the shared-password workshop, run `python3 host/app.py --gateway`, choose
+Odo relay or AWS CPU in the local page, and paste the instructor's workshop
+password. No attendee SSH keys or AWS credentials are needed. See the
+[gateway guide](../aws/GATEWAY.md) for attendee instructions and management.
+
 Direct Odo is the default. Optional [AWS fallbacks](../aws/README.md) add
 `--via-relay --ssh-host sc26-relay --odo-user SHARED_USER` for a single shared
 Odo transport, or `--backend cpu --ssh-host sc26-cpu --threads 8` for CPU VMs.

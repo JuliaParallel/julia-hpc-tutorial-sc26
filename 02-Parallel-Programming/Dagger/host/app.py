@@ -35,6 +35,8 @@ from urllib.parse import parse_qs, urlsplit
 import webbrowser
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "host"))
+from gateway_client import Transport as GatewayTransport, descriptor as gateway_descriptor
 PREFIX = "@@SC26@@"
 DEMOS = [
     ("00_julia", "Julia basics", "single"),
@@ -1053,6 +1055,7 @@ class Console:
         self.session_dir = None
         self.token = secrets.token_urlsafe(32)
         self.stop_event = threading.Event()
+        self.transport = None
 
     @property
     def cpu(self):
@@ -1062,6 +1065,8 @@ class Console:
         return "Ready · CPU VM" if self.cpu else "Ready · every run is its own Slurm job"
 
     def remote_command(self, command):
+        if self.transport:
+            return self.transport.command(command)
         if getattr(self.args, "via_relay", False):
             command = shlex.join(["python3", self.args.relay_script, "client", "--socket",
                                   self.args.relay_socket, "--command", command])
@@ -1080,7 +1085,8 @@ class Console:
                 if "06_multinode" in s["demos"]:
                     s["title"] = "CPU MPI · one VM"
             demos = [(d[0], "CPU MPI · one VM" if d[0] == "06_multinode" else d[1], d[2]) for d in demos]
-        return dict(backend="cpu" if self.cpu else "odo", demos=demos, sections=sections,
+        return dict(backend="cpu" if self.cpu else "odo", gateway=bool(getattr(self.args, "gateway", None)),
+                    demos=demos, sections=sections,
                     exercises={k: v for k, v in exercises().items() if k in {d[0] for d in demos}},
                     targets={"cpu": "CPU"} if self.cpu else TARGETS,
                     max_ranks=min(MAX_RANKS, self.args.threads) if self.cpu else MAX_RANKS)
@@ -1105,33 +1111,62 @@ class Console:
                 "-T", "-o", "BatchMode=yes", "-o", "ConnectTimeout=20", "-o", "RemoteCommand=none",
                 "-S", str(self.args.control_path), self.args.ssh_host]
 
-    def connect(self):
+    def connect(self, password=None, backend=None):
         with self.lock:
             if self.connecting or self.process is not None:
                 raise ValueError("Already connected or connecting")
+            if getattr(self.args, "gateway", None):
+                if backend not in ("cpu", "odo"):
+                    raise ValueError("Choose Odo relay or AWS CPU")
+                if not isinstance(password, str) or not 1 <= len(password) <= 512:
+                    raise ValueError("Enter the workshop password")
+                if backend != self.args.backend:
+                    # Reports from GPU panels do not belong in the CPU-only
+                    # page after its reload. Editor contents stay on disk/in
+                    # browser storage; this clears only connection history.
+                    self.events.clear()
+                    self.seq = 0
+                    self.session = self.session_dir = self.mode = self.job = self.run_id = None
+                self.args.backend = backend
             self.connecting = True
             self.stop_event.clear()
             self.status = "Connecting to CPU VM…" if self.cpu else "Connecting to Odo…"
-        threading.Thread(target=self._connect, daemon=True).start()
+        # Pop the password immediately in _connect so Thread.args does not
+        # retain a second copy for the lifetime of the console session.
+        threading.Thread(target=self._connect, args=([password],), daemon=True).start()
 
-    def _connect(self):
+    def _connect(self, credentials=None):
         try:
-            socket = self.args.control_path
-            socket.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-            check = subprocess.run(["ssh"] + ssh_config_option(getattr(self.args, "ssh_config", Path.home()/".ssh/config"))
-                                   + ["-S", str(socket), "-O", "check", self.args.ssh_host],
-                                   capture_output=True)
-            if check.returncode:
-                helper = shutil.which("odo-connect") if self.args.ssh_host == "odo" else None
-                cmd = ([helper, str(socket)] if helper else
-                       ["ssh"] + ssh_config_option(getattr(self.args, "ssh_config", Path.home()/".ssh/config"))
-                       + ["-o", "BatchMode=yes", "-o", "ConnectTimeout=20", "-o", "ControlMaster=auto",
-                          "-o", "ControlPersist=8h", "-S", str(socket), "-MNf", self.args.ssh_host])
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-                if result.returncode:
-                    raise RuntimeError("SSH authentication failed. In a local terminal run: " +
-                                       shlex.join(["ssh", "-S", str(socket), "-MNf", self.args.ssh_host]) +
-                                       "\n" + result.stderr)
+            if self.stop_event.is_set():
+                return
+            if getattr(self.args, "gateway", None):
+                def status(message):
+                    self.status = message
+                    self.emit("status", message=message)
+                with self.lock:
+                    self.transport = GatewayTransport(self.args.gateway_info, self.args.backend,
+                                                      credentials.pop(), status)
+                meta = self.transport.start()
+                self.args.odo_user = meta["user"]
+                self.args.remote_root = meta["remote_root"]
+                self.args.threads = meta.get("threads", self.args.threads)
+            else:
+                socket = self.args.control_path
+                socket.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                check = subprocess.run(["ssh"] + ssh_config_option(getattr(self.args, "ssh_config", Path.home()/".ssh/config"))
+                                       + ["-S", str(socket), "-O", "check", self.args.ssh_host],
+                                       capture_output=True)
+                if check.returncode:
+                    helper = shutil.which("odo-connect") if self.args.ssh_host == "odo" else None
+                    cmd = ([helper, str(socket)] if helper else
+                           ["ssh"] + ssh_config_option(getattr(self.args, "ssh_config", Path.home()/".ssh/config"))
+                           + ["-o", "BatchMode=yes", "-o", "ConnectTimeout=20", "-o", "ControlMaster=auto",
+                              "-o", "ControlPersist=8h", "-S", str(socket), "-MNf", self.args.ssh_host])
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                    if result.returncode:
+                        raise RuntimeError("SSH authentication failed. In a local terminal run: " +
+                                           shlex.join(["ssh", "-S", str(socket), "-MNf", self.args.ssh_host]) +
+                                           "\n" + result.stderr)
             if self.stop_event.is_set():
                 return
             # Every connection gets its own new folder: the code, its manifest,
@@ -1176,7 +1211,11 @@ class Console:
             self.emit("error", error=str(exc))
             self.status = "Connection failed"
         finally:
+            transport = self.transport
+            if transport:
+                transport.close()
             with self.lock:
+                self.transport = None
                 self.process = None
                 self.job = None
                 self.mode = None
@@ -1232,7 +1271,8 @@ class Console:
                 self.emit("output", text=line, run=self.run_id)
         rc = proc.wait()
         if rc:
-            self.emit("error", error=f"Remote session exited with status {rc}")
+            reason = self.transport.error if self.transport and self.transport.error else f"Remote session exited with status {rc}"
+            self.emit("error", error=reason)
 
     def send(self, command):
         with self.lock:
@@ -1332,8 +1372,12 @@ class Console:
         self.stop_event.set()
         with self.lock:
             proc = self.process
-            if proc is None:
-                return
+            transport = self.transport
+        if proc is None:
+            if transport:
+                transport.close()
+            return
+        with self.lock:
             try:
                 proc.stdin.write('{"op":"quit"}\n')
                 proc.stdin.flush()
@@ -1456,7 +1500,12 @@ def handler_for(console):
                 if not isinstance(command, dict):
                     raise ValueError("Expected a JSON object")
                 if self.path == "/api/connect":
-                    console.connect()
+                    if getattr(console.args, "gateway", None):
+                        if self.client_address[0] not in ("127.0.0.1", "::1"):
+                            raise ValueError("Workshop passwords can only be submitted from localhost")
+                        console.connect(password=command.get("password"), backend=command.get("backend"))
+                    else:
+                        console.connect()
                 elif self.path == "/api/run":
                     console.run(command)
                 elif self.path == "/api/cancel":
@@ -1521,7 +1570,7 @@ def bind_server(host, port, handler):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--host", default="0.0.0.0", help="Listen address (default: all IPv4 interfaces)")
+    parser.add_argument("--host", help="Listen address (default: loopback for gateway; otherwise all IPv4 interfaces)")
     parser.add_argument("--allow-host", action="append", default=[], help="Additional allowed browser hostname")
     parser.add_argument("--port", type=int, help="Local port (default: 8767, or the next free one)")
     parser.add_argument("--ssh-host", help="SSH alias; reuse `odo` when it already points at Odo, "
@@ -1529,6 +1578,10 @@ def main():
     parser.add_argument("--backend", choices=("odo", "cpu"), default="odo",
                         help="Odo/Slurm (default), or a CPU VM with Julia and SSH")
     parser.add_argument("--threads", type=int, default=8, help="CPU VM's vCPUs (default: 8)")
+    parser.add_argument("--gateway", nargs="?", const=str(ROOT / "host/workshop.json"),
+                        help="Shared-password workshop gateway; optional descriptor file or hostname")
+    parser.add_argument("--gateway-host-key", help="Pinned gateway SSH host public key (when using a hostname)")
+    parser.add_argument("--gateway-port", type=int, default=22)
     parser.add_argument("--via-relay", action="store_true", help="Execute through host/relay.py on --ssh-host")
     parser.add_argument("--relay-script", default="/home/ubuntu/sc26/host/relay.py")
     parser.add_argument("--relay-socket", default="/home/ubuntu/.sc26-relay/socket")
@@ -1549,12 +1602,21 @@ def main():
                         help="Wait for Connect instead of preparing Julia at startup")
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
+    args.host = args.host or ("127.0.0.1" if args.gateway else "0.0.0.0")
     if args.ssh_host and (not re.fullmatch(r"[\w@.-]+", args.ssh_host) or args.ssh_host.startswith("-")):
         parser.error("Invalid SSH host alias")
     args.ssh_config = args.ssh_config.expanduser()
     if args.threads < 1:
         parser.error("--threads must be positive")
-    if args.backend == "cpu" or args.via_relay:
+    if args.gateway:
+        try:
+            args.gateway_info = gateway_descriptor(args.gateway, args.gateway_host_key, args.gateway_port)
+        except (ValueError, OSError) as exc:
+            parser.error(str(exc))
+        args.ssh_host = "workshop@" + args.gateway_info["host"]
+        args.odo_user = "workshop"
+        args.no_auto_connect = True
+    elif args.backend == "cpu" or args.via_relay:
         if not args.ssh_host:
             parser.error("--ssh-host is required for a CPU VM or relay")
         if args.backend == "cpu" and args.via_relay:
@@ -1572,16 +1634,16 @@ def main():
             args.odo_user, args.ssh_host = bootstrap_ssh(args)
         except (ValueError, RuntimeError, OSError) as exc:
             parser.error(str(exc))
-    own_socket = args.control_path is None
-    args.control_path = (console_socket(args.odo_user) if own_socket
-                         else args.control_path.expanduser().resolve())
+    own_socket = args.control_path is None and not args.gateway
+    args.control_path = (console_socket(args.odo_user) if own_socket else
+                         args.control_path.expanduser().resolve() if args.control_path else Path("/unused"))
     use_final_workspace(args.odo_user)
     ensure_final_workspace()
     args.remote_root = args.remote_root or (f"/home/{args.odo_user}/sc26-dagger/sessions" if args.backend == "cpu"
                                           else default_remote_root(args.account, args.odo_user))
     if not args.remote_root.startswith("/"):
         parser.error("--remote-root must be an absolute path")
-    authenticated = False if args.no_auth else ensure_master(args)
+    authenticated = False if args.no_auth or args.gateway else ensure_master(args)
     console = Console(args)
     try:
         server = bind_server(args.host, args.port, handler_for(console))
@@ -1612,7 +1674,9 @@ def main():
                 pass
         threading.Thread(target=_auto_connect, daemon=True).start()
     url = f"http://127.0.0.1:{port}"
-    if authenticated:
+    if args.gateway:
+        connection_note = "\nChoose a backend and enter the workshop password in the local webpage."
+    elif authenticated:
         connection_note = ""
     elif args.no_auth:
         connection_note = "\nSSH login skipped (--no-auth); Connect needs an existing connection"

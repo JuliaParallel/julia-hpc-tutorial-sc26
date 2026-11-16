@@ -142,7 +142,7 @@ function syncExerciseControls(panel) {
 }
 function layoutLabel(layout) {
   const who = layout === "mpi" ? "MPI RANKS / ONE ODO NODE EACH" : "ONE JULIA PROCESS";
-  return `${who} · ONE SLURM JOB PER RUN`;
+  return `${who} · ${config.backend === "cpu" ? "CPU VM" : "ONE SLURM JOB PER RUN"}`;
 }
 
 function collapseButton(target, label) {
@@ -1023,7 +1023,7 @@ function showFinal() {
   showSection("final");
   selectedDemo = null;
   $("demo-title").textContent = config.final_exercise?.title || "Final Exercise";
-  $("layout-label").textContent = "GRAY-SCOTT REACTION-DIFFUSION · ONE SLURM JOB PER RUN";
+  $("layout-label").textContent = `GRAY-SCOTT REACTION-DIFFUSION · ${config.backend === "cpu" ? "CPU VM" : "ONE SLURM JOB PER RUN"}`;
   for (const button of document.querySelectorAll("#demos button")) {
     button.classList.toggle("active", button.dataset.final === "1");
   }
@@ -1130,7 +1130,9 @@ function paneFor(item) {
   return panes.get(selectedDemo) || panes.values().next().value;
 }
 function event(item) {
-  if (item.kind === "output") {
+  if (item.kind === "ready") {
+    $("alert").hidden = true;
+  } else if (item.kind === "output") {
     const pane = (item.run && runPanes.get(item.run)) || panes.get(selectedDemo) || panes.values().next().value;
     if (pane) appendOutput(pane, item.text);
   } else if (item.kind === "run") {
@@ -1323,7 +1325,7 @@ async function init() {
       saveFinalCode();
     }
   } catch (e) {}
-  $("remote").textContent = `${config.host}:${config.remote_root}`;
+  $("remote").textContent = config.gateway ? config.host : `${config.host}:${config.remote_root}`;
   buildSidebar();
   buildConsoles();
   if (config.backend === "cpu") {
@@ -1344,7 +1346,22 @@ async function init() {
   } catch (e) {}
   activate(start, {scroll: false, expand: false});
   for (const pane of panes.values()) loadSource(pane);
-  $("connect").onclick = () => post("/api/connect");
+  if (config.gateway) {
+    $("gateway-login").hidden = false;
+    $("gateway-backend").value = config.backend;
+    $("gateway-password").onkeydown = event => { if (event.key === "Enter") $("connect").click(); };
+  }
+  $("connect").onclick = async () => {
+    if (!config.gateway) return post("/api/connect");
+    $("alert").hidden = true;
+    try {
+      const backend = $("gateway-backend").value;
+      const password = $("gateway-password").value;
+      await postJson("/api/connect", {backend, password});
+      $("gateway-password").value = "";
+      if (backend !== config.backend) location.reload();
+    } catch (error) { alertError(error.message); }
+  };
   $("disconnect").onclick = () => post("/api/disconnect");
   $("cancel").onclick = () => post("/api/cancel");
   window.addEventListener("resize", () => {

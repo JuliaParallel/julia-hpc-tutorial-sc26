@@ -32,6 +32,17 @@ header {
   font-weight:700;
   color:var(--muted)
 }
+#update-notice:not([hidden]) {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:12px;
+  padding:12px 36px;
+  border-bottom:1px solid var(--border);
+  background:#193c3b;
+}
+#update-message { flex:1; min-width:220px }
 h1 {
   font-size:34px;
   letter-spacing:-.04em;

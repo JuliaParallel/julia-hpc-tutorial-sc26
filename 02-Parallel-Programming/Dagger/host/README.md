@@ -1,6 +1,7 @@
 # Local tutorial console
 
-For the shared-password workshop, run `python3 host/app.py --gateway`, choose
+For the shared-password workshop, run `./console --gateway` from the Dagger
+folder (`console.cmd --gateway` on Windows with WSL), choose
 Odo relay or AWS CPU in the local page, and paste the instructor's workshop
 password. No attendee SSH keys or AWS credentials are needed. See the
 [gateway guide](../aws/GATEWAY.md) for attendee instructions and management.
@@ -13,8 +14,16 @@ The fallback guide includes provisioning, capacity, live test results and cleanu
 From `02-Parallel-Programming/Dagger` on your **own computer**:
 
 ```bash
-python3 host/app.py
+./console
 ```
+
+The launcher forwards all server arguments, for example
+`./console --odo-user USER --no-auto-connect`. On Windows use
+`.\console.cmd` in PowerShell or `console.cmd` in Command Prompt; it runs
+Python and OpenSSH in your default WSL distribution. The page checks the
+latest merged `main` and offers **Update and restart**, with a source-archive
+fallback when Git is unavailable. See the [gateway guide](../aws/GATEWAY.md)
+for update behavior and preserving local edits.
 
 On first run it asks for your OLCF username, adds or confirms one marked SSH
 host entry, opens the SSH connection, and then serves the page. See

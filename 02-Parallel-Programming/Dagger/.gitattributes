@@ -1,0 +1,4 @@
+# GitHub source ZIPs carry their installed revision even without Git.
+host/version.txt export-subst
+console text eol=lf
+console.cmd text eol=crlf

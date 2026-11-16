@@ -37,6 +37,7 @@ import webbrowser
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "host"))
 from gateway_client import Transport as GatewayTransport, descriptor as gateway_descriptor
+from updates import Updater
 PREFIX = "@@SC26@@"
 DEMOS = [
     ("00_julia", "Julia basics", "single"),
@@ -1056,6 +1057,8 @@ class Console:
         self.token = secrets.token_urlsafe(32)
         self.stop_event = threading.Event()
         self.transport = None
+        self.updater = None
+        self.updating = False
 
     @property
     def cpu(self):
@@ -1113,6 +1116,8 @@ class Console:
 
     def connect(self, password=None, backend=None):
         with self.lock:
+            if self.updating:
+                raise ValueError("Wait for the console update to finish")
             if self.connecting or self.process is not None:
                 raise ValueError("Already connected or connecting")
             if getattr(self.args, "gateway", None):
@@ -1134,6 +1139,29 @@ class Console:
         # Pop the password immediately in _connect so Thread.args does not
         # retain a second copy for the lifetime of the console session.
         threading.Thread(target=self._connect, args=([password],), daemon=True).start()
+
+    def start_update(self, restart):
+        with self.lock, TERMINALS_LOCK:
+            if self.updating:
+                raise ValueError("An update is already running")
+            if self.connecting or self.busy or (self.process and self.process.poll() is None):
+                raise ValueError("Disconnect before updating the console")
+            if any(term.get("alive") for term in TERMINALS.values()):
+                raise ValueError("Close agent terminals before updating the console")
+            if not self.updater or self.updater.status()["status"] != "available":
+                raise ValueError("Check for an available update first")
+            self.updating = True
+
+        def apply():
+            try:
+                self.updater.apply()
+            except ValueError:
+                with self.lock:
+                    self.updating = False
+                return
+            restart()
+
+        threading.Thread(target=apply, daemon=True).start()
 
     def _connect(self, credentials=None):
         try:
@@ -1428,6 +1456,12 @@ def handler_for(console):
                     self.reply(console.state(int(parse_qs(url.query).get("after", [0])[0])))
                 except ValueError:
                     self.reply(dict(error="Invalid cursor"), code=400)
+            elif url.path == "/api/updates":
+                if console.updater:
+                    threading.Thread(target=console.updater.check, daemon=True).start()
+                    self.reply(console.updater.status())
+                else:
+                    self.reply(dict(status="disabled", available=False))
             elif url.path == "/api/config":
                 self.reply(dict(token=console.token, **console.configuration(), exercise_template=exercise_template(),
                                 exercise_setups=setup_templates(exercise_setup),
@@ -1499,7 +1533,16 @@ def handler_for(console):
                 command = json.loads(self.rfile.read(length))
                 if not isinstance(command, dict):
                     raise ValueError("Expected a JSON object")
-                if self.path == "/api/connect":
+                if self.path in ("/api/updates/check", "/api/updates/apply"):
+                    if self.client_address[0] not in ("127.0.0.1", "::1"):
+                        raise ValueError("Updates are only available from localhost")
+                    if not console.updater:
+                        raise ValueError("Updates are unavailable")
+                    if self.path.endswith("/check"):
+                        threading.Thread(target=lambda: console.updater.check(force=True), daemon=True).start()
+                    else:
+                        console.start_update(self.server.request_restart)
+                elif self.path == "/api/connect":
                     if getattr(console.args, "gateway", None):
                         if self.client_address[0] not in ("127.0.0.1", "::1"):
                             raise ValueError("Workshop passwords can only be submitted from localhost")
@@ -1528,10 +1571,13 @@ def handler_for(console):
                 elif self.path == "/api/terminal/open":
                     if self.client_address[0] not in ("127.0.0.1", "::1"):
                         raise ValueError("Terminal is only available from localhost")
-                    session = open_agent_terminal(command.get("agent"),
-                                                  command.get("cols", 100),
-                                                  command.get("rows", 30),
-                                                  command.get("cwd"))
+                    with console.lock:
+                        if console.updating:
+                            raise ValueError("Wait for the console update to finish")
+                        session = open_agent_terminal(command.get("agent"),
+                                                      command.get("cols", 100),
+                                                      command.get("rows", 30),
+                                                      command.get("cwd"))
                     self.reply(dict(session=session))
                     return
                 elif self.path == "/api/terminal/input":
@@ -1652,6 +1698,12 @@ def main():
             close_master(args)
         parser.error(f"Cannot serve the page: {exc}")
     port = server.server_port
+    restart_requested = threading.Event()
+    def request_restart():
+        restart_requested.set()
+        server.shutdown()
+    server.request_restart = request_restart
+    console.updater = Updater(ROOT)
     server.allowed_hosts = {"127.0.0.1", "localhost", socket.gethostname().lower(), socket.getfqdn().lower(),
                             *(name.lower().rstrip(".") for name in args.allow_host)}
     tailscale_ips = []
@@ -1703,6 +1755,12 @@ def main():
         # This console's SSH connection is its own: close it with the console.
         if own_socket:
             close_master(args)
+    if restart_requested.is_set():
+        # Keep relative CLI paths meaningful by preserving the caller's cwd.
+        # Pin the chosen port so the existing browser can reconnect to it.
+        restart_args = [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:],
+                        "--port", str(port), "--backend", args.backend, "--no-browser", "--no-auto-connect"]
+        os.execv(sys.executable, restart_args)
 
 
 if __name__ == "__main__":

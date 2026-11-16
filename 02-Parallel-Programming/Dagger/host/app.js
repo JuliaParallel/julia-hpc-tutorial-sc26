@@ -1,6 +1,7 @@
 "use strict";
 const $ = id => document.getElementById(id);
 let config, state = {}, cursor = 0, selectedDemo = null;
+let updateInfo = {}, awaitingRestart = false, showUpdateStatus = false;
 const panes = new Map();          // demo id -> console pane
 const sectionPages = new Map();   // section id -> {el} shown in the main area
 const paneSections = new Map();   // demo id -> section id
@@ -1113,13 +1114,43 @@ function controls() {
   $("status").textContent = state.status;
   // Each connection has its own folder on Odo; show it once it exists.
   if (state.remote_dir) $("remote").textContent = `${config.host}:${state.remote_dir}`;
-  $("connect").disabled = state.connecting || state.connected;
+  $("connect").disabled = state.connecting || state.connected || awaitingRestart;
   $("disconnect").disabled = !state.connected && !state.connecting;
   $("cancel").disabled = !state.busy;
   const ready = Boolean(state.ready) && !state.busy;
   for (const pane of panes.values()) pane.run.disabled = pane.eval.disabled = !ready;
   for (const exercise of exercisePanels) exercise.run.disabled = !ready;
   if (finalPanel) finalPanel.run.disabled = !ready;
+  updateControls();
+}
+function updateControls() {
+  const active = ["updating", "restarting"].includes(updateInfo.status) || awaitingRestart;
+  $("update-notice").hidden = !(updateInfo.available || active || showUpdateStatus);
+  let message = updateInfo.message || "Checking main for updates…";
+  if (updateInfo.available && (state.connected || state.connecting)) message += " Disconnect to update.";
+  $("update-message").textContent = message;
+  $("apply-update").hidden = updateInfo.status !== "available";
+  $("apply-update").disabled = active || state.connected || state.connecting || state.busy;
+  $("check-updates").disabled = active || updateInfo.status === "checking";
+}
+async function pollUpdates() {
+  try {
+    if (awaitingRestart) {
+      const fresh = await (await fetch("/api/config")).json();
+      if (fresh.token !== config.token) { location.reload(); return; }
+    }
+    const response = await fetch("/api/updates");
+    if (!response.ok) throw new Error("Update check unavailable");
+    updateInfo = await response.json();
+    if (updateInfo.status === "error") {
+      awaitingRestart = false;
+      showUpdateStatus = true;
+    }
+    updateControls();
+  } catch (error) {
+    if (awaitingRestart) $("update-message").textContent = "Restarting the console… This page will reload when it is ready.";
+  }
+  setTimeout(pollUpdates, awaitingRestart || updateInfo.status === "checking" ? 1000 : 5000);
 }
 // Route an event to the console that produced it; system chatter follows the selection.
 function paneFor(item) {
@@ -1364,9 +1395,30 @@ async function init() {
   };
   $("disconnect").onclick = () => post("/api/disconnect");
   $("cancel").onclick = () => post("/api/cancel");
+  $("check-updates").onclick = async () => {
+    showUpdateStatus = true;
+    try {
+      await postJson("/api/updates/check", {});
+      updateInfo = {status: "checking", message: "Checking main for updates…"};
+    } catch (error) { updateInfo = {status: "error", message: error.message}; }
+    updateControls();
+  };
+  $("apply-update").onclick = async () => {
+    try {
+      awaitingRestart = true;
+      updateControls();
+      await postJson("/api/updates/apply", {});
+    } catch (error) {
+      awaitingRestart = false;
+      showUpdateStatus = true;
+      updateInfo = {status: "error", message: error.message};
+      updateControls();
+    }
+  };
   window.addEventListener("resize", () => {
     for (const pane of panes.values()) if (pane.activeTrace) draw(pane);
   });
   poll();
+  pollUpdates();
 }
 init().catch(error => alertError(error.message));

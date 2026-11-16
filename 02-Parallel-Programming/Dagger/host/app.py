@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local tutorial console. Python 3.9+, OpenSSH; no Python packages required."""
+"""Tutorial console. Python 3.9+; local Julia or remote OpenSSH; no Python packages required."""
 import argparse
 import atexit
 import codecs
@@ -21,6 +21,7 @@ import struct
 import subprocess
 import sys
 import tarfile
+import tempfile
 import textwrap
 import threading
 import time
@@ -642,7 +643,7 @@ def snapshot():
             archive.add(ROOT / name, arcname=name,
                         filter=lambda item: None if ("__pycache__" in item.name or
                             Path(item.name).name in ("Manifest.toml", "LocalPreferences.toml")) else item)
-        for name in ("worker.jl", "remote_agent.py", "final_visuals.jl"):
+        for name in ("worker.jl", "remote_agent.py", "final_visuals.jl", "local.py"):
             archive.add(ROOT / "host" / name, arcname="host/" + name)
     return stream.getvalue()
 
@@ -1159,10 +1160,16 @@ class Console:
         self.updating = False
 
     @property
+    def local(self):
+        return bool(getattr(self.args, "local", False))
+
+    @property
     def cpu(self):
         return getattr(self.args, "backend", "odo") == "cpu"
 
     def ready_message(self):
+        if self.local:
+            return "Ready · local CPU"
         return "Ready · CPU VM" if self.cpu else "Ready · every run is its own Slurm job"
 
     def remote_command(self, command):
@@ -1184,9 +1191,9 @@ class Console:
             for i, s in enumerate(sections, 1):
                 s["number"] = f"{i:02d}"
                 if "06_multinode" in s["demos"]:
-                    s["title"] = "CPU MPI · one VM"
-            demos = [(d[0], "CPU MPI · one VM" if d[0] == "06_multinode" else d[1], d[2]) for d in demos]
-        return dict(backend="cpu" if self.cpu else "odo", gateway=bool(getattr(self.args, "gateway", None)),
+                    s["title"] = "CPU MPI · this computer" if self.local else "CPU MPI · one VM"
+            demos = [(d[0], ("CPU MPI · this computer" if self.local else "CPU MPI · one VM") if d[0] == "06_multinode" else d[1], d[2]) for d in demos]
+        return dict(local=self.local, backend="cpu" if self.cpu else "odo", gateway=bool(getattr(self.args, "gateway", None)),
                     demos=demos, sections=sections,
                     exercises={k: v for k, v in exercises().items() if k in {d[0] for d in demos}},
                     targets={"cpu": "CPU"} if self.cpu else TARGETS,
@@ -1233,7 +1240,7 @@ class Console:
                 self.args.backend = backend
             self.connecting = True
             self.stop_event.clear()
-            self.status = "Connecting to CPU VM…" if self.cpu else "Connecting to Odo…"
+            self.status = "Preparing local Julia…" if self.local else "Connecting to CPU VM…" if self.cpu else "Connecting to Odo…"
         # Pop the password immediately in _connect so Thread.args does not
         # retain a second copy for the lifetime of the console session.
         threading.Thread(target=self._connect, args=([password],), daemon=True).start()
@@ -1264,6 +1271,9 @@ class Console:
     def _connect(self, credentials=None):
         try:
             if self.stop_event.is_set():
+                return
+            if self.local:
+                self._connect_local()
                 return
             if getattr(self.args, "gateway", None):
                 def status(message):
@@ -1351,6 +1361,24 @@ class Console:
                 if self.status != "Connection failed":
                     self.status = "Disconnected"
 
+    def _connect_local(self):
+        from local import environment
+        parent = Path(self.args.remote_root)
+        parent.mkdir(parents=True, exist_ok=True)
+        directory = Path(tempfile.mkdtemp(prefix="sc26-local-", dir=parent))
+        with tarfile.open(fileobj=io.BytesIO(snapshot()), mode="r:gz") as archive:
+            archive.extractall(directory)
+        env = environment(directory, ROOT / "results/local-cache", self.args.threads)
+        with self.lock:
+            if self.stop_event.is_set():
+                return
+            self.session, self.session_dir = directory.name, str(directory)
+            self.emit("session", session=self.session, remote_dir=self.session_dir)
+            self.process = subprocess.Popen([sys.executable, "-u", str(directory / "host/local.py"), "serve"],
+                cwd=directory, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT, text=True, bufsize=1, start_new_session=True)
+        self._read(self.process)
+
     def _read(self, proc):
         for line in proc.stdout:
             if line.startswith(PREFIX):
@@ -1396,8 +1424,8 @@ class Console:
             else:
                 self.emit("output", text=line, run=self.run_id)
         rc = proc.wait()
-        if rc:
-            reason = self.transport.error if self.transport and self.transport.error else f"Remote session exited with status {rc}"
+        if rc and not self.stop_event.is_set():
+            reason = self.transport.error if self.transport and self.transport.error else f"{'Local Julia' if self.local else 'Remote'} session exited with status {rc}"
             self.emit("error", error=reason)
 
     def send(self, command):
@@ -1505,6 +1533,7 @@ class Console:
         with self.lock:
             proc = self.process
             transport = self.transport
+            preparing_local = self.local and self.connecting
         if proc is None:
             if transport:
                 transport.close()
@@ -1516,14 +1545,32 @@ class Console:
                 proc.stdin.close()
             except (OSError, ValueError):
                 pass
+        if preparing_local:
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
         try:
             proc.wait(timeout=20)
         except subprocess.TimeoutExpired:
-            proc.terminate()
+            if self.local:
+                try:
+                    os.killpg(proc.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+            else:
+                proc.terminate()
             try:
                 proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
-                proc.kill()
+                if self.local:
+                    try:
+                        os.killpg(proc.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                else:
+                    proc.kill()
+                proc.wait()
         # The coordinator's EOF/finally cancels the Slurm job of a run in
         # progress, by this session's unique name. Nothing else is allocated.
 
@@ -1725,9 +1772,10 @@ def main():
     parser.add_argument("--port", type=int, help="Local port (default: 8767, or the next free one)")
     parser.add_argument("--ssh-host", help="SSH alias; reuse `odo` when it already points at Odo, "
                                            "otherwise the console manages `sc26-odo-<user>`")
+    parser.add_argument("--local", action="store_true", help="Run CPU demos and MPI locally; requires Julia 1.11+")
     parser.add_argument("--backend", choices=("odo", "cpu"), default="odo",
                         help="Odo/Slurm (default), or a CPU VM with Julia and SSH")
-    parser.add_argument("--threads", type=int, default=8, help="CPU VM's vCPUs (default: 8)")
+    parser.add_argument("--threads", type=int, help="CPU budget (default: available CPUs with --local, otherwise 8)")
     parser.add_argument("--gateway", nargs="?", const=str(ROOT / "host/workshop.json"),
                         help="Shared-password workshop gateway; optional descriptor file or hostname")
     parser.add_argument("--gateway-host-key", help="Pinned gateway SSH host public key (when using a hostname)")
@@ -1752,13 +1800,26 @@ def main():
                         help="Wait for Connect instead of preparing Julia at startup")
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
-    args.host = args.host or ("127.0.0.1" if args.gateway else "0.0.0.0")
+    if args.local and (args.gateway or args.ssh_host or args.via_relay or args.control_path):
+        parser.error("--local cannot be combined with gateway or SSH connection options")
+    if args.local:
+        args.backend = "cpu"
+    if args.threads is None:
+        args.threads = 8
+        if args.local:
+            args.threads = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count() or 1
+    args.host = args.host or ("127.0.0.1" if args.gateway or args.local else "0.0.0.0")
     if args.ssh_host and (not re.fullmatch(r"[\w@.-]+", args.ssh_host) or args.ssh_host.startswith("-")):
         parser.error("Invalid SSH host alias")
     args.ssh_config = args.ssh_config.expanduser()
     if args.threads < 1:
         parser.error("--threads must be positive")
-    if args.gateway:
+    if args.local:
+        if not shutil.which("julia"):
+            parser.error("--local requires Julia 1.11+ on PATH. Install Julia, then restart the console.")
+        args.odo_user, args.ssh_host = getpass.getuser(), "localhost"
+        args.remote_root = str(Path(args.remote_root).expanduser().resolve()) if args.remote_root else str(ROOT / "results/local-sessions")
+    elif args.gateway:
         try:
             args.gateway_info = gateway_descriptor(args.gateway, args.gateway_host_key, args.gateway_port)
         except (ValueError, OSError) as exc:
@@ -1784,7 +1845,7 @@ def main():
             args.odo_user, args.ssh_host = bootstrap_ssh(args)
         except (ValueError, RuntimeError, OSError) as exc:
             parser.error(str(exc))
-    own_socket = args.control_path is None and not args.gateway
+    own_socket = args.control_path is None and not args.gateway and not args.local
     args.control_path = (console_socket(args.odo_user) if own_socket else
                          args.control_path.expanduser().resolve() if args.control_path else Path("/unused"))
     use_final_workspace(args.odo_user)
@@ -1793,7 +1854,7 @@ def main():
                                           else default_remote_root(args.account, args.odo_user))
     if not args.remote_root.startswith("/"):
         parser.error("--remote-root must be an absolute path")
-    authenticated = False if args.no_auth or args.gateway else ensure_master(args)
+    authenticated = False if args.no_auth or args.gateway else True if args.local else ensure_master(args)
     console = Console(args)
     try:
         server = bind_server(args.host, args.port, handler_for(console))
@@ -1830,7 +1891,9 @@ def main():
                 pass
         threading.Thread(target=_auto_connect, daemon=True).start()
     url = f"http://127.0.0.1:{port}"
-    if args.gateway:
+    if args.local:
+        connection_note = "\nJulia runs locally; no SSH or AWS credentials are needed."
+    elif args.gateway:
         connection_note = "\nChoose a backend and enter the workshop password in the local webpage."
     elif authenticated:
         connection_note = ""
@@ -1840,7 +1903,7 @@ def main():
         connection_note = "\nSSH login failed; use Connect after fixing SSH"
     print(f"Tutorial console: {url}\nBackend: {args.backend}; user: {args.odo_user} via {args.ssh_host}"
           f"\nSessions: {args.remote_root} (each Connect makes its own folder){connection_note}"
-          + ("\nCPU runs execute on the VM; MPI ranks share its CPUs." if args.backend == "cpu" else
+          + ("\nCPU runs execute on this computer; MPI ranks share its CPUs." if args.local else "\nCPU runs execute on the VM; MPI ranks share its CPUs." if args.backend == "cpu" else
              "\nEvery run is its own Slurm job; Ctrl-C cancels a run in progress."), flush=True)
     if authenticated and not args.no_auto_connect:
         print("Preparing Julia packages in the background…", flush=True)
@@ -1849,6 +1912,10 @@ def main():
             print(f"Tailscale: http://{ip}:{port}", flush=True)
     if not args.no_browser:
         webbrowser.open(url)
+    if args.local:
+        def stop_local_server(*_):
+            raise KeyboardInterrupt
+        signal.signal(signal.SIGTERM, stop_local_server)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

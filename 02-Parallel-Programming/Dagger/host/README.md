@@ -1,5 +1,27 @@
 # Local tutorial console
 
+To run Julia on the computer hosting the console, install Julia 1.11+ on
+`PATH`, then run `./console --local` from the Dagger folder. On Windows use
+`.\console.cmd --local` with Julia installed inside WSL. No SSH server,
+Slurm, AWS account, or workshop password is needed. Local mode listens on
+localhost by default.
+
+The first connection downloads and precompiles the CPU environment. Later
+connections reuse downloaded packages and a cached manifest. Click Connect
+to start preparation manually with `--no-auto-connect`. Use
+`./console --local --threads 4` to choose a CPU budget; the default is the
+available logical CPUs. CPU demos, exercises, REPL evaluation, plots and
+timelines work locally. MPI uses the bundled MPICH launcher, with ranks
+sharing those CPUs. AMD GPU demos remain available through Odo.
+
+Each connection copies the tutorial into a fresh directory under
+`results/local-sessions/`; package manifests and preferences stay in that
+copy. Cached preparation data is under `results/local-cache/`, and Julia
+uses your normal depot (including any `JULIA_DEPOT_PATH` override). Local
+exercise files and browser-saved edits continue to work as usual. Disconnect
+or stop the console to cancel its running Julia processes. `--local` cannot
+be combined with gateway or SSH connection options.
+
 For the shared-password workshop, run `./console --gateway` from the Dagger
 folder (`console.cmd --gateway` on Windows with WSL), choose
 Odo relay or AWS CPU in the local page, and paste the instructor's workshop

@@ -34,6 +34,12 @@ than promising a speedup or current cluster availability.
 
 ## Quickstart on a laptop or workstation
 
+To run the CPU demos and exercises entirely on this computer, install Julia
+1.11+ and run `./console --local` (`.\console.cmd --local` on Windows with
+WSL). Add `--threads 4` to limit the CPU budget. Packages are prepared on the
+first connection; MPI ranks share the local CPUs. See the
+[console guide](host/README.md) for setup, storage and remote alternatives.
+
 Run these commands from `02-Parallel-Programming/Dagger/`:
 
 ```bash

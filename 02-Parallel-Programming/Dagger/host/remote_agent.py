@@ -25,6 +25,7 @@ MAX_RANKS = 32        # MPI ranks, one per Odo node
 THREADS = {"single": 7, "mpi": 56}   # an MPI rank has its whole node
 HEARTBEAT = 30        # seconds between heartbeats to the console
 CPU = os.environ.get("SC26_BACKEND") == "cpu"
+LOCAL = os.environ.get("SC26_LOCAL") == "1"
 CPU_THREADS = int(os.environ.get("SC26_THREADS", "8"))
 write_lock = threading.Lock()
 lock = threading.Lock()
@@ -138,12 +139,16 @@ def precompile():
 def relay(run):
     global current
     proc = run["proc"]
+    completed = None
     for line in proc.stdout:
         if line.startswith(PREFIX):
             try:
                 event = json.loads(line[len(PREFIX):])
                 if event["kind"] == "done":
                     run["done"] = True
+                    if LOCAL:
+                        completed = event
+                        continue
                 emit(**event)
             except (ValueError, KeyError):
                 emit("output", text=line, run=run["id"])
@@ -168,6 +173,10 @@ def relay(run):
              error="The {} ended with status {} before the run finished; see the output.".format(
                  "CPU process" if CPU else "Slurm job", rc))
     emit("worker_exit", returncode=rc, expected=run["done"] or run["cancelled"])
+    # A local run is available again only after Julia/MPI has exited. This
+    # lets attendees start another run immediately when completion appears.
+    if completed is not None and not run["cancelled"]:
+        emit(**completed)
 
 
 def execute(command):
@@ -187,6 +196,9 @@ def execute(command):
             return
         args = ["bash", str(ROOT / ("cpu/launch.sh" if CPU else "frontier/launch.sh")), str(ranks),
                 "--startup-file=no", str(ROOT / "host/worker.jl")]
+        if os.environ.get("SC26_LOCAL") == "1":
+            args = [sys.executable, str(ROOT / "host/local.py"), "launch", str(ranks),
+                    "--startup-file=no", str(ROOT / "host/worker.jl")]
         if mpi:
             args.append("--mpi")
         if gpus:

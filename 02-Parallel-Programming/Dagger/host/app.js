@@ -141,14 +141,14 @@ function demoById(id) {
   return config.demos.find(demo => demo[0] === id);
 }
 function runLocation() {
-  return config.backend === "cpu" ? "on this CPU VM" : "in its own Slurm job";
+  return config.backend === "cpu" ? (config.local ? "on this computer" : "on this CPU VM") : "in its own Slurm job";
 }
 // MPI runs put one rank on each Odo node; the user picks how many.
 function ranksSelect(role) {
   const max = config.max_ranks ?? 32, chosen = config.default_ranks ?? 2;
   const options = Array.from({length: max}, (_, i) => i + 1)
     .map(n => `<option value="${n}"${n === chosen ? " selected" : ""}>${n}</option>`).join("");
-  const description = config.backend === "cpu" ? "MPI ranks sharing this VM's CPUs" : "MPI ranks, each on its own Odo node";
+  const description = config.backend === "cpu" ? (config.local ? "MPI ranks sharing this computer's CPUs" : "MPI ranks sharing this VM's CPUs") : "MPI ranks, each on its own Odo node";
   return `<label class="exercise-control gpu-control" data-role="${role}-label" title="${description}">Ranks
 <select data-role="${role}" aria-label="${description}">${options}</select>
 </label>`;
@@ -173,7 +173,7 @@ function syncExerciseControls(panel) {
 }
 function layoutLabel(layout) {
   const who = layout === "mpi" ? "MPI RANKS / ONE ODO NODE EACH" : "ONE JULIA PROCESS";
-  return `${who} · ${config.backend === "cpu" ? "CPU VM" : "ONE SLURM JOB PER RUN"}`;
+  return `${who} · ${config.backend === "cpu" ? (config.local ? "LOCAL CPU" : "CPU VM") : "ONE SLURM JOB PER RUN"}`;
 }
 
 function collapseButton(target, label) {
@@ -418,7 +418,7 @@ function paneMarkup(demo, heading = demo[1]) {
 <div class="panel-head">
 <h3 id="${pid}-title">${heading}</h3>
 <div class="panel-tools">
-<span class="tag">${layout === "mpi" ? (config.backend === "cpu" ? "MPI ranks · one VM" : "MPI ranks · one node each") : "One Julia process"}</span>${gpus}${ranks}
+<span class="tag">${layout === "mpi" ? (config.backend === "cpu" ? (config.local ? "MPI ranks · this computer" : "MPI ranks · one VM") : "MPI ranks · one node each") : "One Julia process"}</span>${gpus}${ranks}
 <button class="primary" data-role="run" disabled>Run demo <span>↗</span></button>
 ${collapse(pid + "-body", pid + "-title")}
 </div>
@@ -1056,7 +1056,7 @@ function showFinal() {
   showSection("final");
   selectedDemo = null;
   $("demo-title").textContent = config.final_exercise?.title || "Final Exercise";
-  $("layout-label").textContent = `GRAY-SCOTT REACTION-DIFFUSION · ${config.backend === "cpu" ? "CPU VM" : "ONE SLURM JOB PER RUN"}`;
+  $("layout-label").textContent = `GRAY-SCOTT REACTION-DIFFUSION · ${config.backend === "cpu" ? (config.local ? "LOCAL CPU" : "CPU VM") : "ONE SLURM JOB PER RUN"}`;
   for (const button of document.querySelectorAll("#demos button")) {
     button.classList.toggle("active", button.dataset.final === "1");
   }
@@ -1393,12 +1393,12 @@ async function init() {
   buildSidebar();
   buildConsoles();
   if (config.backend === "cpu") {
-    document.querySelector("footer").textContent = "The webpage and plots run on your computer. Julia runs on the CPU VM; MPI ranks share its CPUs.";
+    document.querySelector("footer").textContent = config.local ? "Julia runs on this computer; MPI ranks share its CPUs." : "The webpage and plots run on your computer. Julia runs on the CPU VM; MPI ranks share its CPUs.";
     const info = $("side-workspace-body");
     if (info) {
       for (const paragraph of info.querySelectorAll("p")) {
-        if (paragraph.textContent.includes("Slurm")) paragraph.textContent = "Each run starts a fresh Julia on the CPU VM.";
-        if (paragraph.textContent.includes("Odo node")) paragraph.textContent = `Choose 1 to ${config.max_ranks} MPI ranks sharing this VM's CPUs.`;
+        if (paragraph.textContent.includes("Slurm")) paragraph.textContent = `Each run starts a fresh Julia on ${config.local ? "this computer" : "the CPU VM"}.`;
+        if (paragraph.textContent.includes("Odo node")) paragraph.textContent = `Choose 1 to ${config.max_ranks} MPI ranks sharing ${config.local ? "this computer's" : "this VM's"} CPUs.`;
       }
     }
   }

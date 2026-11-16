@@ -79,3 +79,6 @@ __pycache__/
 # Local source-archive update revision (not a credential)
 /02-Parallel-Programming/Dagger/.console-update.json
 /02-Parallel-Programming/Dagger/.console-update.tmp
+
+# KernelTuner cachefiles
+02-Parallel-Programming/KernelTuner/**/*.json

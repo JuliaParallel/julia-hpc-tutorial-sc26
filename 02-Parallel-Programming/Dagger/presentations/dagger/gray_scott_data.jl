@@ -2,15 +2,15 @@
 # v at three times, with the console's parameters and initial fields. Serial
 # ADI with Cholesky, standard library only:
 #   julia presentations/dagger/gray_scott_data.jl
-# writes data/gray-scott-v.bin: a 3 x 256 x 256 UInt8 array (column-major),
+# writes data/gray-scott-v.bin: a 3 x 512 x 512 UInt8 array (column-major),
 # each frame scaled to its own range. build_figures.py turns it into a PNG.
 using LinearAlgebra, Random
 
-function frames(times; n=256, dt=1.0, Du=0.16, Dv=0.08, F=0.055, k=0.062)
+function frames(times; n=512, dt=1.0, Du=0.16, Dv=0.08, F=0.055, k=0.062)
     Random.seed!(42)
     u = ones(n, n)
     v = 0.01 .* rand(n, n)
-    for _ in 1:14
+    for _ in 1:56
         cx, cy = rand(6:n-5, 2)
         v[cx-3:cx+3, cy-3:cy+3] .= 1.0
         u[cx-3:cx+3, cy-3:cy+3] .= 0.5

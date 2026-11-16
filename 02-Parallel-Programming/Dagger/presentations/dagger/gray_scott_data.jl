@@ -6,7 +6,7 @@
 # each frame scaled to its own range. build_figures.py turns it into a PNG.
 using LinearAlgebra, Random
 
-function frames(times; n=512, dt=1.0, Du=0.16, Dv=0.08, F=0.055, k=0.062)
+function frames(times; n=512, dt=2.0, Du=0.16, Dv=0.08, F=0.055, k=0.062)
     Random.seed!(42)
     u = ones(n, n)
     v = 0.01 .* rand(n, n)

@@ -296,22 +296,22 @@ def exercise_setup(target, mode):
 
 
 def _panel_lines(target, mode):
-    """How many panels of grid lines, for the final exercise: one task per
-    panel and field, so enough panels to keep every processor busy, and no
-    more, since each task costs scheduling time. It must divide n."""
+    """How many panels u and v are split into, for the final exercise. Each
+    half step runs one task per panel, so enough panels to keep the
+    processors busy and no more: every task costs scheduling time."""
+    if mode == "mpi":
+        return ["# Panels: one per MPI rank. The DArrays spread them over the ranks, and",
+                "# each task runs on the rank that holds the panel it writes.",
+                "panels = MPI.Comm_size(MPI.COMM_WORLD)"]
     if target == "gpus":
         return ["# Panels: one per GPU, so every GPU solves its share of the lines.",
                 "panels = length(AMDGPU.devices())"]
     if target == "gpu":
-        return ["# Panels: one GPU runs the tasks one after another, so a few large",
-                "# panels (256 lines each) keep the GPU busy with little overhead.",
+        return ["# Panels: one GPU runs the tasks one after another, so two large",
+                "# panels (256 lines each) keep it busy with little overhead.",
                 "panels = 2"]
-    if mode == "mpi" and target == "cpu":
-        return ["# Panels: one task per panel and field; 16 panels of 32 lines spread",
-                "# the work over a rank's 56 CPU threads.",
-                "panels = 16"]
-    return ["# Panels: one task per panel and field; 8 panels of 64 lines give each",
-            "# CPU thread one panel of each field (a one-process run has 7 threads).",
+    return ["# Panels: 8 of 64 lines, about one per CPU thread (a one-process run",
+            "# has 7).",
             "panels = 8"]
 
 
@@ -327,10 +327,10 @@ def final_setup(target, mode):
               ""] + _scope_lines(target, mode)
     lines += ["",
               "# (2) Parameters: grid size, time step, diffusion rates, feed and kill rates.",
-              "n, dt = 512, 1.0",
+              "n, dt = 512, 2.0",
               "Du, Dv = 0.16, 0.08",
               "F, k = 0.055, 0.062",
-              "nsteps = 3600",
+              "nsteps = 1800",
               ""] + _panel_lines(target, mode) + [
               "",
               "# (3) Initial fields: substrate u = 1 and a little activator v, plus 56",
@@ -345,12 +345,26 @@ def final_setup(target, mode):
               "    u[cx-3:cx+3, cy-3:cy+3] .= 0.5",
               "end",
               "",
-              "# (4) Run the simulation where the scope says; it updates u and v in place.",
-              "Dagger.with_options(scope=scope) do",
-              "    simulate!(u, v, (; n, dt, Du, Dv, F, k, panels), nsteps)",
+              "# (4) Make u and v DArrays of `panels` blocks of whole columns, in CPU",
+              "#     memory: zeros spreads the blocks over " + ("the MPI ranks" if mode == "mpi" else "this process") + ", copyto! fills them.",
+              "home = " + ("Dagger.constrain(Dagger.scope(mpi_ranks=:), Dagger.DefaultScope())" if mode == "mpi"
+                           else "Dagger.scope(worker=1)"),
+              "U, V = Dagger.with_options(scope=home) do",
+              "    U = zeros(Blocks(n, cld(n, panels)), n, n)",
+              "    V = zeros(Blocks(n, cld(n, panels)), n, n)",
+              "    copyto!(U, u)",
+              "    copyto!(V, v)",
+              "    U, V",
               "end",
               "",
-              "# (5) Check and report: both fields must stay finite.",
+              "# (5) Run the simulation where the scope says; each task runs where the",
+              "#     panel it writes lives" + (" (its MPI rank)" if mode == "mpi" else "") + ". Then gather the fields.",
+              "Dagger.with_options(scope=scope) do",
+              "    simulate!(U, V, (; n, dt, Du, Dv, F, k), nsteps)",
+              "end",
+              "u, v = collect(U), collect(V)",
+              "",
+              "# (6) Check and report: both fields must stay finite.",
               'all(isfinite, u) && all(isfinite, v) || error("the simulation blew up")',
               _say(mode, '"u range: ", extrema(u), " v range: ", extrema(v)')]
     return "\n".join(lines) + "\n"
@@ -385,37 +399,44 @@ FINAL_EXERCISE = dict(
         its implicit part is one small 1D system per line:
             A_u x = rhs,   A_u = I - (dt/2) Du L
         (A_v likewise, with Dv). L is the 1D periodic Laplacian. A_u
-        and A_v are symmetric positive definite and never change:
-        factor each once with Cholesky, then every solve is two
+        and A_v are symmetric positive definite and never change, so
+        factor each once with YOUR my_cholesky! from the Cholesky
+        exercise (the console runs it first); every solve is then two
         triangular solves with the factor.
 
-        The lines are independent: that is the parallel work. Split
-        the columns into `panels` blocks (Setup and Use sets how many)
-        and spawn one Dagger task per panel and field that builds the
-        right-hand side of its lines and solves them all. One task per
-        column would be 512 tiny tasks per field per half step, far
-        more scheduling than work.
+        The lines are independent: that is the parallel work. Setup
+        and Use makes u and v DArrays split into `panels` blocks of
+        whole columns, spread over the processors and MPI ranks. Spawn
+        one task per panel that builds the right-hand side of its
+        lines and solves them all; Dagger runs each task where the
+        panel it writes lives. One task per column would be 512 tiny
+        tasks per half step, far more scheduling than work.
 
         Both half steps run the same code: solve along the columns,
-        then store the result transposed, so the next half step solves
-        along the other direction. After two half steps the fields are
-        the right way round again.
+        then store the result transposed (one task per panel), so the
+        next half step solves along the other direction. After two
+        half steps the fields are the right way round again.
 
-        Fill in the TODOs in simulate! and the two panel functions.
-        Setup and Use sets the parameters, the panels and the initial
-        fields, calls simulate!(u, v, p, nsteps) where the scope says,
-        and checks the result; Target and Processes choose the
-        hardware. Keep the `for step in 1:nsteps` loop and the names
-        u and v: the Visualization panel samples them there and draws
-        substrate u and activator v; no plotting code belongs in your
-        script.
+        Fill in the TODOs. Target and Processes choose the hardware.
+        Keep the `for step in 1:nsteps` loop and the names u and v:
+        the Visualization panel samples them there and draws substrate
+        u and activator v; no plotting code belongs in your script.
     """),
     template=textwrap.dedent("""\
         # Final exercise: Gray-Scott reaction-diffusion on a periodic grid.
-        # Fill in the TODOs. Setup and Use sets the parameters, the panels and
-        # the initial fields, calls simulate!, and checks the result.
+        # Fill in the TODOs. The console runs your my_cholesky! from the
+        # Cholesky exercise first. Setup and Use makes u and v DArrays of
+        # panels, calls simulate!, and checks the result.
 
         using Dagger, LinearAlgebra
+
+        # The lower Cholesky factor C of A (A = C * C'), with your my_cholesky!:
+        # tile A into bs x bs blocks, factor the tiles in place, and gather the
+        # lower triangle, as in the Cholesky exercise's Setup and Use.
+        function lower_factor(A, bs)
+            # TODO: DArray(A, Blocks(bs, bs)), my_cholesky!(its chunks),
+            #       return Matrix(LowerTriangular(collect(...)))
+        end
 
         # Solve A X = R for every column of R, in place, from the lower Cholesky
         # factor C of A = C * C': two triangular solves (they work on GPUs too).
@@ -425,62 +446,69 @@ FINAL_EXERCISE = dict(
             return nothing
         end
 
-        # One half step of the substrate u on one panel: the columns `cols`, with
-        # `left` and `right` the columns next to each of them (wrapping around).
-        # out[:, j] = u + dt/2 * (Du * (left - 2 * middle + right) - u v^2 + F (1 - u))
-        # for the panel's columns, then solve the lines of out with the factor C.
-        function substrate_panel!(out, u, v, C, cols, left, right, p)
-            (; dt, Du, F) = p
-            # TODO: the right-hand side (use views and a dotted @. expression)
-            # TODO: solve_lines!(out, C)
+        # Second difference across the columns of the panel x. The panels before
+        # and after it (wrapping around) supply the neighbours of its edge columns.
+        across(x, before, after) =
+            hcat(before[:, end:end], x[:, 1:end-1]) .- 2 .* x .+ hcat(x[:, 2:end], after[:, 1:1])
+
+        # One half step of both fields on one panel: explicit across the columns,
+        # with the reaction, then implicit along them (the line solves).
+        function half_step_panel!(su, sv, u, u_before, u_after, v, v_before, v_after, Cu, Cv, p)
+            (; dt, Du, Dv, F, k) = p
+            # TODO: su = u + dt/2 * (Du * across(u, u_before, u_after) - u v^2 + F (1 - u))
+            #       sv = v + dt/2 * (Dv * across(v, v_before, v_after) + u v^2 - (F + k) v)
+            #       (compute across first, then one dotted @. line per field),
+            #       then solve_lines!(su, Cu) and solve_lines!(sv, Cv)
         end
 
-        # The same for the activator v:
-        # out = v + dt/2 * (Dv * (left - 2 * middle + right) + u v^2 - (F + k) v)
-        function activator_panel!(out, u, v, C, cols, left, right, p)
-            (; dt, Dv, F, k) = p
-            # TODO
+        # Panel j of the transposed fields: its rows cols[i] are the transpose of
+        # rows cols[j] of solved panel i. `solved` holds the panels of su, then sv.
+        function transpose_panel!(u, v, cols, j, solved...)
+            panels = length(cols)
+            for i in 1:panels
+                u[cols[i], :] .= permutedims(solved[i][cols[j], :])
+                v[cols[i], :] .= permutedims(solved[panels + i][cols[j], :])
+            end
+            return nothing
         end
 
         # Advance the substrate u and the activator v by nsteps ADI time steps,
-        # in place. p holds the parameters from Setup and Use:
-        # n, dt, Du, Dv, F, k and panels.
+        # in place. u and v are DArrays split into panels of whole columns;
+        # p holds the parameters from Setup and Use: n, dt, Du, Dv, F, k.
         function simulate!(u, v, p, nsteps)
-            (; n, dt, Du, Dv, panels) = p
-            n % panels == 0 || error("panels must divide n")
+            (; n, dt, Du, Dv) = p
 
             # 1. Build the 1D periodic Laplacian L: diagonal -2, neighbour
             #    entries +1, and the first/last rows wrap around.
             L = ???
 
-            # 2. Factor the implicit operators A_u = I - (dt/2) Du L and
-            #    A_v = I - (dt/2) Dv L with Cholesky, once; keep the lower
-            #    factors as plain matrices: Matrix(cholesky(Symmetric(A)).L).
+            # 2. Factor A_u = I - (dt/2) Du L and A_v = I - (dt/2) Dv L once,
+            #    with lower_factor and tiles of 128.
             Cu = ???
             Cv = ???
 
-            # 3. The panels: their columns, each column's neighbours, and one
-            #    output array per panel and field.
-            width = n ÷ panels
-            cols = [(q - 1) * width + 1:q * width for q in 1:panels]
-            left = [mod1.(c .- 1, n) for c in cols]
-            right = [mod1.(c .+ 1, n) for c in cols]
-            new_u = [zeros(n, width) for _ in 1:panels]
-            new_v = [zeros(n, width) for _ in 1:panels]
+            # 3. The panels: the columns of each, and DArrays for the solved
+            #    panels, laid out like u and v.
+            panels = length(u.chunks)
+            cols = Tuple(Dagger.domainchunks(u)[q].indexes[2] for q in 1:panels)   # a tuple stays on the host
+            before(q) = mod1(q - 1, panels)
+            after(q) = mod1(q + 1, panels)
+            su, sv = similar(u), similar(v)
 
-            # 4. Time loop: two ADI half steps per time step.
+            # 4. Time loop: two ADI half steps per time step, in one Datadeps region.
             for step in 1:nsteps
-                for half in 1:2
-                    # (a) In a Datadeps region, spawn substrate_panel! and
-                    #     activator_panel! for every panel q. They read u, v and
-                    #     the factor (In) and write their panel (InOut), so Dagger
-                    #     runs them all at once.
-                    # TODO
+                Dagger.spawn_datadeps() do
+                    for half in 1:2
+                        # (a) For every panel q, spawn half_step_panel!: it writes
+                        #     su.chunks[q] and sv.chunks[q] (InOut) and reads panels
+                        #     q, before(q) and after(q) of u and v, and Cu, Cv (In).
+                        # TODO
 
-                    # (b) Store each panel transposed, u[cols[q], :] .= transpose(new_u[q]),
-                    #     and the same for v. The next half step then solves
-                    #     along the other direction.
-                    # TODO
+                        # (b) For every panel j, spawn transpose_panel! writing
+                        #     u.chunks[j] and v.chunks[j], reading every panel of su
+                        #     and sv: map(In, su.chunks)..., map(In, sv.chunks)...
+                        # TODO
+                    end
                 end
             end
             return u, v
@@ -1442,6 +1470,12 @@ class Console:
                     command["gpus"] = process_gpus(target, command["mode"], command.get("gpus"))
                     command["label"] = (f"Final Exercise · {target_label(target, command['mode'], command['gpus'])} · "
                                         f"{layout_label(command['mode'], command['ranks'])}")
+                    # The attendee's my_cholesky! from the Cholesky exercise
+                    # factors the implicit operators; the worker defines it first.
+                    cholesky = command.get("cholesky")
+                    if not isinstance(cholesky, str) or "my_cholesky!" not in cholesky:
+                        raise ValueError("The final exercise uses your my_cholesky! from the Cholesky exercise; "
+                                         "write it in an Exercise panel first")
                     visuals = command.get("visuals", [])
                     if not isinstance(visuals, list) or any(v not in FINAL_VISUAL_IDS for v in visuals):
                         raise ValueError("Unknown visualization")

@@ -1,60 +1,78 @@
 # INSTRUCTOR SOLUTION -- Gray-Scott reaction-diffusion with ADI splitting,
-# Cholesky line solves, and Dagger Datadeps.
+# Cholesky line solves with your my_cholesky!, and DArray panels.
 #
 # The two fields are substrate u and activator v on a periodic n x n grid.
 # A time step is two ADI half steps. A half step is explicit in one direction
 # and implicit in the other; the implicit part is one small SPD system per
-# grid line, all with the same matrix, factored once with Cholesky.
+# grid line, all with the same matrix, factored once with my_cholesky!.
 #
-# The parallel work is the line solves. The columns are split into panels,
-# and one Dagger task per panel and per field builds the right-hand sides of
-# its lines and solves them all with the Cholesky factor. Tasks only read u
-# and v (In) and each writes its own panel (InOut), so Dagger runs them
-# together, on CPU threads, GPUs or MPI ranks, wherever the scope says.
+# u and v are DArrays split into panels of whole columns, spread over the
+# processors and MPI ranks. Each half step runs one task per panel that
+# solves all its lines (it writes its own panel: InOut, and reads its
+# neighbours: In), then one task per panel that stores the result
+# transposed, so the next half step solves along the other direction with
+# the same code. Datadeps runs each task where the panel it writes lives,
+# on CPU threads, GPUs or MPI ranks, wherever the scope says.
 #
-# The x and y directions use the same operator, so both half steps run the
-# same code: lines along the first index are solved, and the result is stored
-# transposed. The second half step then solves along the other direction, and
-# after two half steps the fields are the right way round again.
-#
-# The console runs simulate! and then its Setup and Use editor; the Setup
-# and Use below is the console's CPU, one-process version, so this file
-# also runs on its own:   julia --project -t 4 solution/final_exercise.jl
+# The console runs your my_cholesky!, then simulate!, then its Setup and Use;
+# the Setup and Use below is the console's CPU, one-process version, so this
+# file also runs on its own:   julia --project -t 4 solution/final_exercise.jl
 
 using Dagger, LinearAlgebra
 
+# my_cholesky! is your function from the Cholesky exercise: the console runs it
+# before this code. On its own, this file uses the reference one.
+isdefined(@__MODULE__, :my_cholesky!) || include(joinpath(@__DIR__, "my_cholesky.jl"))
+
+# The lower Cholesky factor C of A (A = C * C'), with your my_cholesky!: tile A
+# into bs x bs blocks, factor the tiles in place, and gather the lower triangle.
+function lower_factor(A, bs)
+    DA = DArray(A, Blocks(bs, bs))
+    my_cholesky!(DA.chunks)
+    return Matrix(LowerTriangular(collect(DA)))
+end
+
 # Solve A X = R for every column of R, in place, from the lower Cholesky
-# factor C of A = C * C'. Two triangular solves; ldiv! also works on GPU arrays.
+# factor C of A = C * C': two triangular solves (they work on GPUs too).
 function solve_lines!(R, C)
     ldiv!(LowerTriangular(C), R)
     ldiv!(LowerTriangular(C)', R)
     return nothing
 end
 
-# One half step of the substrate u on one panel of columns `cols`; `left` and
-# `right` are the columns before and after each of them, wrapping around.
-# Explicit across the columns, with the reaction, then implicit along them.
-function substrate_panel!(out, u, v, C, cols, left, right, p)
-    (; dt, Du, F) = p
-    uc, vc = view(u, :, cols), view(v, :, cols)
-    @. out = uc + (dt / 2) * (Du * (u[:, left] - 2uc + u[:, right]) - uc * vc^2 + F * (1 - uc))
-    solve_lines!(out, C)
+# Second difference across the columns of the panel x. The panels before and
+# after it (wrapping around) supply the neighbours of its edge columns.
+across(x, before, after) =
+    hcat(before[:, end:end], x[:, 1:end-1]) .- 2 .* x .+ hcat(x[:, 2:end], after[:, 1:1])
+
+# One half step of both fields on one panel: explicit across the columns, with
+# the reaction, then implicit along them (the line solves).
+function half_step_panel!(su, sv, u, u_before, u_after, v, v_before, v_after, Cu, Cv, p)
+    (; dt, Du, Dv, F, k) = p
+    d2u = across(u, u_before, u_after)
+    d2v = across(v, v_before, v_after)
+    @. su = u + (dt / 2) * (Du * d2u - u * v^2 + F * (1 - u))
+    @. sv = v + (dt / 2) * (Dv * d2v + u * v^2 - (F + k) * v)
+    solve_lines!(su, Cu)
+    solve_lines!(sv, Cv)
 end
 
-# The same for the activator v.
-function activator_panel!(out, u, v, C, cols, left, right, p)
-    (; dt, Dv, F, k) = p
-    uc, vc = view(u, :, cols), view(v, :, cols)
-    @. out = vc + (dt / 2) * (Dv * (v[:, left] - 2vc + v[:, right]) + uc * vc^2 - (F + k) * vc)
-    solve_lines!(out, C)
+# Panel j of the transposed fields: its rows cols[i] are the transpose of rows
+# cols[j] of solved panel i. `solved` holds the panels of su, then those of sv.
+function transpose_panel!(u, v, cols, j, solved...)
+    panels = length(cols)
+    for i in 1:panels
+        u[cols[i], :] .= permutedims(solved[i][cols[j], :])
+        v[cols[i], :] .= permutedims(solved[panels + i][cols[j], :])
+    end
+    return nothing
 end
 
-# Advance the substrate u and the activator v by nsteps ADI time steps,
-# in place. p holds the parameters from Setup and Use:
-# n, dt, Du, Dv, F, k and panels.
+# Advance the substrate u and the activator v by nsteps ADI time steps, in
+# place. u and v are DArrays split into panels of whole columns; p holds the
+# parameters from Setup and Use: n, dt, Du, Dv, F, k.
 function simulate!(u, v, p, nsteps)
-    (; n, dt, Du, Dv, panels) = p
-    n % panels == 0 || error("panels must divide n")
+    (; n, dt, Du, Dv) = p
 
     # 1. 1D periodic Laplacian. L is symmetric negative semidefinite and the
     #    first/last rows wrap around.
@@ -65,37 +83,37 @@ function simulate!(u, v, p, nsteps)
         L[i, mod1(i + 1, n)] = 1
     end
 
-    # 2. A_u and A_v are I - (dt/2) D L, hence SPD; factor once and keep the
-    #    lower factors for every half step.
-    Cu = Matrix(cholesky(Symmetric(I - (dt / 2) * Du * L)).L)
-    Cv = Matrix(cholesky(Symmetric(I - (dt / 2) * Dv * L)).L)
+    # 2. A_u and A_v are I - (dt/2) D L, hence SPD and constant: factor each
+    #    once with your my_cholesky!, in tiles of 128.
+    Cu = lower_factor(I - (dt / 2) * Du * L, 128)
+    Cv = lower_factor(I - (dt / 2) * Dv * L, 128)
 
-    # The panels: their columns, each column's neighbours, and one output
-    # array per panel and field.
-    width = n ÷ panels
-    cols = [(q - 1) * width + 1:q * width for q in 1:panels]
-    left = [mod1.(c .- 1, n) for c in cols]
-    right = [mod1.(c .+ 1, n) for c in cols]
-    new_u = [zeros(n, width) for _ in 1:panels]
-    new_v = [zeros(n, width) for _ in 1:panels]
+    # 3. The panels: the columns of each, and DArrays for the solved panels,
+    #    laid out like u and v.
+    panels = length(u.chunks)
+    cols = Tuple(Dagger.domainchunks(u)[q].indexes[2] for q in 1:panels)   # a tuple stays on the host
+    before(q) = mod1(q - 1, panels)
+    after(q) = mod1(q + 1, panels)
+    su, sv = similar(u), similar(v)
 
-    # 3. Time loop: two ADI half steps per time step.
+    # 4. Time loop: two ADI half steps per time step, in one Datadeps region.
     for step in 1:nsteps
-        for half in 1:2
-            # One task per panel and field: independent, so they run together.
-            Dagger.spawn_datadeps() do
+        Dagger.spawn_datadeps() do
+            for half in 1:2
+                # (a) Every panel's line solves, in parallel: each task reads
+                #     its panel and the two next to it, and writes its own.
                 for q in 1:panels
-                    Dagger.@spawn substrate_panel!(InOut(new_u[q]), In(u), In(v), In(Cu),
-                                                   cols[q], left[q], right[q], p)
-                    Dagger.@spawn activator_panel!(InOut(new_v[q]), In(u), In(v), In(Cv),
-                                                   cols[q], left[q], right[q], p)
+                    Dagger.@spawn half_step_panel!(InOut(su.chunks[q]), InOut(sv.chunks[q]),
+                        In(u.chunks[q]), In(u.chunks[before(q)]), In(u.chunks[after(q)]),
+                        In(v.chunks[q]), In(v.chunks[before(q)]), In(v.chunks[after(q)]),
+                        In(Cu), In(Cv), p)
                 end
-            end
-            # Store the panels transposed: the next half step treats the
-            # other direction implicitly.
-            for q in 1:panels
-                u[cols[q], :] .= transpose(new_u[q])
-                v[cols[q], :] .= transpose(new_v[q])
+                # (b) Store the result transposed, so the next half step solves
+                #     along the other direction with the same code.
+                for j in 1:panels
+                    Dagger.@spawn transpose_panel!(InOut(u.chunks[j]), InOut(v.chunks[j]), cols, j,
+                                                   map(In, su.chunks)..., map(In, sv.chunks)...)
+                end
             end
         end
     end
@@ -115,13 +133,13 @@ BLAS.set_num_threads(1)   # Dagger runs one panel of line solves per thread
 scope = Dagger.scope(worker=1)
 
 # (2) Parameters: grid size, time step, diffusion rates, feed and kill rates.
-n, dt = 512, 1.0
+n, dt = 512, 2.0
 Du, Dv = 0.16, 0.08
 F, k = 0.055, 0.062
-nsteps = 3600
+nsteps = 1800
 
-# Panels: one task per panel and field; 8 panels of 64 lines give each
-# CPU thread one panel of each field (a one-process run has 7 threads).
+# Panels: 8 of 64 lines, about one per CPU thread (a one-process run
+# has 7).
 panels = 8
 
 # (3) Initial fields: substrate u = 1 and a little activator v, plus 56
@@ -136,11 +154,24 @@ for _ in 1:56
     u[cx-3:cx+3, cy-3:cy+3] .= 0.5
 end
 
-# (4) Run the simulation where the scope says; it updates u and v in place.
-Dagger.with_options(scope=scope) do
-    simulate!(u, v, (; n, dt, Du, Dv, F, k, panels), nsteps)
+# (4) Make u and v DArrays of `panels` blocks of whole columns, in CPU
+#     memory: zeros spreads the blocks over this process, copyto! fills them.
+home = Dagger.scope(worker=1)
+U, V = Dagger.with_options(scope=home) do
+    U = zeros(Blocks(n, cld(n, panels)), n, n)
+    V = zeros(Blocks(n, cld(n, panels)), n, n)
+    copyto!(U, u)
+    copyto!(V, v)
+    U, V
 end
 
-# (5) Check and report: both fields must stay finite.
+# (5) Run the simulation where the scope says; each task runs where the
+#     panel it writes lives. Then gather the fields.
+Dagger.with_options(scope=scope) do
+    simulate!(U, V, (; n, dt, Du, Dv, F, k), nsteps)
+end
+u, v = collect(U), collect(V)
+
+# (6) Check and report: both fields must stay finite.
 all(isfinite, u) && all(isfinite, v) || error("the simulation blew up")
 println("u range: ", extrema(u), " v range: ", extrema(v))

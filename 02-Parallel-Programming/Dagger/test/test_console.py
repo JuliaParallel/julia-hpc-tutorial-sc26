@@ -25,6 +25,9 @@ def console():
         time="00:10:00", account="trn047", reservation="", control_path=Path("/tmp/portal-test-socket")))
 
 
+CHOLESKY = "my_cholesky!(T) = T"
+
+
 class ConsoleTests(unittest.TestCase):
     def test_selected_demo_source_matches_current_files(self):
         for demo, _, _ in app.DEMOS:
@@ -103,7 +106,7 @@ class ConsoleTests(unittest.TestCase):
 
     def test_setup_and_use_is_runnable_for_every_target_and_layout(self):
         for build, call in ((app.exercise_setup, "my_cholesky!(DA.chunks)"),
-                            (app.final_setup, "simulate!(u, v,")):
+                            (app.final_setup, "simulate!(U, V,")):
             setups = app.setup_templates(build)
             self.assertEqual(set(setups), {f"{t}/{m}" for t in app.TARGETS for m in app.MODES})
             for key, setup in setups.items():
@@ -233,33 +236,36 @@ class ConsoleTests(unittest.TestCase):
     def test_final_exercise_eval_is_allowed(self):
         c = console()
         c.send = Mock()
-        c.run(dict(op="eval", mode="single", demo="final", code="x = 1", setup="y = 2"))
+        c.run(dict(op="eval", mode="single", demo="final", code="x = 1", setup="y = 2", cholesky=CHOLESKY))
         command = c.send.call_args[0][0]
         self.assertEqual(command["label"], "Final Exercise · CPU · One process")
         self.assertEqual(command["gpus"], 0)
         self.assertEqual(command["setup"], "y = 2")
         c.busy = False
-        c.run(dict(op="eval", mode="mpi", demo="final", code="x = 1", setup="y = 2"))
+        c.run(dict(op="eval", mode="mpi", demo="final", code="x = 1", setup="y = 2", cholesky=CHOLESKY))
         self.assertEqual(c.send.call_args[0][0]["label"], "Final Exercise · CPU · 2 MPI ranks")
         c.busy = False
-        c.run(dict(op="eval", mode="mpi", ranks="16", target="gpu", demo="final", code="x = 1", setup="y = 2"))
+        c.run(dict(op="eval", mode="mpi", ranks="16", target="gpu", demo="final", code="x = 1", setup="y = 2", cholesky=CHOLESKY))
         command = c.send.call_args[0][0]
         self.assertEqual((command["ranks"], command["gpus"]), (16, 8))   # every GPU of each rank's node
         self.assertEqual(command["label"], "Final Exercise · GPU · 16 MPI ranks")
         c.busy = False
         with self.assertRaisesRegex(ValueError, "Setup and Use"):
-            c.run(dict(op="eval", mode="single", demo="final", code="x = 1"))
+            c.run(dict(op="eval", mode="single", demo="final", code="x = 1", cholesky=CHOLESKY))
+        # The final exercise factors with the attendee's my_cholesky!.
+        with self.assertRaisesRegex(ValueError, "my_cholesky!"):
+            c.run(dict(op="eval", mode="single", demo="final", code="x = 1", setup="y = 2"))
 
     def test_final_exercise_visuals_are_whitelisted(self):
         c = console()
         c.send = Mock()
-        c.run(dict(op="eval", mode="single", demo="final", code="x = 1", setup="y = 2",
+        c.run(dict(op="eval", mode="single", demo="final", code="x = 1", setup="y = 2", cholesky=CHOLESKY,
                    visuals=["substrate", "activator"]))
         command = c.send.call_args[0][0]
         self.assertEqual(command["visuals"], ["substrate", "activator"])
         c.busy = False
         with self.assertRaisesRegex(ValueError, "Unknown visualization"):
-            c.run(dict(op="eval", mode="single", demo="final", code="x = 1", setup="y = 2",
+            c.run(dict(op="eval", mode="single", demo="final", code="x = 1", setup="y = 2", cholesky=CHOLESKY,
                        visuals=["bogus"]))
 
     def test_agent_status_and_install_are_whitelisted(self):
@@ -371,7 +377,7 @@ class ConsoleTests(unittest.TestCase):
             self.assertEqual(list(config["modes"]), ["single", "mpi"])
             self.assertEqual(config["final_exercise"]["title"], "Final Exercise")
             self.assertIn("L = ???", config["final_exercise"]["template"])
-            self.assertIn("simulate!(u, v,", config["final_exercise"]["setups"]["cpu/mpi"])
+            self.assertIn("simulate!(U, V,", config["final_exercise"]["setups"]["cpu/mpi"])
             self.assertTrue(config["final_workspace"].endswith("final-exercise"))
         finally:
             server.shutdown()
@@ -856,7 +862,7 @@ class ConsoleTests(unittest.TestCase):
         self.assertEqual(command["label"], "Exercise · All GPUs (8) · One process")
         c.busy = False
         c.run(dict(op="eval", demo="final", target="gpus", mode="single", gpus="2",
-                   code="x = 1", setup="y = 2"))
+                   code="x = 1", setup="y = 2", cholesky=CHOLESKY))
         command = c.send.call_args[0][0]
         self.assertEqual(command["gpus"], 2)
         self.assertEqual(command["label"], "Final Exercise · All GPUs (2) · One process")

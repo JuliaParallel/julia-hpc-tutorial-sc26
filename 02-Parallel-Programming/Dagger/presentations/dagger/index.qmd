@@ -185,7 +185,7 @@ constrained by available processors and scopes. It does not guarantee a speedup.
 ## A task result is also a dependency
 
 ::: {.console-callout}
-<b>Available to run in the console</b> · Tasks & dependencies
+<b>▶ Run it in the console</b> · Tasks & dependencies
 :::
 
 :::: {.columns}
@@ -219,7 +219,7 @@ Ask: which two tasks could overlap? Use the graph rather than terminology.
 ## Run the graph. See the threads. {.demo .task-demo}
 
 ::: {.console-callout}
-<b>Available to run in the console</b> · Tasks & dependencies
+<b>▶ Run it in the console</b> · Tasks & dependencies
 :::
 
 ```julia-repl
@@ -337,7 +337,7 @@ Out is appropriate for copyto!'s destination; not for accumulation.
 ## Predict the dependency
 
 ::: {.console-callout}
-<b>Available to run in the console</b> · Mutable data & tiles
+<b>▶ Run it in the console</b> · Mutable data & tiles
 :::
 
 ```julia
@@ -363,7 +363,7 @@ Demonstrate the correctness assertion in demo 2 after introducing tiles.
 ## Tiles give the scheduler room to work
 
 ::: {.console-callout}
-<b>Available to run in the console</b> · Mutable data & tiles
+<b>▶ Run it in the console</b> · Mutable data & tiles
 :::
 
 :::: {.columns}
@@ -397,7 +397,7 @@ The tile count exposes concurrency; it is not a promise of simultaneous executio
 ## One GPU: keep the algorithm
 
 ::: {.console-callout}
-<b>Available to run in the console</b> · Single GPU
+<b>▶ Run it in the console</b> · Single GPU
 :::
 
 ```julia
@@ -434,7 +434,7 @@ exercise, spawn BLAS/LAPACK calls directly so Dagger can select replacements.
 ## Multiple GPUs: widen the scope
 
 ::: {.console-callout}
-<b>Available to run in the console</b> · Multiple GPUs
+<b>▶ Run it in the console</b> · Multiple GPUs
 :::
 
 ```julia
@@ -500,7 +500,7 @@ No additional attendee or presenter nodes are required.
 ## MPI ranks: the same code
 
 ::: {.console-callout}
-<b>Available to run in the console</b> · Multi-node · CPU MPI
+<b>▶ Run it in the console</b> · Multi-node · CPU MPI
 :::
 
 ```julia
@@ -569,7 +569,7 @@ Attendee MPI exercises and optional four-rank GPU checks keep one attendee node.
 ## Ranks and GPUs: the same code
 
 ::: {.console-callout}
-<b>Available to run in the console</b> · Multi-node + multi-GPU
+<b>▶ Run it in the console</b> · Multi-node + multi-GPU
 :::
 
 ```julia
@@ -603,6 +603,33 @@ same doubling and tiled matmul, now spread over every GPU of every rank's node:
 eight lanes per rank in the timeline. This is the point of the whole sequence: the
 Datadeps code from the CPU demo ran unchanged on one GPU, several GPUs, MPI
 ranks, and ranks with GPUs.
+:::
+
+## Reference solutions, for later
+
+:::: {.columns}
+::: {.column width="58%"}
+::: {.lead}
+Try the exercises first. When you are done, or stuck, both are solved
+with Dagger here: the Function and its Setup and Use, ready to run.
+:::
+
+- <code>solution/my_cholesky.jl</code>: tiled Cholesky with Datadeps
+- <code>solution/final_exercise.jl</code>: Gray-Scott with ADI, Cholesky
+  line solves and DArray panels
+
+::: {.qr-link}
+[github.com/JuliaParallel/julia-hpc-tutorial-sc26 · Dagger/solution](https://github.com/JuliaParallel/julia-hpc-tutorial-sc26/tree/main/02-Parallel-Programming/Dagger/solution)
+:::
+:::
+::: {.column width="38%"}
+![](assets/qr-solutions.svg){.qr fig-alt="QR code for the reference solutions folder on GitHub."}
+:::
+::::
+
+::: {.notes}
+Show this before the exercises so people can photograph it; the same QR code
+closes the deck. Each file runs on its own with julia --project -t 4.
 :::
 
 ## Your algorithm: tiled Cholesky
@@ -866,18 +893,22 @@ show. The next slide is the algorithm.
 :::: {.columns}
 ::: {.column width="60%" .compact-code}
 ```julia
-L      = periodic 1D Laplacian                  # once
-Cu, Cv = cholesky(I - dt/2·Du·L).L, … Dv …      # once
-for step in 1:nsteps, half in 1:2
-    Dagger.spawn_datadeps() do
-        for q in 1:panels        # a block of n ÷ panels columns
-            # rhs = u + dt/2·(Du·(left − 2u + right) − u·v² + F·(1 − u))
-            # then solve every column with Cu: two triangular solves
-            Dagger.@spawn substrate_panel!(InOut(new_u[q]), In(u), In(v), In(Cu), …)
-            Dagger.@spawn activator_panel!(InOut(new_v[q]), In(u), In(v), In(Cv), …)
-        end
+Cu = lower_factor(I - dt/2·Du·L)   # your my_cholesky!
+Cv = lower_factor(I - dt/2·Dv·L)   # once each
+# u, v: DArrays of `panels` blocks of columns
+for step in 1:nsteps
+  Dagger.spawn_datadeps() do
+    for half in 1:2
+      for q in 1:panels   # solve panel q's lines
+        @spawn half_step_panel!(InOut(su[q]), InOut(sv[q]),
+                     In(u[q-1:q+1]), In(v[q-1:q+1]), …)
+      end
+      for j in 1:panels   # store it transposed
+        @spawn transpose_panel!(InOut(u[j]), InOut(v[j]),
+                     In(every su, sv panel)…)
+      end
     end
-    u[cols[q], :] .= transpose(new_u[q])   # for every q; v likewise
+  end
 end
 ```
 :::
@@ -887,17 +918,17 @@ end
 :::
 
 ::: {.small}
-ADI splitting: each half step treats one direction implicitly and the other explicitly. <code>A = I − (dt/2) D L</code> is SPD and constant, so it is factored once.
+ADI: each half step is implicit in one direction and explicit in the other. <code>A = I − (dt/2) D L</code> is SPD and constant: factor it once, with **your <code>my_cholesky!</code>**.
 :::
 
 ::: {.small}
-The line solves of a half step are independent: one task per **panel** of lines and field, not per line. Storing the result transposed makes the next half step solve the other direction with the same code.
+The line solves are independent: one task per **panel** of columns. u and v are **DArrays**, so the panels spread over threads, GPUs and MPI ranks, and each task runs where its panel lives. The transpose lets the next half step reuse the same code.
 :::
 :::
 ::::
 
 ::: {.takeaway}
-Cholesky factors the implicit operators once; Dagger runs the panels of line solves in parallel.
+Your Cholesky factors the operators once; DArray panels spread the line solves over every processor.
 :::
 
 ::: {.notes}
@@ -907,9 +938,13 @@ n small n × n systems per direction, all with the same matrix. That matrix is
 SPD and constant, so one Cholesky factorization per field serves every solve of
 every step. Within a half step the column solves do not depend on each other,
 which is where the parallelism is. Group them: on the 512 x 512 grid, one task
-per column would be 512 tiny tasks per field per half step, and scheduling would
-cost more than the solves. Setup and Use sets `panels` per target: 8 for the CPU
-threads of one process, 2 for one GPU, one per GPU for All GPUs.
+per column would be 512 tiny tasks per half step, and scheduling would cost more
+than the solves. Setup and Use sets `panels` per target: 8 for the CPU threads of
+one process, 2 for one GPU, one per GPU for All GPUs, one per rank under MPI.
+The factors come from the attendee's own my_cholesky!: lower_factor tiles A,
+runs it, and gathers the lower triangle, exactly as the Cholesky exercise did.
+Under MPI the DArray panels live on different ranks; Datadeps runs each task on
+the rank holding the panel it writes, and the transpose is the all-to-all.
 :::
 
 ## One time step on the grid
@@ -926,7 +961,7 @@ part; then each column is a 1D implicit system along x, solved with Fu (and Fv
 for v). Right: the second half step swaps the roles, L·u along x explicitly and
 row solves along y. The solution does both with the same column code, by storing
 each result transposed. The panels of a half step can run at once, on threads
-or GPUs; the next half step needs all of them, because a row crosses every
+GPUs or MPI ranks; the next half step needs all of them, because a row crosses every
 column.
 :::
 
@@ -935,16 +970,17 @@ column.
 | Piece | In the template | Why |
 |-----------|-----------------------|------------------------------|
 | <code>L</code> | periodic 1D Laplacian: <code>-2</code> on the diagonal, <code>1</code> beside it, wrapping at the corners | <code>u * L</code> is the second difference along y, <code>L * u</code> along x. |
-| <code>Cu</code>, <code>Cv</code> | <code>Matrix(cholesky(Symmetric(I - (dt/2) * D * L)).L)</code> | SPD and constant: factor once, reuse in every solve of every step. |
-| Panel functions | right-hand side of the panel's columns, then <code>solve_lines!(out, C)</code> | One task's work: enough lines to outweigh its scheduling cost. |
-| Half step | <code>spawn_datadeps</code>, one <code>@spawn</code> per panel and field, <code>In</code>/<code>InOut</code> | The panels are independent, so Dagger runs them at once. |
-| Transpose | <code>u[cols[q], :] .= transpose(new_u[q])</code> | The next half step solves the other direction with the same code. |
-| Setup and Use | parameters, <code>panels</code>, fields, <code>simulate!</code> inside <code>Dagger.with_options(scope = …)</code> | Target and Processes choose where the tasks run; the function stays the same. |
+| <code>Cu</code>, <code>Cv</code> | <code>lower_factor(I - (dt/2) * D * L, 128)</code>: your <code>my_cholesky!</code> on a tiled DArray | SPD and constant: factor once with the Cholesky you wrote. |
+| <code>half_step_panel!</code> | right-hand side across the columns, then <code>solve_lines!</code> | One task's work: a whole panel of lines. |
+| Half step | one <code>@spawn</code> per panel: <code>InOut</code> its <code>su</code>, <code>sv</code> panels, <code>In</code> its neighbours | Independent panels run at once, each where its panel lives. |
+| Transpose | one <code>transpose_panel!</code> per panel, reading every solved panel | The next half step solves the other direction; across ranks this is the all-to-all. |
+| Setup and Use | <code>panels</code>; u, v as DArrays (<code>zeros(Blocks(…))</code>, <code>copyto!</code>); <code>simulate!</code> in <code>with_options(scope = …)</code> | The panels spread over threads, GPUs and ranks; the function stays the same. |
 
 ::: {.notes}
-Walk the template from the top. Attendees fill in L, the two factors, the two
-panel functions and the half step; the panel ranges and output arrays are
-given. Setup and Use already sets the parameters, the panels and the seeded
+Walk the template from the top. Attendees fill in lower_factor (their
+my_cholesky!, which the console runs first), L, the two factors, the panel
+function and the two task loops; the panel ranges, neighbours and transpose
+are given. Setup and Use already sets the parameters, the panels and the seeded
 fields, calls simulate! where the scope says, and checks that both fields stay
 finite. The Visualization panel then draws u and v and replays the run. Keep
 the `for step in 1:nsteps` loop and the names u and v: the console samples them
@@ -978,7 +1014,7 @@ ready to run.
 - <code>solution/my_cholesky.jl</code>: tiled Cholesky with Datadeps, the same
   code on CPU threads, GPUs and MPI ranks
 - <code>solution/final_exercise.jl</code>: Gray-Scott with ADI, Cholesky line
-  solves and one task per panel
+  solves with your my_cholesky!, and DArray panels
 
 ::: {.qr-link}
 [github.com/JuliaParallel/julia-hpc-tutorial-sc26 · Dagger/solution](https://github.com/JuliaParallel/julia-hpc-tutorial-sc26/tree/main/02-Parallel-Programming/Dagger/solution)

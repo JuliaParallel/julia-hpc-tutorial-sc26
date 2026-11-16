@@ -712,6 +712,8 @@ function createFinalExercisePanel() {
       op: "eval", mode: panel.mode.value, ranks: panel.ranks.value, gpus: panel.gpus.value,
       target: panel.target.value, demo: "final",
       code: panel.code.value, setup: panel.setup.value, visuals,
+      // The final exercise factors with your my_cholesky! from the Cholesky exercise.
+      cholesky: exerciseCode ?? config.exercise_template ?? "",
     });
   };
   panel.clear.onclick = () => panel.output.replaceChildren();

@@ -147,6 +147,15 @@ while true
             demo = haskey(command, :demo) && command.demo !== nothing ? String(command.demo) : nothing
             # The final exercise runs its Simulation, then its Setup and Use.
             demo == "final" && (code *= "\n\n" * String(command.setup))
+            if demo == "final" && haskey(command, :cholesky)
+                # The final exercise factors its operators with the attendee's
+                # my_cholesky! from the Cholesky exercise: define it first.
+                try
+                    Base.include_string(WORKSPACE, String(command.cholesky), "my_cholesky! (Cholesky exercise)")
+                catch err
+                    error("your my_cholesky! from the Cholesky exercise did not load: ", sprint(showerror, err))
+                end
+            end
             expr = Meta.parseall(code)
             if demo == "final"
                 Core.eval(WORKSPACE, :(__sc26_frames = Any[]; __sc26_tick = 0;

@@ -70,8 +70,8 @@ $presentation-slide-text-align: left;
 .reveal .qr { display: block; width: 100%; max-width: 360px; margin: 10px auto 0; border-radius: 14px; }
 .reveal .qr-link { font-size: .78em; margin-top: 18px; }
 .reveal .qr-link a { color: var(--mint); }
-.reveal .console-callout { position: absolute; top: -2px; right: 0; z-index: 5; padding: 6px 14px;
-  border: 1px solid #4d806d; border-radius: 100px; background: #17232d; font-size: .5em; color: var(--muted); }
+.reveal .console-callout { position: absolute; bottom: 60px; right: 0; z-index: 5; padding: 3px 18px;
+  border: 2px solid var(--mint); border-radius: 100px; background: #17232d; font-size: .72em; color: #d3dfe6; }
 .reveal .console-callout p { margin: 0; }
 .reveal .install-command pre { font-size: .6em; }
 .reveal .install-command pre.sourceCode { padding: 16px 18px; }

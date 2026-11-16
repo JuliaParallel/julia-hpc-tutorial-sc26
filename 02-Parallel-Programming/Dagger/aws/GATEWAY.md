@@ -37,6 +37,10 @@ open. A notice offers **Update and restart** when newer merged code exists;
 **Check for updates** runs a check immediately. Disconnect and close any agent
 terminals before updating. The server restarts on the same port with your
 options, and the page reloads. Reconnect using the workshop password.
+After restarting, the banner reports how many commits were pulled. Success
+and “Up to date with main” notices disappear after 30 seconds. If GitHub's
+comparison service is unavailable for an archive update, the notice reports
+that the count is unavailable; the source update still completes.
 
 Git checkouts use a fast-forward pull and require tracked files to be clean.
 Without Git, the console downloads public source archives using Python and

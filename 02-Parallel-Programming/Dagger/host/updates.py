@@ -117,10 +117,25 @@ class Updater:
         self.lock = threading.RLock()
         self.last_check = float("-inf")
         self.details = dict(status="unchecked", available=False, message="")
+        try:
+            self.last_update = json.loads(os.environ.pop("SC26_CONSOLE_UPDATE_RESULT", "null"))
+        except ValueError:
+            self.last_update = None
 
     def status(self):
         with self.lock:
-            return dict(self.details)
+            return dict(self.details, last_update=self.last_update)
+
+    def _archive_commit_count(self, installed, latest):
+        url = ("https://api.github.com/repos/JuliaParallel/julia-hpc-tutorial-sc26/compare/"
+               + installed + "..." + latest)
+        try:
+            request = urllib.request.Request(url, headers={"User-Agent": "SC26-console"})
+            with urllib.request.urlopen(request, timeout=20) as response:
+                count = json.load(response)["total_commits"]
+            return count if isinstance(count, int) and count >= 0 else None
+        except (OSError, ValueError, KeyError):
+            return None  # A rate-limited count must not prevent a source update.
 
     def _git(self, *args):
         result = subprocess.run(["git", "-C", str(self.root), *args], capture_output=True,
@@ -300,9 +315,14 @@ class Updater:
                 # Fetch only the canonical main, then use Git's fast-forward and
                 # untracked-file protections. Never stash, reset or force.
                 self._git("pull", "--ff-only", "--no-rebase", UPSTREAM, "main")
+                revision = self._git("rev-parse", "HEAD")
+                count = int(self._git("rev-list", "--count", installed + ".." + revision))
             else:
+                revision = info["latest"]
+                count = self._archive_commit_count(installed, revision)
                 self._apply_archive(installed, info["latest"])
             with self.lock:
+                self.last_update = dict(commits=count, revision=revision, id=str(time.time_ns()))
                 self.details.update(status="restarting", available=False,
                                     message="Updated. Restarting the console…")
         except (OSError, ValueError, subprocess.SubprocessError, zipfile.BadZipFile) as exc:

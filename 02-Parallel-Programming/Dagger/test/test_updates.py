@@ -1,5 +1,6 @@
 """Exercise update safety with real local Git repos and synthetic source ZIPs."""
 import io
+import json
 import os
 from pathlib import Path
 import shutil
@@ -57,6 +58,7 @@ class ArchiveTests(unittest.TestCase):
         self.updater._download = Mock(side_effect=lambda revision:
             (b"", revision, self.before if revision == OLD else self.after))
         self.updater._archive_latest = Mock(return_value=(NEW, self.after))
+        self.updater._archive_commit_count = Mock(return_value=3)
 
     def test_no_git_check_apply_preserves_exercises_credentials_and_executable(self):
         (self.root / "exercise.jl").write_text("my solution\n")
@@ -74,6 +76,7 @@ class ArchiveTests(unittest.TestCase):
         self.assertTrue((self.root / "console").stat().st_mode & stat.S_IXUSR)
         self.assertEqual(self.updater.installed(), (NEW, False))
         self.assertEqual(self.updater.status()["status"], "restarting")
+        self.assertEqual(self.updater.status()["last_update"]["commits"], 3)
 
     def test_conflict_makes_no_changes(self):
         (self.root / "host/app.py").write_text("custom app\n")
@@ -173,6 +176,12 @@ class ArchiveTests(unittest.TestCase):
         with patch.object(updates.time, "monotonic", return_value=0):
             self.assertTrue(self.updater.check()["available"])
 
+    def test_archive_commit_count_and_unavailable_comparison(self):
+        with patch.object(updates.urllib.request, "urlopen", return_value=io.StringIO('{"total_commits": 7}')):
+            self.assertEqual(updates.Updater._archive_commit_count(self.updater, OLD, NEW), 7)
+        with patch.object(updates.urllib.request, "urlopen", side_effect=OSError("rate limited")):
+            self.assertIsNone(updates.Updater._archive_commit_count(self.updater, OLD, NEW))
+
     def test_archive_checks_reuse_download_when_etag_matches(self):
         updater = updates.Updater(self.root)
         payload = archive(self.after)
@@ -222,6 +231,12 @@ class GitTests(unittest.TestCase):
         self.updater.apply()
         self.assertEqual(self.git(self.repo, "rev-parse", "HEAD"), self.new)
         self.assertEqual((self.repo / "file").read_text(), "new")
+        receipt = self.updater.status()["last_update"]
+        self.assertEqual(receipt["commits"], 1)
+        with patch.dict(os.environ, SC26_CONSOLE_UPDATE_RESULT=json.dumps(receipt)):
+            restarted = updates.Updater(self.repo)
+            self.assertEqual(restarted.status()["last_update"], receipt)
+            self.assertNotIn("SC26_CONSOLE_UPDATE_RESULT", os.environ)
 
     def test_git_dirty_checkout_rejected(self):
         (self.repo / "file").write_text("solution")

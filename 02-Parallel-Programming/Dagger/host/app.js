@@ -2,6 +2,36 @@
 const $ = id => document.getElementById(id);
 let config, state = {}, cursor = 0, selectedDemo = null;
 let updateInfo = {}, awaitingRestart = false, showUpdateStatus = false;
+let updateDismissTimer = null, updateSuccess = "", seenUpdateReceipt = null;
+function acceptUpdateInfo(info) {
+  updateInfo = info;
+  const receipt = info.last_update;
+  if (receipt && receipt.id !== seenUpdateReceipt) {
+    seenUpdateReceipt = receipt.id;
+    let seen = false;
+    try {
+      seen = sessionStorage.getItem("sc26-update-receipt") === receipt.id;
+      sessionStorage.setItem("sc26-update-receipt", receipt.id);
+    } catch (error) {}
+    if (!seen) {
+      updateSuccess = Number.isInteger(receipt.commits)
+        ? `Updated from main: pulled ${receipt.commits} commit${receipt.commits === 1 ? "" : "s"}.`
+        : "Updated from main. Commit count unavailable.";
+      showUpdateStatus = true;
+    }
+  }
+  if (info.status === "current" && showUpdateStatus) {
+    if (updateDismissTimer === null) updateDismissTimer = setTimeout(() => {
+      showUpdateStatus = false;
+      updateSuccess = "";
+      updateDismissTimer = null;
+      updateControls();
+    }, 30000);
+  } else {
+    clearTimeout(updateDismissTimer);
+    updateDismissTimer = null;
+  }
+}
 const panes = new Map();          // demo id -> console pane
 const sectionPages = new Map();   // section id -> {el} shown in the main area
 const paneSections = new Map();   // demo id -> section id
@@ -1127,6 +1157,7 @@ function updateControls() {
   const active = ["updating", "restarting"].includes(updateInfo.status) || awaitingRestart;
   $("update-notice").hidden = !(updateInfo.available || active || showUpdateStatus);
   let message = updateInfo.message || "Checking main for updates…";
+  if (updateSuccess && updateInfo.status === "current") message = updateSuccess;
   if (updateInfo.available && (state.connected || state.connecting)) message += " Disconnect to update.";
   $("update-message").textContent = message;
   $("apply-update").hidden = updateInfo.status !== "available";
@@ -1141,7 +1172,7 @@ async function pollUpdates() {
     }
     const response = await fetch("/api/updates");
     if (!response.ok) throw new Error("Update check unavailable");
-    updateInfo = await response.json();
+    acceptUpdateInfo(await response.json());
     if (updateInfo.status === "error") {
       awaitingRestart = false;
       showUpdateStatus = true;
@@ -1399,7 +1430,8 @@ async function init() {
     showUpdateStatus = true;
     try {
       await postJson("/api/updates/check", {});
-      updateInfo = {status: "checking", message: "Checking main for updates…"};
+      updateSuccess = "";
+      acceptUpdateInfo({status: "checking", message: "Checking main for updates…"});
     } catch (error) { updateInfo = {status: "error", message: error.message}; }
     updateControls();
   };

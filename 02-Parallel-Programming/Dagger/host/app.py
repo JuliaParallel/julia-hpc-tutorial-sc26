@@ -1758,6 +1758,7 @@ def main():
         if own_socket:
             close_master(args)
     if restart_requested.is_set():
+        os.environ["SC26_CONSOLE_UPDATE_RESULT"] = json.dumps(console.updater.status().get("last_update"))
         # Keep relative CLI paths meaningful by preserving the caller's cwd.
         # Pin the chosen port so the existing browser can reconnect to it.
         restart_args = [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:],

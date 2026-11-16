@@ -115,7 +115,7 @@ class Updater:
         self.cache = self.root / "dev/console-updates"
         self.marker = self.root / ".console-update.json"
         self.lock = threading.RLock()
-        self.last_check = 0
+        self.last_check = float("-inf")
         self.details = dict(status="unchecked", available=False, message="")
 
     def status(self):

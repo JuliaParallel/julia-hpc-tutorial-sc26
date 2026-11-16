@@ -169,6 +169,10 @@ class ArchiveTests(unittest.TestCase):
         self.updater.check(force=True)
         self.assertEqual(self.updater._archive_latest.call_count, 2)
 
+    def test_first_check_runs_immediately_on_a_freshly_booted_system(self):
+        with patch.object(updates.time, "monotonic", return_value=0):
+            self.assertTrue(self.updater.check()["available"])
+
     def test_archive_checks_reuse_download_when_etag_matches(self):
         updater = updates.Updater(self.root)
         payload = archive(self.after)

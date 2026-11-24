@@ -14,7 +14,7 @@ elseif gpu_model == "Metal"
 end
 
 # Pkg.develop(path="../../../../KernelTuner.jl")
-Pkg.add(["KernelTuner"])
+Pkg.add(name="KernelTuner", version="1.2")
 
 function is_system_dark_mode()
     if Sys.isapple()

@@ -3,7 +3,7 @@
 ## Solution
 
 ```julia
-results_combined, env_combined = with_live_tuning_plot(cachefile_energy; plotter=plot_live_time_energy, energy_key=energy_key) do
+results_combined, env_combined = with_live_tuning_plot(cachefile_energy; plotter=plot_time_energy, energy_key=energy_key) do
     KernelTuner.tune_kernel(
         "gs_gpu_kernel_tiled!",
         get_cell_by_tag("gs_gpu_kernel_tiled"),

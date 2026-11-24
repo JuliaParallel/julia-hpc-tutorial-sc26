@@ -18,7 +18,7 @@ Steps for the parallel-programming notebooks with GPU setup: there are two optio
    julia --project=. open_notebook.jl
    ```
 
-4. In Jupyter, pick kernel **GPU Julia** and open a notebook. In each notebook, set `DEV` in the **second cell** (`:CUDA` (NVIDIA), `:AMDGPU`, `:Metal`, or `:CPU`) before running `Pkg.add`, to match your hardware.
+4. In Jupyter, pick kernel **GPU Julia** and open a notebook. The notebook detects your GPU and installs the matching backend package (CUDA, AMDGPU, Metal or oneAPI) by itself. A supported GPU is required.
 
 
 
@@ -66,7 +66,7 @@ cat job.<job-id>.out
 
 4. Finally, follow the instructions in the job file and open the jupyter terminal from your terminal:
 
-5. In Jupyter, pick kernel **GPU Julia** and open a notebook. In each notebook, set `DEV` in the **second cell** (`:CUDA` (NVIDIA), `:AMDGPU`, `:Metal`, or `:CPU`) before running `Pkg.add`, to match your hardware.
+5. In Jupyter, pick kernel **GPU Julia** and open a notebook. The notebook detects your GPU and installs the matching backend package (CUDA, AMDGPU, Metal or oneAPI) by itself. A supported GPU is required.
 
 6. When you are done, do not forget to clean up!
 

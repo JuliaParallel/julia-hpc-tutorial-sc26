@@ -2,15 +2,15 @@
 
 using Pkg
 Pkg.activate(joinpath(@__DIR__))
-Pkg.add(["BenchmarkTools", "ProgressMeter", "Plots", "ColorTypes", "KernelAbstractions", "PythonCall", "JSON"])
+Pkg.add(["BenchmarkTools", "ProgressMeter", "Plots", "ColorTypes", "KernelAbstractions", "PythonCall", "JSON", "GPUSelect"])
 
-gpu_model = String(DEV)
-if gpu_model == "NVIDIA"
-    Pkg.add(["CUDA"])
-elseif gpu_model == "AMD"
-    Pkg.add(["AMDGPU"])
-elseif gpu_model == "Metal"
-    Pkg.add(["Metal"])
+# Detect the GPU and install the matching backend package (CUDA, AMDGPU, Metal or oneAPI) once
+using GPUSelect
+if !any(in(("CUDA", "AMDGPU", "Metal", "oneAPI")), GPUSelect.installed_backends())
+    GPUSelect.find_gpu_pkgid() === nothing && error(
+        "No supported GPU detected: this tutorial needs an NVIDIA, AMD, Apple Silicon or Intel GPU. " *
+        "On a cluster, make sure this notebook runs on a GPU compute node.")
+    GPUSelect.auto_install!()
 end
 
 # Pkg.develop(path="../../../../KernelTuner.jl")

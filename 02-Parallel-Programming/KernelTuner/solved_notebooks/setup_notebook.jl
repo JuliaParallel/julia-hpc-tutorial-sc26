@@ -13,8 +13,8 @@ if !any(in(("CUDA", "AMDGPU", "Metal", "oneAPI")), GPUSelect.installed_backends(
     GPUSelect.auto_install!()
 end
 
-Pkg.develop(path="../../../../KernelTuner.jl")
-# Pkg.add(name="KernelTuner", version="1.2")
+# Pkg.develop(path="../../../../KernelTuner.jl")
+Pkg.add(name="KernelTuner", version="1.2")
 
 function is_system_dark_mode()
     if Sys.isapple()

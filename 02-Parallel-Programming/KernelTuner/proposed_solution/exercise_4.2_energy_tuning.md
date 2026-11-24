@@ -11,7 +11,6 @@ results_energy, _ = KernelTuner.tune_kernel(
     tune_params_small,
     restrictions=restrictions,
     grid_div_x=("block_size_x", "Q"), grid_div_y=("block_size_y", "P"),
-    lang="Julia",
     observers=[energy_observer],
     objective=energy_key,
     objective_higher_is_better=false,

@@ -12,7 +12,6 @@ results_wg_ti, env_wg_ti = with_live_tuning_plot(cachefile) do
         tune_params,
         restrictions=restrictions,
         grid_div_x=("block_size_x", "Q"), grid_div_y=("block_size_y", "P"),
-        lang="Julia",
         verbose=true,
         cache=cachefile,
         strategy=strategy,

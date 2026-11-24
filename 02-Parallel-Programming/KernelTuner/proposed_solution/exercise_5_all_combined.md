@@ -12,7 +12,6 @@ results_combined, env_combined = with_live_tuning_plot(cachefile_energy; plotter
         tune_params,                    # the large search space of Section 3.3
         restrictions=restrictions,
         grid_div_x=("block_size_x", "Q"), grid_div_y=("block_size_y", "P"),
-        lang="Julia",
         verbose=true,
         observers=[energy_observer],        # measure energy (Section 4.2)
         objective=energy_key,               # and optimize for it

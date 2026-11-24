@@ -17,7 +17,6 @@ results_ti, env_ti = KernelTuner.tune_kernel(
     arguments,
     tune_params,
     grid_div_x=("block_size_x", "Q"), grid_div_y=("block_size_y", "P"),
-    lang="Julia",
     verbose=true
 )
 ```

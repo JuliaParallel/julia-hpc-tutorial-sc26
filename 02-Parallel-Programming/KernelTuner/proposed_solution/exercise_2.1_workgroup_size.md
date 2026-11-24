@@ -14,7 +14,6 @@ results_wg, env_wg = KernelTuner.tune_kernel(
     (n, n),
     arguments,
     tune_params,
-    lang="Julia",
     verbose=true,
 )
 
